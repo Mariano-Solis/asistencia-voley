@@ -62,27 +62,13 @@ function Login({
   onAdminLogin,
   onPlayerLogin,
 }) {
-  const [mode, setMode] =
-    useState('player')
-
-  const [name, setName] =
-    useState('')
-
-  const [code, setCode] =
-    useState('')
-
-  const [email, setEmail] =
-    useState('')
-
-  const [password, setPassword] =
-    useState('')
-
-  const [message, setMessage] =
-    useState('')
-
-  const [loading, setLoading] =
-    useState(false)
-
+  const [mode, setMode] = useState('player')
+  const [name, setName] = useState('')
+  const [code, setCode] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -91,13 +77,7 @@ function Login({
     setMessage('')
 
     try {
-
-      /* ---------------------------------------------
-         LOGIN JUGADORA
-      --------------------------------------------- */
-
       if (mode === 'player') {
-
         const {
           data,
           error,
@@ -116,7 +96,7 @@ function Login({
         if (!data?.ok) {
           throw new Error(
             data?.message ||
-            'Nombre o código incorrectos.'
+              'Nombre o código incorrectos.'
           )
         }
 
@@ -130,11 +110,6 @@ function Login({
 
         return
       }
-
-
-      /* ---------------------------------------------
-         LOGIN ADMIN
-      --------------------------------------------- */
 
       const {
         data,
@@ -152,23 +127,17 @@ function Login({
       onAdminLogin(data.session)
 
     } catch (error) {
-
       setMessage(
         error.message ||
-        'Ocurrió un error.'
+          'Ocurrió un error.'
       )
-
     } finally {
-
       setLoading(false)
-
     }
   }
 
-
   return (
     <main className="auth">
-
       <section className="auth-card">
 
         <div className="ball">
@@ -185,23 +154,16 @@ function Login({
             : 'Acceso del administrador.'}
         </p>
 
-
-        <form
-          onSubmit={handleSubmit}
-        >
+        <form onSubmit={handleSubmit}>
 
           {mode === 'player' ? (
-
             <>
-
               <input
                 required
                 placeholder="Nombre y apellido"
                 value={name}
                 onChange={(event) =>
-                  setName(
-                    event.target.value
-                  )
+                  setName(event.target.value)
                 }
               />
 
@@ -211,35 +173,26 @@ function Login({
                 value={code}
                 onChange={(event) =>
                   setCode(
-                    event.target.value
-                      .toUpperCase()
+                    event.target.value.toUpperCase()
                   )
                 }
               />
 
-              <button
-                disabled={loading}
-              >
+              <button disabled={loading}>
                 {loading
                   ? 'Ingresando...'
                   : 'Ingresar'}
               </button>
-
             </>
-
           ) : (
-
             <>
-
               <input
                 required
                 type="email"
                 placeholder="Correo del administrador"
                 value={email}
                 onChange={(event) =>
-                  setEmail(
-                    event.target.value
-                  )
+                  setEmail(event.target.value)
                 }
               />
 
@@ -249,26 +202,19 @@ function Login({
                 placeholder="Contraseña"
                 value={password}
                 onChange={(event) =>
-                  setPassword(
-                    event.target.value
-                  )
+                  setPassword(event.target.value)
                 }
               />
 
-              <button
-                disabled={loading}
-              >
+              <button disabled={loading}>
                 {loading
                   ? 'Ingresando...'
                   : 'Ingresar como administrador'}
               </button>
-
             </>
-
           )}
 
         </form>
-
 
         {message && (
           <div className="message">
@@ -276,11 +222,9 @@ function Login({
           </div>
         )}
 
-
         <button
           className="link-btn"
           onClick={() => {
-
             setMode(
               mode === 'player'
                 ? 'admin'
@@ -288,7 +232,6 @@ function Login({
             )
 
             setMessage('')
-
           }}
         >
           {mode === 'player'
@@ -297,7 +240,6 @@ function Login({
         </button>
 
       </section>
-
     </main>
   )
 }
@@ -311,15 +253,11 @@ function StatusButton({
   value,
   onChange,
 }) {
-
   return (
     <div className="status-picker">
 
-      {Object.entries(
-        STATUS
-      ).map(
+      {Object.entries(STATUS).map(
         ([key, item]) => (
-
           <button
             key={key}
             type="button"
@@ -332,7 +270,6 @@ function StatusButton({
               onChange(key)
             }
           >
-
             <span>
               {item.icon}
             </span>
@@ -340,9 +277,7 @@ function StatusButton({
             <small>
               {item.label}
             </small>
-
           </button>
-
         )
       )}
 
@@ -359,7 +294,6 @@ function ActivityPicker({
   value,
   onChange,
 }) {
-
   return (
     <div className="activity-picker">
 
@@ -367,7 +301,6 @@ function ActivityPicker({
         ACTIVITY_TYPES
       ).map(
         ([key, item]) => (
-
           <button
             key={key}
             type="button"
@@ -380,13 +313,9 @@ function ActivityPicker({
               onChange(key)
             }
           >
-
             {item.icon}{' '}
-
             {item.label}
-
           </button>
-
         )
       )}
 
@@ -404,7 +333,6 @@ function AdminHome({
   players,
   categories,
 }) {
-
   const [date, setDate] =
     useState(today())
 
@@ -425,13 +353,7 @@ function AdminHome({
   const [message, setMessage] =
     useState('')
 
-
-  /* ---------------------------------------------
-     Mantener categoría válida
-  --------------------------------------------- */
-
   useEffect(() => {
-
     if (
       categories.length > 0 &&
       !categories.some(
@@ -439,22 +361,14 @@ function AdminHome({
           category.id === categoryId
       )
     ) {
-
       setCategoryId(
         categories[0].id
       )
-
     }
-
   }, [
     categories,
     categoryId,
   ])
-
-
-  /* ---------------------------------------------
-     Jugadoras de la categoría
-  --------------------------------------------- */
 
   const categoryPlayers =
     useMemo(
@@ -470,15 +384,8 @@ function AdminHome({
       ]
     )
 
-
-  /* ---------------------------------------------
-     Cargar asistencia
-  --------------------------------------------- */
-
   useEffect(() => {
-
     async function loadAttendance() {
-
       if (
         !date ||
         !categoryId ||
@@ -488,9 +395,7 @@ function AdminHome({
         return
       }
 
-
       setMessage('')
-
 
       const {
         data: session,
@@ -515,26 +420,19 @@ function AdminHome({
           )
           .maybeSingle()
 
-
       if (sessionError) {
-
         setMessage(
           sessionError.message
         )
 
         setAttendance({})
-
         return
       }
-
 
       if (!session) {
-
         setAttendance({})
-
         return
       }
-
 
       const {
         data,
@@ -550,16 +448,13 @@ function AdminHome({
             session.id
           )
 
-
       if (error) {
-
         setMessage(
           error.message
         )
 
         return
       }
-
 
       setAttendance(
         Object.fromEntries(
@@ -571,55 +466,34 @@ function AdminHome({
           )
         )
       )
-
     }
 
-
     loadAttendance()
-
   }, [
     date,
     categoryId,
     activityType,
   ])
 
-
-  /* ---------------------------------------------
-     Guardar asistencia
-  --------------------------------------------- */
-
   async function saveAttendance() {
-
     if (!categoryId) {
-
       setMessage(
         'Seleccioná una categoría.'
       )
-
       return
     }
 
-
     if (!activityType) {
-
       setMessage(
         'Seleccioná una actividad.'
       )
-
       return
     }
-
 
     setLoading(true)
     setMessage('')
 
-
     try {
-
-      /* -----------------------------------------
-         Buscar sesión exacta
-      ----------------------------------------- */
-
       let {
         data: session,
         error,
@@ -643,18 +517,11 @@ function AdminHome({
           )
           .maybeSingle()
 
-
       if (error) {
         throw error
       }
 
-
-      /* -----------------------------------------
-         Crear sesión
-      ----------------------------------------- */
-
       if (!session) {
-
         const result =
           await supabase
             .from(
@@ -672,37 +539,25 @@ function AdminHome({
             .select()
             .single()
 
-
         if (result.error) {
           throw result.error
         }
 
-
-        session =
-          result.data
+        session = result.data
       }
-
-
-      /* -----------------------------------------
-         Preparar asistencia
-      ----------------------------------------- */
 
       const rows =
         categoryPlayers
           .filter(
             (player) =>
-              attendance[
-                player.id
-              ]
+              attendance[player.id]
           )
           .map(
             (player) => ({
               session_id:
                 session.id,
-
               player_id:
                 player.id,
-
               status:
                 attendance[
                   player.id
@@ -710,20 +565,10 @@ function AdminHome({
             })
           )
 
-
-      /* -----------------------------------------
-         Guardar
-      ----------------------------------------- */
-
-      if (
-        rows.length > 0
-      ) {
-
+      if (rows.length > 0) {
         const result =
           await supabase
-            .from(
-              'attendance'
-            )
+            .from('attendance')
             .upsert(
               rows,
               {
@@ -732,44 +577,29 @@ function AdminHome({
               }
             )
 
-
         if (result.error) {
           throw result.error
         }
-
       }
-
 
       setMessage(
         '✓ Asistencia guardada correctamente.'
       )
 
     } catch (error) {
-
       setMessage(
         error.message
       )
-
     } finally {
-
       setLoading(false)
-
     }
-
   }
-
-
-  /* ---------------------------------------------
-     Categoría actual
-  --------------------------------------------- */
 
   const currentCategory =
     categories.find(
       (category) =>
-        category.id ===
-        categoryId
+        category.id === categoryId
     )
-
 
   return (
     <section>
@@ -777,7 +607,6 @@ function AdminHome({
       <div className="page-head">
 
         <div>
-
           <h2>
             Tomar asistencia
           </h2>
@@ -785,26 +614,17 @@ function AdminHome({
           <p>
             Seleccioná categoría y actividad.
           </p>
-
         </div>
-
 
         <input
           type="date"
           value={date}
           onChange={(event) =>
-            setDate(
-              event.target.value
-            )
+            setDate(event.target.value)
           }
         />
 
       </div>
-
-
-      {/* -----------------------------------------
-          FILTROS
-      ----------------------------------------- */}
 
       <div className="filter-box">
 
@@ -820,22 +640,17 @@ function AdminHome({
             )
           }
         >
-
           {categories.map(
             (category) => (
-
               <option
                 key={category.id}
                 value={category.id}
               >
                 {category.name}
               </option>
-
             )
           )}
-
         </select>
-
 
         <label>
           Actividad
@@ -843,67 +658,43 @@ function AdminHome({
 
         <ActivityPicker
           value={activityType}
-          onChange={(
-            value
-          ) =>
-            setActivityType(
-              value
-            )
+          onChange={(value) =>
+            setActivityType(value)
           }
         />
 
       </div>
 
-
-      {/* -----------------------------------------
-          JUGADORAS
-      ----------------------------------------- */}
-
       {categoryPlayers.length === 0 ? (
-
         <div className="empty">
-
           No hay jugadoras en{' '}
-
           <b>
             {currentCategory?.name ||
               'esta categoría'}
           </b>.
-
           <br />
-
           Agregalas desde
           <b> Jugadoras</b>.
-
         </div>
-
       ) : (
-
         <div className="attendance-list">
 
           {categoryPlayers.map(
             (player) => (
-
               <div
                 className="player-row"
                 key={player.id}
               >
 
                 <div className="avatar">
-
                   {player.full_name
                     .charAt(0)
                     .toUpperCase()}
-
                 </div>
-
 
                 <div className="player-name">
-
                   {player.full_name}
-
                 </div>
-
 
                 <StatusButton
                   value={
@@ -911,9 +702,7 @@ function AdminHome({
                       player.id
                     ]
                   }
-                  onChange={(
-                    status
-                  ) =>
+                  onChange={(status) =>
                     setAttendance(
                       (current) => ({
                         ...current,
@@ -925,17 +714,13 @@ function AdminHome({
                 />
 
               </div>
-
             )
           )}
 
         </div>
-
       )}
 
-
       {categoryPlayers.length > 0 && (
-
         <button
           className="save-btn"
           disabled={loading}
@@ -943,22 +728,16 @@ function AdminHome({
             saveAttendance
           }
         >
-
           {loading
             ? 'Guardando...'
             : 'Guardar asistencia'}
-
         </button>
-
       )}
 
-
       {message && (
-
         <div className="message">
           {message}
         </div>
-
       )}
 
     </section>
@@ -975,7 +754,6 @@ function Players({
   categories,
   refresh,
 }) {
-
   const [firstName, setFirstName] =
     useState('')
 
@@ -996,75 +774,79 @@ function Players({
   const [loading, setLoading] =
     useState(false)
 
+  /* ---------------------------------------------
+     EDICIÓN
+  --------------------------------------------- */
+
+  const [editingPlayer, setEditingPlayer] =
+    useState(null)
+
+  const [editFirstName, setEditFirstName] =
+    useState('')
+
+  const [editLastName, setEditLastName] =
+    useState('')
+
+  const [editCategoryId, setEditCategoryId] =
+    useState('')
+
+  const [editing, setEditing] =
+    useState(false)
 
   useEffect(() => {
-
     if (
       categories.length > 0 &&
       !categories.some(
         (category) =>
-          category.id ===
-          categoryId
+          category.id === categoryId
       )
     ) {
-
       setCategoryId(
         categories[0].id
       )
-
     }
-
   }, [
     categories,
     categoryId,
   ])
 
+  /* ---------------------------------------------
+     AGREGAR JUGADORA
+  --------------------------------------------- */
 
   async function addPlayer(event) {
-
     event.preventDefault()
 
     setLoading(true)
     setMessage('')
 
-
     try {
-
       const cleanFirstName =
         firstName.trim()
 
       const cleanLastName =
         lastName.trim()
 
-
       if (
         !cleanFirstName ||
         !cleanLastName
       ) {
-
         throw new Error(
           'Ingresá nombre y apellido.'
         )
-
       }
 
-
       if (!categoryId) {
-
         throw new Error(
           'Seleccioná una categoría.'
         )
-
       }
-
 
       const fullName =
         `${cleanLastName.toUpperCase()} ${cleanFirstName}`
 
-
       const code =
         generateCode()
-
 
       const {
         error,
@@ -1081,33 +863,193 @@ function Players({
             active: true,
           })
 
-
       if (error) {
         throw error
       }
-
 
       setFirstName('')
       setLastName('')
       setNewCode(code)
 
+      await refresh()
+
+    } catch (error) {
+      setMessage(
+        error.message
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /* ---------------------------------------------
+     ABRIR EDICIÓN
+  --------------------------------------------- */
+
+  function startEdit(player) {
+    const parts =
+      player.full_name.trim().split(/\s+/)
+
+    const last =
+      parts.shift() || ''
+
+    const first =
+      parts.join(' ')
+
+    setEditingPlayer(player)
+    setEditLastName(last)
+    setEditFirstName(first)
+    setEditCategoryId(
+      player.category_id || ''
+    )
+    setMessage('')
+  }
+
+  /* ---------------------------------------------
+     CANCELAR EDICIÓN
+  --------------------------------------------- */
+
+  function cancelEdit() {
+    setEditingPlayer(null)
+    setEditFirstName('')
+    setEditLastName('')
+    setEditCategoryId('')
+  }
+
+  /* ---------------------------------------------
+     GUARDAR EDICIÓN
+  --------------------------------------------- */
+
+  async function saveEdit(event) {
+    event.preventDefault()
+
+    if (!editingPlayer) {
+      return
+    }
+
+    const cleanFirstName =
+      editFirstName.trim()
+
+    const cleanLastName =
+      editLastName.trim()
+
+    if (
+      !cleanFirstName ||
+      !cleanLastName
+    ) {
+      setMessage(
+        'Ingresá nombre y apellido.'
+      )
+      return
+    }
+
+    if (!editCategoryId) {
+      setMessage(
+        'Seleccioná una categoría.'
+      )
+      return
+    }
+
+    setEditing(true)
+    setMessage('')
+
+    try {
+      const fullName =
+        `${cleanLastName.toUpperCase()} ${cleanFirstName}`
+
+      const {
+        error,
+      } =
+        await supabase
+          .from('players')
+          .update({
+            full_name:
+              fullName,
+            category_id:
+              editCategoryId,
+          })
+          .eq(
+            'id',
+            editingPlayer.id
+          )
+
+      if (error) {
+        throw error
+      }
+
+      setMessage(
+        '✓ Jugadora actualizada correctamente.'
+      )
+
+      cancelEdit()
 
       await refresh()
 
     } catch (error) {
-
       setMessage(
         error.message
       )
-
     } finally {
-
-      setLoading(false)
-
+      setEditing(false)
     }
-
   }
 
+  /* ---------------------------------------------
+     ELIMINAR / DESACTIVAR
+  --------------------------------------------- */
+
+  async function deletePlayer(player) {
+    const confirmed =
+      window.confirm(
+        `¿Seguro que querés eliminar a ${player.full_name}?\n\nSu historial de asistencias se conservará, pero dejará de aparecer entre las jugadoras activas.`
+      )
+
+    if (!confirmed) {
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const {
+        error,
+      } =
+        await supabase
+          .from('players')
+          .update({
+            active: false,
+          })
+          .eq(
+            'id',
+            player.id
+          )
+
+      if (error) {
+        throw error
+      }
+
+      if (
+        editingPlayer?.id ===
+        player.id
+      ) {
+        cancelEdit()
+      }
+
+      setMessage(
+        '✓ Jugadora eliminada correctamente.'
+      )
+
+      await refresh()
+
+    } catch (error) {
+      setMessage(
+        error.message
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <section>
@@ -1121,13 +1063,16 @@ function Players({
           </h2>
 
           <p>
-            Agregá cada jugadora a una categoría.
+            Agregá, editá o eliminá jugadoras.
           </p>
 
         </div>
 
       </div>
 
+      {/* -----------------------------------------
+          AGREGAR
+      ----------------------------------------- */}
 
       <form
         className="add-player"
@@ -1145,7 +1090,6 @@ function Players({
           }
         />
 
-
         <input
           required
           placeholder="Nombre"
@@ -1156,7 +1100,6 @@ function Players({
             )
           }
         />
-
 
         <select
           required
@@ -1174,19 +1117,16 @@ function Players({
 
           {categories.map(
             (category) => (
-
               <option
                 key={category.id}
                 value={category.id}
               >
                 {category.name}
               </option>
-
             )
           )}
 
         </select>
-
 
         <button
           disabled={loading}
@@ -1198,9 +1138,11 @@ function Players({
 
       </form>
 
+      {/* -----------------------------------------
+          CÓDIGO NUEVO
+      ----------------------------------------- */}
 
       {newCode && (
-
         <div className="code-card">
 
           <b>
@@ -1228,18 +1170,113 @@ function Players({
           </button>
 
         </div>
-
       )}
 
-
       {message && (
-
         <div className="message">
           {message}
         </div>
-
       )}
 
+      {/* -----------------------------------------
+          FORMULARIO EDITAR
+      ----------------------------------------- */}
+
+      {editingPlayer && (
+        <div className="edit-player-card">
+
+          <div className="page-head">
+            <div>
+              <h3>
+                ✏️ Editar jugadora
+              </h3>
+
+              <p>
+                Modificá sus datos y guardá los cambios.
+              </p>
+            </div>
+          </div>
+
+          <form
+            className="add-player"
+            onSubmit={saveEdit}
+          >
+
+            <input
+              required
+              placeholder="Apellido"
+              value={editLastName}
+              onChange={(event) =>
+                setEditLastName(
+                  event.target.value
+                )
+              }
+            />
+
+            <input
+              required
+              placeholder="Nombre"
+              value={editFirstName}
+              onChange={(event) =>
+                setEditFirstName(
+                  event.target.value
+                )
+              }
+            />
+
+            <select
+              required
+              value={editCategoryId}
+              onChange={(event) =>
+                setEditCategoryId(
+                  event.target.value
+                )
+              }
+            >
+
+              <option value="">
+                Seleccionar categoría
+              </option>
+
+              {categories.map(
+                (category) => (
+                  <option
+                    key={category.id}
+                    value={category.id}
+                  >
+                    {category.name}
+                  </option>
+                )
+              )}
+
+            </select>
+
+            <button
+              disabled={editing}
+            >
+              {editing
+                ? 'Guardando...'
+                : '✓ Guardar cambios'}
+            </button>
+
+            <button
+              type="button"
+              className="link-btn"
+              onClick={
+                cancelEdit
+              }
+            >
+              Cancelar
+            </button>
+
+          </form>
+
+        </div>
+      )}
+
+      {/* -----------------------------------------
+          LISTA
+      ----------------------------------------- */}
 
       <div className="simple-list">
 
@@ -1253,9 +1290,7 @@ function Players({
                   player.category_id
               )
 
-
             return (
-
               <div
                 key={player.id}
                 className="simple-row player-management-row"
@@ -1266,7 +1301,6 @@ function Players({
                     .charAt(0)
                     .toUpperCase()}
                 </span>
-
 
                 <div className="player-info">
 
@@ -1281,7 +1315,6 @@ function Players({
 
                 </div>
 
-
                 <div className="player-code">
 
                   <span>
@@ -1294,10 +1327,36 @@ function Players({
 
                 </div>
 
+                {/* BOTONES */}
+
+                <div className="player-actions">
+
+                  <button
+                    type="button"
+                    className="edit-btn"
+                    onClick={() =>
+                      startEdit(player)
+                    }
+                    disabled={loading}
+                  >
+                    ✏️ Editar
+                  </button>
+
+                  <button
+                    type="button"
+                    className="delete-btn"
+                    onClick={() =>
+                      deletePlayer(player)
+                    }
+                    disabled={loading}
+                  >
+                    🗑️ Eliminar
+                  </button>
+
+                </div>
+
               </div>
-
             )
-
           }
         )}
 
@@ -1316,7 +1375,6 @@ function History({
   players,
   categories,
 }) {
-
   const [sessions, setSessions] =
     useState([])
 
@@ -1329,9 +1387,7 @@ function History({
   const [categoryFilter, setCategoryFilter] =
     useState('all')
 
-
   useEffect(() => {
-
     async function loadSessions() {
 
       let query =
@@ -1353,20 +1409,16 @@ function History({
             }
           )
 
-
       if (
         categoryFilter !==
         'all'
       ) {
-
         query =
           query.eq(
             'category_id',
             categoryFilter
           )
-
       }
-
 
       const {
         data,
@@ -1374,31 +1426,22 @@ function History({
       } =
         await query
 
-
       if (!error) {
-
         setSessions(
           data || []
         )
-
       }
-
     }
 
-
     loadSessions()
-
   }, [
     categoryFilter,
   ])
 
-
   async function openSession(
     session
   ) {
-
     setSelected(session)
-
 
     const {
       data,
@@ -1414,20 +1457,14 @@ function History({
           session.id
         )
 
-
     if (!error) {
-
       setRows(
         data || []
       )
-
     }
-
   }
 
-
   function playerName(id) {
-
     return (
       players.find(
         (player) =>
@@ -1435,22 +1472,15 @@ function History({
       )?.full_name ||
       'Jugadora'
     )
-
   }
 
-
-  function formatDate(
-    value
-  ) {
-
+  function formatDate(value) {
     return new Date(
       value + 'T12:00:00'
     ).toLocaleDateString(
       'es-AR'
     )
-
   }
-
 
   return (
     <section>
@@ -1470,7 +1500,6 @@ function History({
         </div>
 
       </div>
-
 
       <div className="filter-box">
 
@@ -1493,14 +1522,12 @@ function History({
 
           {categories.map(
             (category) => (
-
               <option
                 key={category.id}
                 value={category.id}
               >
                 {category.name}
               </option>
-
             )
           )}
 
@@ -1508,22 +1535,17 @@ function History({
 
       </div>
 
-
       <div className="history-grid">
 
         <div className="sessions">
 
           {sessions.length === 0 ? (
-
             <div className="empty">
               No hay sesiones registradas.
             </div>
-
           ) : (
-
             sessions.map(
               (session) => (
-
                 <button
                   key={session.id}
                   className={
@@ -1568,25 +1590,18 @@ function History({
                   </small>
 
                 </button>
-
               )
             )
-
           )}
 
         </div>
 
-
         <div className="history-detail">
 
           {!selected ? (
-
             'Elegí una fecha para ver la asistencia.'
-
           ) : (
-
             <>
-
               <h3>
                 {formatDate(
                   selected.session_date
@@ -1609,23 +1624,20 @@ function History({
                 }
               </p>
 
-
               {rows.length === 0 ? (
-
                 <div className="empty">
                   No hay asistencias cargadas.
                 </div>
-
               ) : (
-
                 <div className="simple-list">
 
                   {rows.map(
                     (row) => (
-
                       <div
                         className="simple-row"
-                        key={row.player_id}
+                        key={
+                          row.player_id
+                        }
                       >
 
                         <b>
@@ -1648,16 +1660,13 @@ function History({
                         </span>
 
                       </div>
-
                     )
                   )}
 
                 </div>
-
               )}
 
             </>
-
           )}
 
         </div>
@@ -1677,13 +1686,10 @@ function PlayerDashboard({
   player,
   onLogout,
 }) {
-
   const [rows, setRows] =
     useState([])
 
-
   useEffect(() => {
-
     async function loadAttendance() {
 
       const {
@@ -1700,29 +1706,21 @@ function PlayerDashboard({
         }
       )
 
-
       if (!error) {
-
         setRows(
           data || []
         )
-
       }
-
     }
 
-
     loadAttendance()
-
   }, [
     player,
   ])
 
-
   const counts =
     useMemo(
       () => ({
-
         present:
           rows.filter(
             (row) =>
@@ -1743,11 +1741,9 @@ function PlayerDashboard({
               row.status ===
               'absent'
           ).length,
-
       }),
       [rows]
     )
-
 
   return (
     <main className="app">
@@ -1766,7 +1762,6 @@ function PlayerDashboard({
         </button>
 
       </header>
-
 
       <div className="content">
 
@@ -1797,7 +1792,6 @@ function PlayerDashboard({
 
           </div>
 
-
           <div className="stats">
 
             <div>
@@ -1810,7 +1804,6 @@ function PlayerDashboard({
               </span>
             </div>
 
-
             <div>
               <strong>
                 {counts.late}
@@ -1820,7 +1813,6 @@ function PlayerDashboard({
                 Tardanzas
               </span>
             </div>
-
 
             <div>
               <strong>
@@ -1834,12 +1826,10 @@ function PlayerDashboard({
 
           </div>
 
-
           <div className="simple-list">
 
             {rows.map(
               (row, index) => (
-
                 <div
                   className="simple-row"
                   key={
@@ -1860,7 +1850,6 @@ function PlayerDashboard({
                     </b>
 
                     <small>
-
                       {
                         ACTIVITY_TYPES[
                           row.activity_type
@@ -1873,29 +1862,24 @@ function PlayerDashboard({
                         ]?.label ||
                         ''
                       }
-
                     </small>
 
                   </div>
-
 
                   <span
                     className={
                       `badge ${row.status}`
                     }
                   >
-
                     {
                       STATUS[
                         row.status
                       ]?.label ||
                       row.status
                     }
-
                   </span>
 
                 </div>
-
               )
             )}
 
@@ -1935,21 +1919,16 @@ function App() {
     useState(() => {
 
       try {
-
         return JSON.parse(
           localStorage.getItem(
             'voley_player'
           ) || 'null'
         )
-
       } catch {
-
         return null
-
       }
 
     })
-
 
   /* ---------------------------------------------
      CARGAR ADMIN
@@ -1970,22 +1949,17 @@ function App() {
         )
         .single()
 
-
     if (profileError) {
-
       console.error(
         profileError
       )
 
       return
-
     }
-
 
     setProfile(
       profileData
     )
-
 
     if (
       profileData?.role ===
@@ -2001,23 +1975,15 @@ function App() {
           .select('*')
           .order('name')
 
-
-      if (
-        categoryError
-      ) {
-
+      if (categoryError) {
         console.error(
           categoryError
         )
-
       } else {
-
         setCategories(
           categoryData || []
         )
-
       }
-
 
       const {
         data: playerData,
@@ -2034,27 +2000,17 @@ function App() {
             'full_name'
           )
 
-
-      if (
-        playerError
-      ) {
-
+      if (playerError) {
         console.error(
           playerError
         )
-
       } else {
-
         setPlayers(
           playerData || []
         )
-
       }
-
     }
-
   }
-
 
   /* ---------------------------------------------
      SESIÓN ADMIN
@@ -2065,7 +2021,6 @@ function App() {
     if (!supabase) {
       return
     }
-
 
     supabase.auth
       .getSession()
@@ -2081,16 +2036,13 @@ function App() {
           if (
             data.session
           ) {
-
             loadAdmin(
               data.session.user
             )
-
           }
 
         }
       )
-
 
     const {
       data: {
@@ -2108,15 +2060,12 @@ function App() {
               newSession
             )
 
-
             if (
               newSession
             ) {
-
               loadAdmin(
                 newSession.user
               )
-
             } else {
 
               setProfile(
@@ -2130,18 +2079,15 @@ function App() {
               setCategories(
                 []
               )
-
             }
 
           }
         )
 
-
     return () =>
       subscription.unsubscribe()
 
   }, [])
-
 
   /* ---------------------------------------------
      SUPABASE NO CONECTADO
@@ -2172,7 +2118,6 @@ function App() {
     )
   }
 
-
   /* ---------------------------------------------
      JUGADORA
   --------------------------------------------- */
@@ -2199,7 +2144,6 @@ function App() {
       />
     )
   }
-
 
   /* ---------------------------------------------
      LOGIN
@@ -2240,7 +2184,6 @@ function App() {
     )
   }
 
-
   /* ---------------------------------------------
      ADMIN
   --------------------------------------------- */
@@ -2251,11 +2194,9 @@ function App() {
         session.user
       )
 
-
   const logout =
     () =>
       supabase.auth.signOut()
-
 
   return (
     <main className="app">
@@ -2277,7 +2218,6 @@ function App() {
 
       </header>
 
-
       <nav>
 
         <button
@@ -2287,14 +2227,11 @@ function App() {
               : ''
           }
           onClick={() =>
-            setTab(
-              'home'
-            )
+            setTab('home')
           }
         >
           Asistencia
         </button>
-
 
         <button
           className={
@@ -2303,14 +2240,11 @@ function App() {
               : ''
           }
           onClick={() =>
-            setTab(
-              'players'
-            )
+            setTab('players')
           }
         >
           Jugadoras
         </button>
-
 
         <button
           className={
@@ -2319,9 +2253,7 @@ function App() {
               : ''
           }
           onClick={() =>
-            setTab(
-              'history'
-            )
+            setTab('history')
           }
         >
           Historial
@@ -2329,59 +2261,29 @@ function App() {
 
       </nav>
 
-
       <div className="content">
 
         {tab === 'home' && (
-
           <AdminHome
-            profile={
-              profile
-            }
-
-            players={
-              players
-            }
-
-            categories={
-              categories
-            }
+            profile={profile}
+            players={players}
+            categories={categories}
           />
-
         )}
-
 
         {tab === 'players' && (
-
           <Players
-            players={
-              players
-            }
-
-            categories={
-              categories
-            }
-
-            refresh={
-              refresh
-            }
+            players={players}
+            categories={categories}
+            refresh={refresh}
           />
-
         )}
 
-
         {tab === 'history' && (
-
           <History
-            players={
-              players
-            }
-
-            categories={
-              categories
-            }
+            players={players}
+            categories={categories}
           />
-
         )}
 
       </div>
