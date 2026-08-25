@@ -1,4 +1,4 @@
-# Asistencia Vóley
+# Asistencia Voley
 
 Aplicación independiente para tomar asistencia de jugadoras.
 

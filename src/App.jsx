@@ -54,7 +54,9 @@ function generateCode() {
 }
 
 function normalizeGender(value) {
-  const normalized = String(value || '').trim().toLowerCase()
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
 
   if (
     [
@@ -79,7 +81,9 @@ function genderLabel(category) {
 }
 
 function genderGroupLabel(gender) {
-  return gender === 'female' ? 'Femenino' : 'Masculino'
+  return gender === 'female'
+    ? 'Femenino'
+    : 'Masculino'
 }
 
 function categorySort(a, b) {
@@ -130,6 +134,80 @@ function hasCategoryPermission(
     : Boolean(permission?.can_view)
 }
 
+function formatDate(value) {
+  if (!value) return ''
+
+  return new Date(
+    value + 'T12:00:00'
+  ).toLocaleDateString('es-AR')
+}
+
+async function copyText(text) {
+  if (
+    navigator.clipboard &&
+    window.isSecureContext
+  ) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea =
+    document.createElement('textarea')
+
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+
+  const copied =
+    document.execCommand('copy')
+
+  document.body.removeChild(textarea)
+
+  if (!copied) {
+    throw new Error(
+      'No se pudo copiar el texto.'
+    )
+  }
+}
+
+async function shareText({
+  title,
+  text,
+}) {
+  if (navigator.share) {
+    await navigator.share({
+      title,
+      text,
+    })
+
+    return 'shared'
+  }
+
+  await copyText(text)
+
+  return 'copied'
+}
+
+function buildPlayerAccessText(
+  player,
+  category
+) {
+  const label =
+    category
+      ? genderLabel(category)
+      : 'Jugador/a'
+
+  return `${label}: ${player.full_name}
+
+Código de ingreso: ${player.access_code}
+
+Ingresá a Asistencia Voley con tu nombre y este código personal.`
+}
+
 /* =========================================================
    LOGIN
 ========================================================= */
@@ -138,13 +216,26 @@ function Login({
   onAdminLogin,
   onPlayerLogin,
 }) {
-  const [mode, setMode] = useState('player')
-  const [name, setName] = useState('')
-  const [code, setCode] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [mode, setMode] =
+    useState('player')
+
+  const [name, setName] =
+    useState('')
+
+  const [code, setCode] =
+    useState('')
+
+  const [email, setEmail] =
+    useState('')
+
+  const [password, setPassword] =
+    useState('')
+
+  const [message, setMessage] =
+    useState('')
+
+  const [loading, setLoading] =
+    useState(false)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -197,7 +288,6 @@ function Login({
       if (error) throw error
 
       onAdminLogin(data.session)
-
     } catch (error) {
       setMessage(
         error.message ||
@@ -217,7 +307,7 @@ function Login({
         </div>
 
         <h1>
-          Asistencia Vóley
+          Asistencia Voley
         </h1>
 
         <p>
@@ -308,7 +398,7 @@ function Login({
         >
           {mode === 'player'
             ? 'Soy administrador'
-            : 'Volver al acceso de jugadoras'}
+            : 'Volver al acceso de jugador@s'}
         </button>
 
       </section>
@@ -433,7 +523,11 @@ function AdminHome({
           'edit'
         )
       ),
-    [categories, profile, permissions]
+    [
+      categories,
+      profile,
+      permissions,
+    ]
   )
 
   useEffect(() => {
@@ -491,9 +585,7 @@ function AdminHome({
         error: sessionError,
       } =
         await supabase
-          .from(
-            'training_sessions'
-          )
+          .from('training_sessions')
           .select('id')
           .eq(
             'session_date',
@@ -541,7 +633,6 @@ function AdminHome({
         setMessage(
           error.message
         )
-
         return
       }
 
@@ -588,9 +679,7 @@ function AdminHome({
         error,
       } =
         await supabase
-          .from(
-            'training_sessions'
-          )
+          .from('training_sessions')
           .select('*')
           .eq(
             'session_date',
@@ -611,14 +700,10 @@ function AdminHome({
       if (!session) {
         const result =
           await supabase
-            .from(
-              'training_sessions'
-            )
+            .from('training_sessions')
             .insert({
-              session_date:
-                date,
-              created_by:
-                profile.id,
+              session_date: date,
+              created_by: profile.id,
               activity_type:
                 activityType,
               category_id:
@@ -673,7 +758,6 @@ function AdminHome({
       setMessage(
         '✓ Asistencia guardada correctamente.'
       )
-
     } catch (error) {
       setMessage(
         error.message
@@ -753,23 +837,25 @@ function AdminHome({
 
         <ActivityPicker
           value={activityType}
-          onChange={(value) =>
-            setActivityType(value)
-          }
+          onChange={setActivityType}
         />
 
       </div>
 
       {categoryPlayers.length === 0 ? (
         <div className="empty">
-          No hay jugadores/as en{' '}
+          No hay{' '}
+          {currentCategory
+            ? genderLabel(currentCategory).toLowerCase() + 'es'
+            : 'jugador@s'}{' '}
+          en{' '}
           <b>
             {currentCategory?.name ||
               'esta categoría'}
           </b>.
           <br />
           Agregalos desde
-          <b> Jugadoras</b>.
+          <b> Jugador@s</b>.
         </div>
       ) : (
         <div className="attendance-list">
@@ -819,9 +905,7 @@ function AdminHome({
         <button
           className="save-btn"
           disabled={loading}
-          onClick={
-            saveAttendance
-          }
+          onClick={saveAttendance}
         >
           {loading
             ? 'Guardando...'
@@ -840,7 +924,7 @@ function AdminHome({
 }
 
 /* =========================================================
-   ADMIN - JUGADORAS
+   SELECTOR DE CATEGORÍA
 ========================================================= */
 
 function CategoryPicker({
@@ -903,11 +987,6 @@ function CategoryPicker({
                     gender
                   )}
                 </strong>
-
-                <small>
-                  {groups[gender].length}{' '}
-                  categorías
-                </small>
               </summary>
 
               <div className="category-picker-options">
@@ -953,6 +1032,10 @@ function CategoryPicker({
   )
 }
 
+/* =========================================================
+   JUGADOR@S
+========================================================= */
+
 function Players({
   profile,
   players,
@@ -971,8 +1054,8 @@ function Players({
       categories[0]?.id || ''
     )
 
-  const [newCode, setNewCode] =
-    useState('')
+  const [newPlayer, setNewPlayer] =
+    useState(null)
 
   const [message, setMessage] =
     useState('')
@@ -1004,39 +1087,46 @@ function Players({
   const [editing, setEditing] =
     useState(false)
 
+  const [sharingCategory, setSharingCategory] =
+    useState(false)
+
   const playerCategories =
-    useMemo(() => {
-      return categories.filter(
-        (category) =>
-          hasCategoryPermission(
-            profile,
-            category,
-            permissions,
-            'view'
-          )
-      )
-    }, [
-      categories,
-      profile,
-      permissions,
-    ])
+    useMemo(
+      () =>
+        categories.filter(
+          (category) =>
+            hasCategoryPermission(
+              profile,
+              category,
+              permissions,
+              'view'
+            )
+        ),
+      [
+        categories,
+        profile,
+        permissions,
+      ]
+    )
 
   const editableCategories =
-    useMemo(() => {
-      return categories.filter(
-        (category) =>
-          hasCategoryPermission(
-            profile,
-            category,
-            permissions,
-            'edit'
-          )
-      )
-    }, [
-      categories,
-      profile,
-      permissions,
-    ])
+    useMemo(
+      () =>
+        categories.filter(
+          (category) =>
+            hasCategoryPermission(
+              profile,
+              category,
+              permissions,
+              'edit'
+            )
+        ),
+      [
+        categories,
+        profile,
+        permissions,
+      ]
+    )
 
   useEffect(() => {
     if (
@@ -1162,30 +1252,41 @@ function Players({
         generateCode()
 
       const {
+        data,
         error,
       } =
         await supabase
           .from('players')
           .insert({
-            full_name:
-              fullName,
-            access_code:
-              code,
-            category_id:
-              categoryId,
+            full_name: fullName,
+            access_code: code,
+            category_id: categoryId,
             active: true,
           })
+          .select()
+          .single()
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
+
+      const category =
+        categories.find(
+          (item) =>
+            item.id === categoryId
+        )
 
       setFirstName('')
       setLastName('')
-      setNewCode(code)
+
+      setNewPlayer({
+        ...(data || {
+          full_name: fullName,
+          access_code: code,
+          category_id: categoryId,
+        }),
+        category,
+      })
 
       await refresh()
-
     } catch (error) {
       setMessage(
         error.message
@@ -1271,8 +1372,7 @@ function Players({
         await supabase
           .from('players')
           .update({
-            full_name:
-              fullName,
+            full_name: fullName,
             category_id:
               editCategoryId,
           })
@@ -1284,13 +1384,12 @@ function Players({
       if (error) throw error
 
       setMessage(
-        '✓ Jugadora actualizada correctamente.'
+        '✓ Jugador/a actualizado correctamente.'
       )
 
       cancelEdit()
 
       await refresh()
-
     } catch (error) {
       setMessage(
         error.message
@@ -1301,9 +1400,20 @@ function Players({
   }
 
   async function deletePlayer(player) {
+    const category =
+      categories.find(
+        (item) =>
+          item.id === player.category_id
+      )
+
+    const label =
+      category
+        ? genderLabel(category)
+        : 'Jugador/a'
+
     const confirmed =
       window.confirm(
-        `¿Seguro que querés eliminar a ${player.full_name}?\n\nSu historial de asistencias se conservará, pero dejará de aparecer entre las jugadoras activas.`
+        `¿Seguro que querés eliminar a ${player.full_name}?\n\nSu historial de asistencias se conservará, pero dejará de aparecer entre los/as jugadores/as activos/as.`
       )
 
     if (!confirmed) return
@@ -1335,11 +1445,10 @@ function Players({
       }
 
       setMessage(
-        '✓ Jugadora eliminada correctamente.'
+        `✓ ${label} eliminado/a correctamente.`
       )
 
       await refresh()
-
     } catch (error) {
       setMessage(
         error.message
@@ -1349,21 +1458,188 @@ function Players({
     }
   }
 
+  async function handleCopyPlayer(player) {
+    const category =
+      categories.find(
+        (item) =>
+          item.id === player.category_id
+      )
+
+    try {
+      await copyText(
+        buildPlayerAccessText(
+          player,
+          category
+        )
+      )
+
+      setMessage(
+        `✓ Código de ${player.full_name} copiado.`
+      )
+    } catch (error) {
+      setMessage(
+        error.message ||
+          'No se pudo copiar el código.'
+      )
+    }
+  }
+
+  async function handleSharePlayer(player) {
+    const category =
+      categories.find(
+        (item) =>
+          item.id === player.category_id
+      )
+
+    try {
+      const result =
+        await shareText({
+          title: 'Código de acceso - Asistencia Voley',
+          text:
+            buildPlayerAccessText(
+              player,
+              category
+            ),
+        })
+
+      setMessage(
+        result === 'shared'
+          ? `✓ Código de ${player.full_name} compartido.`
+          : `✓ Tu dispositivo no permite compartir directamente. El código fue copiado.`
+      )
+    } catch (error) {
+      if (
+        error?.name === 'AbortError'
+      ) {
+        return
+      }
+
+      setMessage(
+        error.message ||
+          'No se pudo compartir el código.'
+      )
+    }
+  }
+
+  function buildCategoryAccessText(category) {
+    const categoryPlayers =
+      players
+        .filter(
+          (player) =>
+            player.category_id ===
+            category.id
+        )
+        .sort(
+          (a, b) =>
+            String(
+              a.full_name
+            ).localeCompare(
+              String(
+                b.full_name
+              ),
+              'es',
+              {
+                sensitivity: 'base',
+              }
+            )
+        )
+
+    const playerLabel =
+      genderLabel(category)
+
+    return `🏐 ASISTENCIA VOLEY
+
+${genderGroupLabel(normalizeGender(category.gender))} · ${category.name}
+
+Listado de ${playerLabel.toLowerCase()}es y códigos de ingreso:
+
+${categoryPlayers
+  .map(
+    (player, index) =>
+      `${index + 1}. ${player.full_name}
+   Código: ${player.access_code}`
+  )
+  .join('\n\n')}
+
+Cada ${playerLabel.toLowerCase()} debe ingresar con su nombre y su código personal.`
+  }
+
+  async function handleCopyCategory(category) {
+    setSharingCategory(true)
+
+    try {
+      const text =
+        buildCategoryAccessText(category)
+
+      await copyText(text)
+
+      setMessage(
+        `✓ Plantilla completa de ${category.name} copiada.`
+      )
+    } catch (error) {
+      setMessage(
+        error.message ||
+          'No se pudo copiar la plantilla.'
+      )
+    } finally {
+      setSharingCategory(false)
+    }
+  }
+
+  async function handleShareCategory(category) {
+    setSharingCategory(true)
+
+    try {
+      const text =
+        buildCategoryAccessText(category)
+
+      const result =
+        await shareText({
+          title: `Asistencia Voley - ${category.name}`,
+          text,
+        })
+
+      setMessage(
+        result === 'shared'
+          ? `✓ Plantilla completa de ${category.name} compartida.`
+          : `✓ Tu dispositivo no permite compartir directamente. La plantilla fue copiada.`
+      )
+    } catch (error) {
+      if (
+        error?.name !== 'AbortError'
+      ) {
+        setMessage(
+          error.message ||
+            'No se pudo compartir la plantilla.'
+        )
+      }
+    } finally {
+      setSharingCategory(false)
+    }
+  }
+
+  const selectedExportCategory =
+    categoryFilter !== 'all'
+      ? categories.find(
+          (category) =>
+            category.id ===
+            categoryFilter
+        )
+      : null
+
   return (
     <section>
 
       <div className="page-head">
 
         <div>
-
           <h2>
-            Jugadores y jugadoras
+            Jugador@s
           </h2>
 
           <p>
-            Agregá, editá o eliminá jugadores y jugadoras.
+            Agregá, editá, eliminá y compartí accesos.
           </p>
-
         </div>
 
       </div>
@@ -1400,56 +1676,74 @@ function Players({
             editableCategories
           }
           value={categoryId}
-          onChange={
-            setCategoryId
-          }
+          onChange={setCategoryId}
           disabled={loading}
         />
 
-        <button
-          disabled={loading}
-        >
+        <button disabled={loading}>
           {loading
             ? 'Agregando...'
-            : '+ Agregar jugadora'}
+            : '+ Agregar jugador/a'}
         </button>
 
       </form>
 
-      {newCode && (
+      {newPlayer && (
         <div className="code-card">
 
           <b>
             ✓{' '}
-            {
-              genderLabel(
-                categories.find(
-                  (category) =>
-                    category.id ===
-                    categoryId
-                )
-              ) ===
-              'Jugadora'
-                ? 'Jugadora agregada'
-                : 'Jugador agregado'
-            }
+            {genderLabel(
+              newPlayer.category
+            )}{' '}
+            agregado/a
           </b>
 
           <span>
-            Código personal:
+            Código personal
           </span>
 
           <strong>
-            {newCode}
+            {newPlayer.access_code}
           </strong>
 
           <small>
-            Entregale este código a la jugadora.
+            Podés copiar o compartir directamente el acceso.
           </small>
 
+          <div className="code-card-actions">
+
+            <button
+              type="button"
+              className="copy-code-btn"
+              onClick={() =>
+                handleCopyPlayer(
+                  newPlayer
+                )
+              }
+            >
+              📋 Copiar código
+            </button>
+
+            <button
+              type="button"
+              className="share-code-btn"
+              onClick={() =>
+                handleSharePlayer(
+                  newPlayer
+                )
+              }
+            >
+              📤 Compartir
+            </button>
+
+          </div>
+
           <button
+            type="button"
+            className="link-btn"
             onClick={() =>
-              setNewCode('')
+              setNewPlayer(null)
             }
           >
             Entendido
@@ -1472,7 +1766,7 @@ function Players({
             <div>
 
               <h3>
-                ✏️ Editar jugadora
+                ✏️ Editar jugador/a
               </h3>
 
               <p>
@@ -1523,9 +1817,7 @@ function Players({
               disabled={editing}
             />
 
-            <button
-              disabled={editing}
-            >
+            <button disabled={editing}>
               {editing
                 ? 'Guardando...'
                 : '✓ Guardar cambios'}
@@ -1534,9 +1826,7 @@ function Players({
             <button
               type="button"
               className="link-btn"
-              onClick={
-                cancelEdit
-              }
+              onClick={cancelEdit}
             >
               Cancelar
             </button>
@@ -1609,9 +1899,7 @@ function Players({
           </label>
 
           <select
-            value={
-              categoryFilter
-            }
+            value={categoryFilter}
             onChange={(event) =>
               setCategoryFilter(
                 event.target.value
@@ -1626,31 +1914,23 @@ function Players({
             {playerCategories
               .filter(
                 (category) =>
-                  genderFilter ===
-                    'all' ||
+                  genderFilter === 'all' ||
                   normalizeGender(
                     category.gender
-                  ) ===
-                    genderFilter
+                  ) === genderFilter
               )
               .sort(categorySort)
               .map(
                 (category) => (
                   <option
-                    key={
-                      category.id
-                    }
-                    value={
-                      category.id
-                    }
+                    key={category.id}
+                    value={category.id}
                   >
-                    {
-                      genderGroupLabel(
-                        normalizeGender(
-                          category.gender
-                        )
+                    {genderGroupLabel(
+                      normalizeGender(
+                        category.gender
                       )
-                    }{' '}
+                    )}{' '}
                     · {category.name}
                   </option>
                 )
@@ -1662,11 +1942,72 @@ function Players({
 
       </div>
 
+      {selectedExportCategory && (
+        <div className="category-share-card">
+
+          <div>
+
+            <span>
+              🏐 Plantilla de categoría
+            </span>
+
+            <strong>
+              {
+                genderGroupLabel(
+                  normalizeGender(
+                    selectedExportCategory.gender
+                  )
+                )
+              }{' '}
+              ·{' '}
+              {
+                selectedExportCategory.name
+              }
+            </strong>
+
+            <small>
+              Incluye todos los nombres y códigos de ingreso.
+            </small>
+          </div>
+
+          <div className="category-share-actions">
+
+            <button
+              type="button"
+              className="copy-category-btn"
+              disabled={sharingCategory}
+              onClick={() =>
+                handleCopyCategory(
+                  selectedExportCategory
+                )
+              }
+            >
+              📋 Copiar plantilla
+            </button>
+
+            <button
+              type="button"
+              className="share-category-btn"
+              disabled={sharingCategory}
+              onClick={() =>
+                handleShareCategory(
+                  selectedExportCategory
+                )
+              }
+            >
+              📤 Compartir categoría
+            </button>
+
+          </div>
+
+        </div>
+      )}
+
       <div className="simple-list">
 
         {visiblePlayers.length === 0 ? (
           <div className="empty">
-            No hay jugadores/as que coincidan con los filtros.
+            No hay jugador@s que coincidan con los filtros.
           </div>
         ) : (
           visiblePlayers.map(
@@ -1677,6 +2018,14 @@ function Players({
                   (item) =>
                     item.id ===
                     player.category_id
+                )
+
+              const canEdit =
+                hasCategoryPermission(
+                  profile,
+                  category,
+                  permissions,
+                  'edit'
                 )
 
               return (
@@ -1717,32 +2066,52 @@ function Players({
 
                   </div>
 
+                  <div className="player-access-actions">
+
+                    <button
+                      type="button"
+                      className="icon-action copy"
+                      onClick={() =>
+                        handleCopyPlayer(
+                          player
+                        )
+                      }
+                      title="Copiar código"
+                      aria-label={`Copiar código de ${player.full_name}`}
+                    >
+                      📋
+                    </button>
+
+                    <button
+                      type="button"
+                      className="icon-action share"
+                      onClick={() =>
+                        handleSharePlayer(
+                          player
+                        )
+                      }
+                      title="Compartir código"
+                      aria-label={`Compartir código de ${player.full_name}`}
+                    >
+                      📤
+                    </button>
+
+                  </div>
+
                   <div className="player-actions">
 
                     <button
                       type="button"
                       className="edit-btn"
                       onClick={() =>
-                        startEdit(
-                          player
-                        )
+                        startEdit(player)
                       }
                       disabled={
                         loading ||
-                        !hasCategoryPermission(
-                          profile,
-                          category,
-                          permissions,
-                          'edit'
-                        )
+                        !canEdit
                       }
                       title={
-                        !hasCategoryPermission(
-                          profile,
-                          category,
-                          permissions,
-                          'edit'
-                        )
+                        !canEdit
                           ? 'No tenés permiso para editar esta categoría'
                           : 'Editar'
                       }
@@ -1766,20 +2135,10 @@ function Players({
                       }
                       disabled={
                         loading ||
-                        !hasCategoryPermission(
-                          profile,
-                          category,
-                          permissions,
-                          'edit'
-                        )
+                        !canEdit
                       }
                       title={
-                        !hasCategoryPermission(
-                          profile,
-                          category,
-                          permissions,
-                          'edit'
-                        )
+                        !canEdit
                           ? 'No tenés permiso para eliminar esta categoría'
                           : 'Eliminar'
                       }
@@ -1835,7 +2194,6 @@ function Permissions({
 
   useEffect(() => {
     async function load() {
-
       setMessage('')
 
       const {
@@ -1943,14 +2301,12 @@ function Permissions({
 
     const next = {
       can_view:
-        field ===
-        'can_view'
+        field === 'can_view'
           ? value
           : current.can_view,
 
       can_edit:
-        field ===
-        'can_edit'
+        field === 'can_edit'
           ? value
           : current.can_edit,
     }
@@ -1963,12 +2319,10 @@ function Permissions({
     setMessage('')
 
     try {
-
       if (
         !next.can_view &&
         !next.can_edit
       ) {
-
         const {
           error,
         } =
@@ -2001,9 +2355,7 @@ function Permissions({
             return copy
           }
         )
-
       } else {
-
         const {
           data,
           error,
@@ -2016,13 +2368,10 @@ function Permissions({
               {
                 admin_id:
                   selectedAdmin,
-
                 category_id:
                   category.id,
-
                 can_view:
                   next.can_view,
-
                 can_edit:
                   next.can_edit,
               },
@@ -2041,7 +2390,6 @@ function Permissions({
         setPermissions(
           (currentMap) => ({
             ...currentMap,
-
             [
               `${selectedAdmin}:${category.id}`
             ]:
@@ -2053,7 +2401,6 @@ function Permissions({
       setMessage(
         '✓ Permiso actualizado.'
       )
-
     } catch (error) {
       setMessage(
         error.message
@@ -2064,7 +2411,6 @@ function Permissions({
   }
 
   function renderGroup(gender) {
-
     return (
       <div
         className="permission-group"
@@ -2072,13 +2418,9 @@ function Permissions({
       >
 
         <div className="permission-group-head">
-
           <strong>
-            {genderGroupLabel(
-              gender
-            )}
+            {genderGroupLabel(gender)}
           </strong>
-
         </div>
 
         {groups[gender].length === 0 ? (
@@ -2101,9 +2443,7 @@ function Permissions({
               return (
                 <div
                   className="permission-row"
-                  key={
-                    category.id
-                  }
+                  key={category.id}
                 >
 
                   <div>
@@ -2132,9 +2472,7 @@ function Permissions({
                         owned ||
                         loading
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         savePermission(
                           category,
                           'can_view',
@@ -2161,9 +2499,7 @@ function Permissions({
                         owned ||
                         loading
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         savePermission(
                           category,
                           'can_edit',
@@ -2264,7 +2600,7 @@ function Permissions({
 }
 
 /* =========================================================
-   ADMIN - HISTORIAL
+   HISTORIAL
 ========================================================= */
 
 function History({
@@ -2283,10 +2619,6 @@ function History({
   const [categoryFilter, setCategoryFilter] =
     useState('all')
 
-  /* -------------------------------------------------------
-     EDICIÓN DE FECHA
-  ------------------------------------------------------- */
-
   const [editingDate, setEditingDate] =
     useState(false)
 
@@ -2300,14 +2632,10 @@ function History({
     useState('')
 
   useEffect(() => {
-
     async function loadSessions() {
-
       let query =
         supabase
-          .from(
-            'training_sessions'
-          )
+          .from('training_sessions')
           .select(`
             *,
             categories (
@@ -2323,8 +2651,7 @@ function History({
           )
 
       if (
-        categoryFilter !==
-        'all'
+        categoryFilter !== 'all'
       ) {
         query =
           query.eq(
@@ -2351,25 +2678,16 @@ function History({
     }
 
     loadSessions()
-
   }, [
     categoryFilter,
   ])
 
-  async function openSession(
-    session
-  ) {
-
-    setSelected(
-      session
-    )
-
+  async function openSession(session) {
+    setSelected(session)
     setEditingDate(false)
-
     setNewDate(
       session.session_date || ''
     )
-
     setMessage('')
 
     const {
@@ -2434,11 +2752,9 @@ function History({
       selected.session_date
     ) {
       setEditingDate(false)
-
       setMessage(
         'La fecha no fue modificada.'
       )
-
       return
     }
 
@@ -2451,12 +2767,9 @@ function History({
         error,
       } =
         await supabase
-          .from(
-            'training_sessions'
-          )
+          .from('training_sessions')
           .update({
-            session_date:
-              newDate,
+            session_date: newDate,
           })
           .eq(
             'id',
@@ -2471,9 +2784,7 @@ function History({
           `)
           .single()
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       setSelected(data)
 
@@ -2508,7 +2819,6 @@ function History({
       setMessage(
         '✓ Fecha actualizada correctamente.'
       )
-
     } catch (error) {
       setMessage(
         error.message ||
@@ -2526,16 +2836,6 @@ function History({
           player.id === id
       )?.full_name ||
       'Jugador/a'
-    )
-  }
-
-  function formatDate(value) {
-    if (!value) return ''
-
-    return new Date(
-      value + 'T12:00:00'
-    ).toLocaleDateString(
-      'es-AR'
     )
   }
 
@@ -2585,9 +2885,7 @@ function History({
             (category) => (
               <option
                 key={category.id}
-                value={
-                  category.id
-                }
+                value={category.id}
               >
                 {genderGroupLabel(
                   normalizeGender(
@@ -2615,9 +2913,7 @@ function History({
             sessions.map(
               (session) => (
                 <button
-                  key={
-                    session.id
-                  }
+                  key={session.id}
                   className={
                     selected?.id ===
                     session.id
@@ -2654,8 +2950,7 @@ function History({
 
                   <small>
                     {
-                      session
-                        .categories
+                      session.categories
                         ?.name ||
                       'Sin categoría'
                     }
@@ -2688,8 +2983,7 @@ function History({
                   <p>
 
                     {
-                      selected
-                        .categories
+                      selected.categories
                         ?.name ||
                       'Sin categoría'
                     }
@@ -2710,91 +3004,53 @@ function History({
                 {!editingDate && (
                   <button
                     type="button"
-                    className="date-edit-btn"
+                    className="edit-btn"
                     onClick={
                       startEditDate
                     }
-                    title="Modificar fecha"
                   >
-                    <span aria-hidden="true">
-                      ✏️
-                    </span>
-
-                    <span>
-                      Modificar
-                    </span>
+                    ✏️ Modificar fecha
                   </button>
                 )}
 
               </div>
 
               {editingDate && (
-                <div className="date-editor">
+                <div className="edit-session-date">
 
-                  <div className="date-editor-title">
+                  <label>
+                    Nueva fecha
+                  </label>
 
-                    <span>
-                      📅
-                    </span>
-
-                    <div>
-
-                      <strong>
-                        Cambiar fecha
-                      </strong>
-
-                      <small>
-                        Elegí la nueva fecha del entrenamiento.
-                      </small>
-
-                    </div>
-
-                  </div>
-
-                  <div className="date-editor-controls">
+                  <div className="edit-session-date-actions">
 
                     <input
                       type="date"
-                      value={
-                        newDate
-                      }
-                      onChange={(
-                        event
-                      ) =>
+                      value={newDate}
+                      onChange={(event) =>
                         setNewDate(
-                          event.target
-                            .value
+                          event.target.value
                         )
                       }
-                      disabled={
-                        savingDate
-                      }
+                      disabled={savingDate}
                     />
 
                     <button
                       type="button"
-                      className="date-save-btn"
-                      onClick={
-                        saveDate
-                      }
-                      disabled={
-                        savingDate
-                      }
+                      className="save-btn"
+                      onClick={saveDate}
+                      disabled={savingDate}
                     >
                       {savingDate
                         ? 'Guardando...'
-                        : '✓ Guardar'}
+                        : '✓ Guardar fecha'}
                     </button>
 
                     <button
                       type="button"
-                      className="date-cancel-btn"
-                      onClick={
-                        cancelEditDate
-                      }
-                      disabled={
-                        savingDate
-                      }
+                      className="link-btn"
+                      onClick={cancelEditDate}
+                      disabled={savingDate}
                     >
                       Cancelar
                     </button>
@@ -2821,9 +3077,7 @@ function History({
                     (row) => (
                       <div
                         className="simple-row"
-                        key={
-                          row.player_id
-                        }
+                        key={row.player_id}
                       >
 
                         <b>
@@ -2864,7 +3118,7 @@ function History({
 }
 
 /* =========================================================
-   JUGADORA
+   JUGADOR/A
 ========================================================= */
 
 function PlayerDashboard({
@@ -2875,9 +3129,7 @@ function PlayerDashboard({
     useState([])
 
   useEffect(() => {
-
     async function loadAttendance() {
-
       const {
         data,
         error,
@@ -2901,7 +3153,6 @@ function PlayerDashboard({
     }
 
     loadAttendance()
-
   }, [
     player,
   ])
@@ -2944,9 +3195,7 @@ function PlayerDashboard({
 
         <button
           className="logout"
-          onClick={
-            onLogout
-          }
+          onClick={onLogout}
         >
           Salir
         </button>
@@ -3026,58 +3275,61 @@ function PlayerDashboard({
 
           <div className="simple-list">
 
-            {rows.map(
-              (row, index) => (
-                <div
-                  className="simple-row"
-                  key={
-                    row.session_id ||
-                    index
-                  }
-                >
-
-                  <div>
-
-                    <b>
-                      {new Date(
-                        row.session_date +
-                          'T12:00:00'
-                      ).toLocaleDateString(
-                        'es-AR'
-                      )}
-                    </b>
-
-                    <small>
-                      {
-                        ACTIVITY_TYPES[
-                          row.activity_type
-                        ]?.icon
-                      }{' '}
-
-                      {
-                        ACTIVITY_TYPES[
-                          row.activity_type
-                        ]?.label ||
-                        ''
-                      }
-                    </small>
-
-                  </div>
-
-                  <span
-                    className={
-                      `badge ${row.status}`
+            {rows.length === 0 ? (
+              <div className="empty">
+                Todavía no hay asistencias registradas.
+              </div>
+            ) : (
+              rows.map(
+                (row, index) => (
+                  <div
+                    className="simple-row"
+                    key={
+                      row.session_id ||
+                      index
                     }
                   >
-                    {
-                      STATUS[
-                        row.status
-                      ]?.label ||
-                      row.status
-                    }
-                  </span>
 
-                </div>
+                    <div>
+
+                      <b>
+                        {formatDate(
+                          row.session_date
+                        )}
+                      </b>
+
+                      <small>
+                        {
+                          ACTIVITY_TYPES[
+                            row.activity_type
+                          ]?.icon
+                        }{' '}
+
+                        {
+                          ACTIVITY_TYPES[
+                            row.activity_type
+                          ]?.label ||
+                          ''
+                        }
+                      </small>
+
+                    </div>
+
+                    <span
+                      className={
+                        `badge ${row.status}`
+                      }
+                    >
+                      {
+                        STATUS[
+                          row.status
+                        ]?.label ||
+                        row.status
+                      }
+                    </span>
+
+                  </div>
+                )
               )
             )}
 
@@ -3096,7 +3348,6 @@ function PlayerDashboard({
 ========================================================= */
 
 function App() {
-
   const [session, setSession] =
     useState(null)
 
@@ -3109,7 +3360,10 @@ function App() {
   const [categories, setCategories] =
     useState([])
 
-  const [categoryPermissions, setCategoryPermissions] =
+  const [
+    categoryPermissions,
+    setCategoryPermissions,
+  ] =
     useState({})
 
   const [tab, setTab] =
@@ -3117,7 +3371,6 @@ function App() {
 
   const [player, setPlayer] =
     useState(() => {
-
       try {
         return JSON.parse(
           localStorage.getItem(
@@ -3127,11 +3380,9 @@ function App() {
       } catch {
         return null
       }
-
     })
 
   async function loadAdmin(user) {
-
     const {
       data: profileData,
       error: profileError,
@@ -3152,9 +3403,7 @@ function App() {
       return
     }
 
-    setProfile(
-      profileData
-    )
+    setProfile(profileData)
 
     if (
       ![
@@ -3201,7 +3450,6 @@ function App() {
       profileData.role !==
       'super_admin'
     ) {
-
       const {
         data: permissionData,
         error: permissionError,
@@ -3223,13 +3471,11 @@ function App() {
           permissionError
         )
       } else {
-
         ;(
           permissionData ||
           []
         ).forEach(
           (item) => {
-
             permissionMap[
               item.category_id
             ] = {
@@ -3243,10 +3489,8 @@ function App() {
                   item.can_edit
                 ),
             }
-
           }
         )
-
       }
     }
 
@@ -3284,12 +3528,6 @@ function App() {
           true
         )
         .order(
-          'last_name'
-        )
-        .order(
-          'first_name'
-        )
-        .order(
           'full_name'
         )
 
@@ -3305,10 +3543,7 @@ function App() {
   }
 
   useEffect(() => {
-
-    if (!supabase) {
-      return
-    }
+    if (!supabase) return
 
     supabase.auth
       .getSession()
@@ -3316,7 +3551,6 @@ function App() {
         ({
           data,
         }) => {
-
           setSession(
             data.session
           )
@@ -3328,7 +3562,6 @@ function App() {
               data.session.user
             )
           }
-
         }
       )
 
@@ -3343,49 +3576,28 @@ function App() {
             _event,
             newSession
           ) => {
-
             setSession(
               newSession
             )
 
-            if (
-              newSession
-            ) {
-
+            if (newSession) {
               loadAdmin(
                 newSession.user
               )
-
             } else {
-
-              setProfile(
-                null
-              )
-
-              setPlayers(
-                []
-              )
-
-              setCategories(
-                []
-              )
-
-              setCategoryPermissions(
-                {}
-              )
-
+              setProfile(null)
+              setPlayers([])
+              setCategories([])
+              setCategoryPermissions({})
             }
-
           }
         )
 
     return () =>
       subscription.unsubscribe()
-
   }, [])
 
   if (!supabase) {
-
     return (
       <main className="auth">
 
@@ -3413,20 +3625,15 @@ function App() {
     player &&
     !session
   ) {
-
     return (
       <PlayerDashboard
         player={player}
         onLogout={() => {
-
           localStorage.removeItem(
             'voley_player'
           )
 
-          setPlayer(
-            null
-          )
-
+          setPlayer(null)
         }}
       />
     )
@@ -3436,21 +3643,12 @@ function App() {
     !session ||
     !profile
   ) {
-
     return (
       <Login
-        onAdminLogin={(
-          newSession
-        ) =>
-          setSession(
-            newSession
-          )
-        }
-
+        onAdminLogin={setSession}
         onPlayerLogin={(
           newPlayer
         ) => {
-
           localStorage.setItem(
             'voley_player',
             JSON.stringify(
@@ -3458,10 +3656,7 @@ function App() {
             )
           )
 
-          setPlayer(
-            newPlayer
-          )
-
+          setPlayer(newPlayer)
         }}
       />
     )
@@ -3488,16 +3683,14 @@ function App() {
 
         <button
           className="logout"
-          onClick={
-            logout
-          }
+          onClick={logout}
         >
           Salir
         </button>
 
       </header>
 
-      <nav>
+      <nav className="main-nav">
 
         <button
           className={
@@ -3522,7 +3715,7 @@ function App() {
             setTab('players')
           }
         >
-          Jugadoras
+          Jugador@s
         </button>
 
         <button
@@ -3597,9 +3790,7 @@ function App() {
             'super_admin' && (
           <Permissions
             profile={profile}
-            categories={
-              categories
-            }
+            categories={categories}
           />
         )}
 
