@@ -2592,3 +2592,179 @@ button:disabled {
     font-size: 14px;
   }
 }
+
+/* =========================================================
+   EDITOR DE FECHA DEL HISTORIAL
+========================================================= */
+
+.date-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #d9dfe5;
+  background: #ffffff;
+  color: #3d4650;
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.date-edit-btn:hover {
+  background: #f5f7f9;
+  border-color: #bfc7d0;
+  transform: translateY(-1px);
+}
+
+.date-editor {
+  margin: 16px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid #e2e6ea;
+  border-radius: 14px;
+  background: #f8fafb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.date-editor-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.date-editor-title > span {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 9px;
+  border: 1px solid #e3e7eb;
+  flex-shrink: 0;
+}
+
+.date-editor-title div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.date-editor-title strong {
+  font-size: 0.9rem;
+  color: #303840;
+}
+
+.date-editor-title small {
+  color: #7b858f;
+  font-size: 0.76rem;
+}
+
+.date-editor-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.date-editor-controls input[type="date"] {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #d5dbe1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #303840;
+  font-size: 0.86rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.date-editor-controls input[type="date"]:focus {
+  border-color: #9ca8b4;
+  box-shadow: 0 0 0 3px rgba(120, 130, 140, 0.1);
+}
+
+.date-save-btn,
+.date-cancel-btn {
+  height: 40px;
+  border-radius: 9px;
+  padding: 0 13px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.date-save-btn {
+  border: 0;
+  background: #303840;
+  color: #ffffff;
+}
+
+.date-save-btn:hover {
+  background: #20262c;
+}
+
+.date-cancel-btn {
+  border: 1px solid #d5dbe1;
+  background: #ffffff;
+  color: #606a74;
+}
+
+.date-cancel-btn:hover {
+  background: #f1f3f5;
+}
+
+.date-save-btn:disabled,
+.date-cancel-btn:disabled,
+.date-editor-controls input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------
+   MENÚ COMPACTO EN CELULAR
+--------------------------------------------------------- */
+
+@media (max-width: 700px) {
+
+  .date-editor {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 13px;
+  }
+
+  .date-editor-title small {
+    font-size: 0.72rem;
+  }
+
+  .date-editor-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .date-editor-controls input[type="date"] {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+
+  .date-save-btn,
+  .date-cancel-btn {
+    width: 100%;
+  }
+
+  .date-edit-btn {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+}

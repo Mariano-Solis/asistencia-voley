@@ -53,14 +53,8 @@ function generateCode() {
   return `${letters}-${numbers}`
 }
 
-/* =========================================================
-   GÉNERO / CATEGORÍAS
-========================================================= */
-
 function normalizeGender(value) {
-  const normalized = String(value || '')
-    .trim()
-    .toLowerCase()
+  const normalized = String(value || '').trim().toLowerCase()
 
   if (
     [
@@ -75,46 +69,17 @@ function normalizeGender(value) {
     return 'female'
   }
 
-  if (
-    [
-      'male',
-      'masculino',
-      'masculina',
-      'hombre',
-      'hombres',
-      'm',
-    ].includes(normalized)
-  ) {
-    return 'male'
-  }
-
-  return null
+  return 'male'
 }
 
 function genderLabel(category) {
-  const gender = normalizeGender(category?.gender)
-
-  if (gender === 'female') {
-    return 'Jugadora'
-  }
-
-  if (gender === 'male') {
-    return 'Jugador'
-  }
-
-  return 'Jugador/a'
+  return normalizeGender(category?.gender) === 'female'
+    ? 'Jugadora'
+    : 'Jugador'
 }
 
 function genderGroupLabel(gender) {
-  if (gender === 'female') {
-    return 'FEMENINO'
-  }
-
-  if (gender === 'male') {
-    return 'MASCULINO'
-  }
-
-  return ''
+  return gender === 'female' ? 'Femenino' : 'Masculino'
 }
 
 function categorySort(a, b) {
@@ -133,16 +98,14 @@ function categoriesByGender(categories) {
     male: [...categories]
       .filter(
         (category) =>
-          normalizeGender(category.gender) ===
-          'male'
+          normalizeGender(category.gender) === 'male'
       )
       .sort(categorySort),
 
     female: [...categories]
       .filter(
         (category) =>
-          normalizeGender(category.gender) ===
-          'female'
+          normalizeGender(category.gender) === 'female'
       )
       .sort(categorySort),
   }
@@ -156,16 +119,11 @@ function hasCategoryPermission(
 ) {
   if (!profile || !category) return false
 
-  if (profile.role === 'super_admin') {
-    return true
-  }
+  if (profile.role === 'super_admin') return true
 
-  if (category.admin_id === profile.id) {
-    return true
-  }
+  if (category.admin_id === profile.id) return true
 
-  const permission =
-    permissions?.[category.id]
+  const permission = permissions?.[category.id]
 
   return action === 'edit'
     ? Boolean(permission?.can_edit)
@@ -207,9 +165,7 @@ function Login({
           }
         )
 
-        if (error) {
-          throw error
-        }
+        if (error) throw error
 
         if (!data?.ok) {
           throw new Error(
@@ -238,11 +194,10 @@ function Login({
           password,
         })
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       onAdminLogin(data.session)
+
     } catch (error) {
       setMessage(
         error.message ||
@@ -470,14 +425,13 @@ function AdminHome({
 
   const editableCategories = useMemo(
     () =>
-      categories.filter(
-        (category) =>
-          hasCategoryPermission(
-            profile,
-            category,
-            permissions,
-            'edit'
-          )
+      categories.filter((category) =>
+        hasCategoryPermission(
+          profile,
+          category,
+          permissions,
+          'edit'
+        )
       ),
     [categories, profile, permissions]
   )
@@ -652,9 +606,7 @@ function AdminHome({
           )
           .maybeSingle()
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       if (!session) {
         const result =
@@ -721,6 +673,7 @@ function AdminHome({
       setMessage(
         '✓ Asistencia guardada correctamente.'
       )
+
     } catch (error) {
       setMessage(
         error.message
@@ -887,7 +840,7 @@ function AdminHome({
 }
 
 /* =========================================================
-   SELECTOR DE CATEGORÍAS
+   ADMIN - JUGADORAS
 ========================================================= */
 
 function CategoryPicker({
@@ -950,6 +903,11 @@ function CategoryPicker({
                     gender
                   )}
                 </strong>
+
+                <small>
+                  {groups[gender].length}{' '}
+                  categorías
+                </small>
               </summary>
 
               <div className="category-picker-options">
@@ -994,10 +952,6 @@ function CategoryPicker({
     </div>
   )
 }
-
-/* =========================================================
-   ADMIN - JUGADORAS
-========================================================= */
 
 function Players({
   profile,
@@ -1231,6 +1185,7 @@ function Players({
       setNewCode(code)
 
       await refresh()
+
     } catch (error) {
       setMessage(
         error.message
@@ -1271,9 +1226,7 @@ function Players({
   async function saveEdit(event) {
     event.preventDefault()
 
-    if (!editingPlayer) {
-      return
-    }
+    if (!editingPlayer) return
 
     const cleanFirstName =
       editFirstName.trim()
@@ -1328,9 +1281,7 @@ function Players({
             editingPlayer.id
           )
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       setMessage(
         '✓ Jugadora actualizada correctamente.'
@@ -1339,6 +1290,7 @@ function Players({
       cancelEdit()
 
       await refresh()
+
     } catch (error) {
       setMessage(
         error.message
@@ -1354,9 +1306,7 @@ function Players({
         `¿Seguro que querés eliminar a ${player.full_name}?\n\nSu historial de asistencias se conservará, pero dejará de aparecer entre las jugadoras activas.`
       )
 
-    if (!confirmed) {
-      return
-    }
+    if (!confirmed) return
 
     setLoading(true)
     setMessage('')
@@ -1375,9 +1325,7 @@ function Players({
             player.id
           )
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       if (
         editingPlayer?.id ===
@@ -1391,6 +1339,7 @@ function Players({
       )
 
       await refresh()
+
     } catch (error) {
       setMessage(
         error.message
@@ -1642,11 +1591,11 @@ function Players({
             </option>
 
             <option value="male">
-              MASCULINO
+              Masculino
             </option>
 
             <option value="female">
-              FEMENINO
+              Femenino
             </option>
 
           </select>
@@ -1695,11 +1644,13 @@ function Players({
                       category.id
                     }
                   >
-                    {genderGroupLabel(
-                      normalizeGender(
-                        category.gender
+                    {
+                      genderGroupLabel(
+                        normalizeGender(
+                          category.gender
+                        )
                       )
-                    )}{' '}
+                    }{' '}
                     · {category.name}
                   </option>
                 )
@@ -2332,6 +2283,22 @@ function History({
   const [categoryFilter, setCategoryFilter] =
     useState('all')
 
+  /* -------------------------------------------------------
+     EDICIÓN DE FECHA
+  ------------------------------------------------------- */
+
+  const [editingDate, setEditingDate] =
+    useState(false)
+
+  const [newDate, setNewDate] =
+    useState('')
+
+  const [savingDate, setSavingDate] =
+    useState(false)
+
+  const [message, setMessage] =
+    useState('')
+
   useEffect(() => {
 
     async function loadSessions() {
@@ -2376,6 +2343,10 @@ function History({
         setSessions(
           data || []
         )
+      } else {
+        setMessage(
+          error.message
+        )
       }
     }
 
@@ -2392,6 +2363,14 @@ function History({
     setSelected(
       session
     )
+
+    setEditingDate(false)
+
+    setNewDate(
+      session.session_date || ''
+    )
+
+    setMessage('')
 
     const {
       data,
@@ -2411,6 +2390,132 @@ function History({
       setRows(
         data || []
       )
+    } else {
+      setRows([])
+      setMessage(
+        error.message
+      )
+    }
+  }
+
+  function startEditDate() {
+    if (!selected) return
+
+    setNewDate(
+      selected.session_date || ''
+    )
+
+    setEditingDate(true)
+    setMessage('')
+  }
+
+  function cancelEditDate() {
+    setEditingDate(false)
+
+    setNewDate(
+      selected?.session_date || ''
+    )
+
+    setMessage('')
+  }
+
+  async function saveDate() {
+    if (!selected) return
+
+    if (!newDate) {
+      setMessage(
+        'Seleccioná una fecha.'
+      )
+      return
+    }
+
+    if (
+      newDate ===
+      selected.session_date
+    ) {
+      setEditingDate(false)
+
+      setMessage(
+        'La fecha no fue modificada.'
+      )
+
+      return
+    }
+
+    setSavingDate(true)
+    setMessage('')
+
+    try {
+      const {
+        data,
+        error,
+      } =
+        await supabase
+          .from(
+            'training_sessions'
+          )
+          .update({
+            session_date:
+              newDate,
+          })
+          .eq(
+            'id',
+            selected.id
+          )
+          .select(`
+            *,
+            categories (
+              id,
+              name
+            )
+          `)
+          .single()
+
+      if (error) {
+        throw error
+      }
+
+      setSelected(data)
+
+      setSessions(
+        (current) =>
+          current
+            .map(
+              (session) =>
+                session.id ===
+                data.id
+                  ? data
+                  : session
+            )
+            .sort(
+              (a, b) =>
+                String(
+                  b.session_date
+                ).localeCompare(
+                  String(
+                    a.session_date
+                  )
+                )
+            )
+      )
+
+      setNewDate(
+        data.session_date
+      )
+
+      setEditingDate(false)
+
+      setMessage(
+        '✓ Fecha actualizada correctamente.'
+      )
+
+    } catch (error) {
+      setMessage(
+        error.message ||
+          'No se pudo actualizar la fecha.'
+      )
+    } finally {
+      setSavingDate(false)
     }
   }
 
@@ -2425,6 +2530,8 @@ function History({
   }
 
   function formatDate(value) {
+    if (!value) return ''
+
     return new Date(
       value + 'T12:00:00'
     ).toLocaleDateString(
@@ -2459,11 +2566,15 @@ function History({
 
         <select
           value={categoryFilter}
-          onChange={(event) =>
+          onChange={(event) => {
             setCategoryFilter(
               event.target.value
             )
-          }
+
+            setSelected(null)
+            setRows([])
+            setEditingDate(false)
+          }}
         >
 
           <option value="all">
@@ -2564,31 +2675,140 @@ function History({
           ) : (
             <>
 
-              <h3>
-                {formatDate(
-                  selected.session_date
+              <div className="history-detail-head">
+
+                <div>
+
+                  <h3>
+                    {formatDate(
+                      selected.session_date
+                    )}
+                  </h3>
+
+                  <p>
+
+                    {
+                      selected
+                        .categories
+                        ?.name ||
+                      'Sin categoría'
+                    }
+
+                    {' · '}
+
+                    {
+                      ACTIVITY_TYPES[
+                        selected.activity_type
+                      ]?.label ||
+                      selected.activity_type
+                    }
+
+                  </p>
+
+                </div>
+
+                {!editingDate && (
+                  <button
+                    type="button"
+                    className="date-edit-btn"
+                    onClick={
+                      startEditDate
+                    }
+                    title="Modificar fecha"
+                  >
+                    <span aria-hidden="true">
+                      ✏️
+                    </span>
+
+                    <span>
+                      Modificar
+                    </span>
+                  </button>
                 )}
-              </h3>
 
-              <p>
+              </div>
 
-                {
-                  selected
-                    .categories
-                    ?.name ||
-                  'Sin categoría'
-                }
+              {editingDate && (
+                <div className="date-editor">
 
-                {' · '}
+                  <div className="date-editor-title">
 
-                {
-                  ACTIVITY_TYPES[
-                    selected.activity_type
-                  ]?.label ||
-                  selected.activity_type
-                }
+                    <span>
+                      📅
+                    </span>
 
-              </p>
+                    <div>
+
+                      <strong>
+                        Cambiar fecha
+                      </strong>
+
+                      <small>
+                        Elegí la nueva fecha del entrenamiento.
+                      </small>
+
+                    </div>
+
+                  </div>
+
+                  <div className="date-editor-controls">
+
+                    <input
+                      type="date"
+                      value={
+                        newDate
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setNewDate(
+                          event.target
+                            .value
+                        )
+                      }
+                      disabled={
+                        savingDate
+                      }
+                    />
+
+                    <button
+                      type="button"
+                      className="date-save-btn"
+                      onClick={
+                        saveDate
+                      }
+                      disabled={
+                        savingDate
+                      }
+                    >
+                      {savingDate
+                        ? 'Guardando...'
+                        : '✓ Guardar'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="date-cancel-btn"
+                      onClick={
+                        cancelEditDate
+                      }
+                      disabled={
+                        savingDate
+                      }
+                    >
+                      Cancelar
+                    </button>
+
+                  </div>
+
+                </div>
+              )}
+
+              {message && (
+                <div className="message">
+                  {message}
+                </div>
+              )}
 
               {rows.length === 0 ? (
                 <div className="empty">
@@ -3034,30 +3254,11 @@ function App() {
       permissionMap
     )
 
-    /*
-      IMPORTANTE:
-      Solo se aceptan categorías con
-      gender válido (female/male).
-
-      Las categorías antiguas con
-      gender = null no se muestran.
-    */
-
-    const validCategories =
+    const visibleCategories =
       (
         categoryData ||
         []
       ).filter(
-        (category) =>
-          ['female', 'male'].includes(
-            normalizeGender(
-              category.gender
-            )
-          )
-      )
-
-    const visibleCategories =
-      validCategories.filter(
         (category) =>
           hasCategoryPermission(
             profileData,
