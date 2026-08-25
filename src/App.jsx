@@ -80,6 +80,10 @@ function genderLabel(category) {
     : 'Jugador'
 }
 
+function genericPlayerLabel() {
+  return 'Jugador@s'
+}
+
 function genderGroupLabel(gender) {
   return gender === 'female'
     ? 'Femenino'
