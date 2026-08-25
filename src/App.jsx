@@ -53,6 +53,124 @@ function generateCode() {
   return `${letters}-${numbers}`
 }
 
+/* =========================================================
+   GÉNERO / CATEGORÍAS
+========================================================= */
+
+function normalizeGender(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+
+  if (
+    [
+      'female',
+      'femenino',
+      'femenina',
+      'mujer',
+      'mujeres',
+      'f',
+    ].includes(normalized)
+  ) {
+    return 'female'
+  }
+
+  if (
+    [
+      'male',
+      'masculino',
+      'masculina',
+      'hombre',
+      'hombres',
+      'm',
+    ].includes(normalized)
+  ) {
+    return 'male'
+  }
+
+  return null
+}
+
+function genderLabel(category) {
+  const gender = normalizeGender(category?.gender)
+
+  if (gender === 'female') {
+    return 'Jugadora'
+  }
+
+  if (gender === 'male') {
+    return 'Jugador'
+  }
+
+  return 'Jugador/a'
+}
+
+function genderGroupLabel(gender) {
+  if (gender === 'female') {
+    return 'FEMENINO'
+  }
+
+  if (gender === 'male') {
+    return 'MASCULINO'
+  }
+
+  return ''
+}
+
+function categorySort(a, b) {
+  return String(a?.name || '').localeCompare(
+    String(b?.name || ''),
+    'es',
+    {
+      numeric: true,
+      sensitivity: 'base',
+    }
+  )
+}
+
+function categoriesByGender(categories) {
+  return {
+    male: [...categories]
+      .filter(
+        (category) =>
+          normalizeGender(category.gender) ===
+          'male'
+      )
+      .sort(categorySort),
+
+    female: [...categories]
+      .filter(
+        (category) =>
+          normalizeGender(category.gender) ===
+          'female'
+      )
+      .sort(categorySort),
+  }
+}
+
+function hasCategoryPermission(
+  profile,
+  category,
+  permissions,
+  action = 'view'
+) {
+  if (!profile || !category) return false
+
+  if (profile.role === 'super_admin') {
+    return true
+  }
+
+  if (category.admin_id === profile.id) {
+    return true
+  }
+
+  const permission =
+    permissions?.[category.id]
+
+  return action === 'edit'
+    ? Boolean(permission?.can_edit)
+    : Boolean(permission?.can_view)
+}
 
 /* =========================================================
    LOGIN
@@ -125,7 +243,6 @@ function Login({
       }
 
       onAdminLogin(data.session)
-
     } catch (error) {
       setMessage(
         error.message ||
@@ -244,7 +361,6 @@ function Login({
   )
 }
 
-
 /* =========================================================
    BOTONES DE ASISTENCIA
 ========================================================= */
@@ -285,7 +401,6 @@ function StatusButton({
   )
 }
 
-
 /* =========================================================
    SELECTOR DE ACTIVIDAD
 ========================================================= */
@@ -323,7 +438,6 @@ function ActivityPicker({
   )
 }
 
-
 /* =========================================================
    ADMIN - ASISTENCIA
 ========================================================= */
@@ -332,6 +446,7 @@ function AdminHome({
   profile,
   players,
   categories,
+  permissions,
 }) {
   const [date, setDate] =
     useState(today())
@@ -353,20 +468,40 @@ function AdminHome({
   const [message, setMessage] =
     useState('')
 
+  const editableCategories = useMemo(
+    () =>
+      categories.filter(
+        (category) =>
+          hasCategoryPermission(
+            profile,
+            category,
+            permissions,
+            'edit'
+          )
+      ),
+    [categories, profile, permissions]
+  )
+
   useEffect(() => {
     if (
-      categories.length > 0 &&
-      !categories.some(
+      editableCategories.length > 0 &&
+      !editableCategories.some(
         (category) =>
           category.id === categoryId
       )
     ) {
       setCategoryId(
-        categories[0].id
+        editableCategories[0].id
       )
     }
+
+    if (
+      editableCategories.length === 0
+    ) {
+      setCategoryId('')
+    }
   }, [
-    categories,
+    editableCategories,
     categoryId,
   ])
 
@@ -528,7 +663,8 @@ function AdminHome({
               'training_sessions'
             )
             .insert({
-              session_date: date,
+              session_date:
+                date,
               created_by:
                 profile.id,
               activity_type:
@@ -585,7 +721,6 @@ function AdminHome({
       setMessage(
         '✓ Asistencia guardada correctamente.'
       )
-
     } catch (error) {
       setMessage(
         error.message
@@ -620,7 +755,9 @@ function AdminHome({
           type="date"
           value={date}
           onChange={(event) =>
-            setDate(event.target.value)
+            setDate(
+              event.target.value
+            )
           }
         />
 
@@ -640,13 +777,18 @@ function AdminHome({
             )
           }
         >
-          {categories.map(
+          {editableCategories.map(
             (category) => (
               <option
                 key={category.id}
                 value={category.id}
               >
-                {category.name}
+                {genderGroupLabel(
+                  normalizeGender(
+                    category.gender
+                  )
+                )}{' '}
+                · {category.name}
               </option>
             )
           )}
@@ -667,13 +809,13 @@ function AdminHome({
 
       {categoryPlayers.length === 0 ? (
         <div className="empty">
-          No hay jugadoras en{' '}
+          No hay jugadores/as en{' '}
           <b>
             {currentCategory?.name ||
               'esta categoría'}
           </b>.
           <br />
-          Agregalas desde
+          Agregalos desde
           <b> Jugadoras</b>.
         </div>
       ) : (
@@ -744,14 +886,124 @@ function AdminHome({
   )
 }
 
+/* =========================================================
+   SELECTOR DE CATEGORÍAS
+========================================================= */
+
+function CategoryPicker({
+  categories,
+  value,
+  onChange,
+  disabled = false,
+}) {
+  const groups =
+    categoriesByGender(categories)
+
+  const selected =
+    categories.find(
+      (category) =>
+        category.id === value
+    )
+
+  return (
+    <div className="category-picker">
+
+      <div className="category-picker-current">
+
+        {selected ? (
+          <>
+            <span>
+              {genderGroupLabel(
+                normalizeGender(
+                  selected.gender
+                )
+              )}
+            </span>
+
+            <strong>
+              {selected.name}
+            </strong>
+          </>
+        ) : (
+          <span>
+            Seleccionar rama y categoría
+          </span>
+        )}
+
+      </div>
+
+      <div className="category-picker-groups">
+
+        {['male', 'female'].map(
+          (gender) => (
+            <details
+              key={gender}
+              open={groups[gender].some(
+                (category) =>
+                  category.id === value
+              )}
+            >
+
+              <summary>
+                <strong>
+                  {genderGroupLabel(
+                    gender
+                  )}
+                </strong>
+              </summary>
+
+              <div className="category-picker-options">
+
+                {groups[gender].length === 0 ? (
+                  <div className="category-picker-empty">
+                    No hay categorías disponibles.
+                  </div>
+                ) : (
+                  groups[gender].map(
+                    (category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        disabled={disabled}
+                        className={
+                          value ===
+                          category.id
+                            ? 'selected'
+                            : ''
+                        }
+                        onClick={() =>
+                          onChange(
+                            category.id
+                          )
+                        }
+                      >
+                        {category.name}
+                      </button>
+                    )
+                  )
+                )}
+
+              </div>
+
+            </details>
+          )
+        )}
+
+      </div>
+
+    </div>
+  )
+}
 
 /* =========================================================
    ADMIN - JUGADORAS
 ========================================================= */
 
 function Players({
+  profile,
   players,
   categories,
+  permissions,
   refresh,
 }) {
   const [firstName, setFirstName] =
@@ -774,9 +1026,14 @@ function Players({
   const [loading, setLoading] =
     useState(false)
 
-  /* ---------------------------------------------
-     EDICIÓN
-  --------------------------------------------- */
+  const [genderFilter, setGenderFilter] =
+    useState('all')
+
+  const [categoryFilter, setCategoryFilter] =
+    useState('all')
+
+  const [search, setSearch] =
+    useState('')
 
   const [editingPlayer, setEditingPlayer] =
     useState(null)
@@ -793,26 +1050,128 @@ function Players({
   const [editing, setEditing] =
     useState(false)
 
+  const playerCategories =
+    useMemo(() => {
+      return categories.filter(
+        (category) =>
+          hasCategoryPermission(
+            profile,
+            category,
+            permissions,
+            'view'
+          )
+      )
+    }, [
+      categories,
+      profile,
+      permissions,
+    ])
+
+  const editableCategories =
+    useMemo(() => {
+      return categories.filter(
+        (category) =>
+          hasCategoryPermission(
+            profile,
+            category,
+            permissions,
+            'edit'
+          )
+      )
+    }, [
+      categories,
+      profile,
+      permissions,
+    ])
+
   useEffect(() => {
     if (
-      categories.length > 0 &&
-      !categories.some(
+      editableCategories.length > 0 &&
+      !editableCategories.some(
         (category) =>
           category.id === categoryId
       )
     ) {
       setCategoryId(
-        categories[0].id
+        editableCategories[0].id
       )
     }
+
+    if (
+      editableCategories.length === 0
+    ) {
+      setCategoryId('')
+    }
   }, [
-    categories,
+    editableCategories,
     categoryId,
   ])
 
-  /* ---------------------------------------------
-     AGREGAR JUGADORA
-  --------------------------------------------- */
+  const visiblePlayers =
+    useMemo(() => {
+      const query =
+        search.trim().toLowerCase()
+
+      return players.filter(
+        (player) => {
+          const category =
+            categories.find(
+              (item) =>
+                item.id ===
+                player.category_id
+            )
+
+          if (!category) return false
+
+          if (
+            !hasCategoryPermission(
+              profile,
+              category,
+              permissions,
+              'view'
+            )
+          ) {
+            return false
+          }
+
+          if (
+            genderFilter !== 'all' &&
+            normalizeGender(
+              category.gender
+            ) !== genderFilter
+          ) {
+            return false
+          }
+
+          if (
+            categoryFilter !== 'all' &&
+            player.category_id !==
+              categoryFilter
+          ) {
+            return false
+          }
+
+          if (
+            query &&
+            !player.full_name
+              .toLowerCase()
+              .includes(query)
+          ) {
+            return false
+          }
+
+          return true
+        }
+      )
+    }, [
+      players,
+      categories,
+      profile,
+      permissions,
+      genderFilter,
+      categoryFilter,
+      search,
+    ])
 
   async function addPlayer(event) {
     event.preventDefault()
@@ -872,7 +1231,6 @@ function Players({
       setNewCode(code)
 
       await refresh()
-
     } catch (error) {
       setMessage(
         error.message
@@ -882,13 +1240,11 @@ function Players({
     }
   }
 
-  /* ---------------------------------------------
-     ABRIR EDICIÓN
-  --------------------------------------------- */
-
   function startEdit(player) {
     const parts =
-      player.full_name.trim().split(/\s+/)
+      player.full_name
+        .trim()
+        .split(/\s+/)
 
     const last =
       parts.shift() || ''
@@ -905,20 +1261,12 @@ function Players({
     setMessage('')
   }
 
-  /* ---------------------------------------------
-     CANCELAR EDICIÓN
-  --------------------------------------------- */
-
   function cancelEdit() {
     setEditingPlayer(null)
     setEditFirstName('')
     setEditLastName('')
     setEditCategoryId('')
   }
-
-  /* ---------------------------------------------
-     GUARDAR EDICIÓN
-  --------------------------------------------- */
 
   async function saveEdit(event) {
     event.preventDefault()
@@ -943,9 +1291,16 @@ function Players({
       return
     }
 
-    if (!editCategoryId) {
+    if (
+      !editCategoryId ||
+      !editableCategories.some(
+        (category) =>
+          category.id ===
+          editCategoryId
+      )
+    ) {
       setMessage(
-        'Seleccioná una categoría.'
+        'Seleccioná una categoría que tengas habilitada para editar.'
       )
       return
     }
@@ -984,7 +1339,6 @@ function Players({
       cancelEdit()
 
       await refresh()
-
     } catch (error) {
       setMessage(
         error.message
@@ -993,10 +1347,6 @@ function Players({
       setEditing(false)
     }
   }
-
-  /* ---------------------------------------------
-     ELIMINAR / DESACTIVAR
-  --------------------------------------------- */
 
   async function deletePlayer(player) {
     const confirmed =
@@ -1041,7 +1391,6 @@ function Players({
       )
 
       await refresh()
-
     } catch (error) {
       setMessage(
         error.message
@@ -1059,20 +1408,16 @@ function Players({
         <div>
 
           <h2>
-            Jugadoras
+            Jugadores y jugadoras
           </h2>
 
           <p>
-            Agregá, editá o eliminá jugadoras.
+            Agregá, editá o eliminá jugadores y jugadoras.
           </p>
 
         </div>
 
       </div>
-
-      {/* -----------------------------------------
-          AGREGAR
-      ----------------------------------------- */}
 
       <form
         className="add-player"
@@ -1101,32 +1446,16 @@ function Players({
           }
         />
 
-        <select
-          required
-          value={categoryId}
-          onChange={(event) =>
-            setCategoryId(
-              event.target.value
-            )
+        <CategoryPicker
+          categories={
+            editableCategories
           }
-        >
-
-          <option value="">
-            Seleccionar categoría
-          </option>
-
-          {categories.map(
-            (category) => (
-              <option
-                key={category.id}
-                value={category.id}
-              >
-                {category.name}
-              </option>
-            )
-          )}
-
-        </select>
+          value={categoryId}
+          onChange={
+            setCategoryId
+          }
+          disabled={loading}
+        />
 
         <button
           disabled={loading}
@@ -1138,15 +1467,23 @@ function Players({
 
       </form>
 
-      {/* -----------------------------------------
-          CÓDIGO NUEVO
-      ----------------------------------------- */}
-
       {newCode && (
         <div className="code-card">
 
           <b>
-            ✓ Jugadora agregada
+            ✓{' '}
+            {
+              genderLabel(
+                categories.find(
+                  (category) =>
+                    category.id ===
+                    categoryId
+                )
+              ) ===
+              'Jugadora'
+                ? 'Jugadora agregada'
+                : 'Jugador agregado'
+            }
           </b>
 
           <span>
@@ -1178,15 +1515,13 @@ function Players({
         </div>
       )}
 
-      {/* -----------------------------------------
-          FORMULARIO EDITAR
-      ----------------------------------------- */}
-
       {editingPlayer && (
         <div className="edit-player-card">
 
           <div className="page-head">
+
             <div>
+
               <h3>
                 ✏️ Editar jugadora
               </h3>
@@ -1194,7 +1529,9 @@ function Players({
               <p>
                 Modificá sus datos y guardá los cambios.
               </p>
+
             </div>
+
           </div>
 
           <form
@@ -1224,32 +1561,18 @@ function Players({
               }
             />
 
-            <select
-              required
-              value={editCategoryId}
-              onChange={(event) =>
-                setEditCategoryId(
-                  event.target.value
-                )
+            <CategoryPicker
+              categories={
+                editableCategories
               }
-            >
-
-              <option value="">
-                Seleccionar categoría
-              </option>
-
-              {categories.map(
-                (category) => (
-                  <option
-                    key={category.id}
-                    value={category.id}
-                  >
-                    {category.name}
-                  </option>
-                )
-              )}
-
-            </select>
+              value={
+                editCategoryId
+              }
+              onChange={
+                setEditCategoryId
+              }
+              disabled={editing}
+            />
 
             <button
               disabled={editing}
@@ -1274,90 +1597,257 @@ function Players({
         </div>
       )}
 
-      {/* -----------------------------------------
-          LISTA
-      ----------------------------------------- */}
+      <div className="player-filters">
+
+        <div className="player-filter-search">
+
+          <label>
+            Buscar jugador/a
+          </label>
+
+          <input
+            type="search"
+            placeholder="Nombre y apellido"
+            value={search}
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
+          />
+
+        </div>
+
+        <div>
+
+          <label>
+            Rama
+          </label>
+
+          <select
+            value={genderFilter}
+            onChange={(event) => {
+              setGenderFilter(
+                event.target.value
+              )
+
+              setCategoryFilter(
+                'all'
+              )
+            }}
+          >
+
+            <option value="all">
+              Todas
+            </option>
+
+            <option value="male">
+              MASCULINO
+            </option>
+
+            <option value="female">
+              FEMENINO
+            </option>
+
+          </select>
+
+        </div>
+
+        <div>
+
+          <label>
+            Categoría
+          </label>
+
+          <select
+            value={
+              categoryFilter
+            }
+            onChange={(event) =>
+              setCategoryFilter(
+                event.target.value
+              )
+            }
+          >
+
+            <option value="all">
+              Todas
+            </option>
+
+            {playerCategories
+              .filter(
+                (category) =>
+                  genderFilter ===
+                    'all' ||
+                  normalizeGender(
+                    category.gender
+                  ) ===
+                    genderFilter
+              )
+              .sort(categorySort)
+              .map(
+                (category) => (
+                  <option
+                    key={
+                      category.id
+                    }
+                    value={
+                      category.id
+                    }
+                  >
+                    {genderGroupLabel(
+                      normalizeGender(
+                        category.gender
+                      )
+                    )}{' '}
+                    · {category.name}
+                  </option>
+                )
+              )}
+
+          </select>
+
+        </div>
+
+      </div>
 
       <div className="simple-list">
 
-        {players.map(
-          (player) => {
+        {visiblePlayers.length === 0 ? (
+          <div className="empty">
+            No hay jugadores/as que coincidan con los filtros.
+          </div>
+        ) : (
+          visiblePlayers.map(
+            (player) => {
 
-            const category =
-              categories.find(
-                (item) =>
-                  item.id ===
-                  player.category_id
-              )
+              const category =
+                categories.find(
+                  (item) =>
+                    item.id ===
+                    player.category_id
+                )
 
-            return (
-              <div
-                key={player.id}
-                className="simple-row player-management-row"
-              >
+              return (
+                <div
+                  key={player.id}
+                  className="simple-row player-management-row"
+                >
 
-                <span className="avatar">
-                  {player.full_name
-                    .charAt(0)
-                    .toUpperCase()}
-                </span>
-
-                <div className="player-info">
-
-                  <b>
-                    {player.full_name}
-                  </b>
-
-                  <small>
-                    {category?.name ||
-                      'Sin categoría'}
-                  </small>
-
-                </div>
-
-                <div className="player-code">
-
-                  <span>
-                    Código
+                  <span className="avatar">
+                    {player.full_name
+                      .charAt(0)
+                      .toUpperCase()}
                   </span>
 
-                  <strong>
-                    {player.access_code}
-                  </strong>
+                  <div className="player-info">
+
+                    <b>
+                      {player.full_name}
+                    </b>
+
+                    <small>
+                      {category
+                        ? `${genderLabel(category)} · ${genderGroupLabel(normalizeGender(category.gender))} · ${category.name}`
+                        : 'Sin categoría'}
+                    </small>
+
+                  </div>
+
+                  <div className="player-code">
+
+                    <span>
+                      Código de ingreso
+                    </span>
+
+                    <strong>
+                      {player.access_code}
+                    </strong>
+
+                  </div>
+
+                  <div className="player-actions">
+
+                    <button
+                      type="button"
+                      className="edit-btn"
+                      onClick={() =>
+                        startEdit(
+                          player
+                        )
+                      }
+                      disabled={
+                        loading ||
+                        !hasCategoryPermission(
+                          profile,
+                          category,
+                          permissions,
+                          'edit'
+                        )
+                      }
+                      title={
+                        !hasCategoryPermission(
+                          profile,
+                          category,
+                          permissions,
+                          'edit'
+                        )
+                          ? 'No tenés permiso para editar esta categoría'
+                          : 'Editar'
+                      }
+                    >
+                      <span aria-hidden="true">
+                        ✏️
+                      </span>
+
+                      <span>
+                        Modificar
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      onClick={() =>
+                        deletePlayer(
+                          player
+                        )
+                      }
+                      disabled={
+                        loading ||
+                        !hasCategoryPermission(
+                          profile,
+                          category,
+                          permissions,
+                          'edit'
+                        )
+                      }
+                      title={
+                        !hasCategoryPermission(
+                          profile,
+                          category,
+                          permissions,
+                          'edit'
+                        )
+                          ? 'No tenés permiso para eliminar esta categoría'
+                          : 'Eliminar'
+                      }
+                    >
+                      <span aria-hidden="true">
+                        🗑️
+                      </span>
+
+                      <span>
+                        Eliminar
+                      </span>
+                    </button>
+
+                  </div>
 
                 </div>
-
-                {/* BOTONES */}
-
-                <div className="player-actions">
-
-                  <button
-                    type="button"
-                    className="edit-btn"
-                    onClick={() =>
-                      startEdit(player)
-                    }
-                    disabled={loading}
-                  >
-                    ✏️ Editar
-                  </button>
-
-                  <button
-                    type="button"
-                    className="delete-btn"
-                    onClick={() =>
-                      deletePlayer(player)
-                    }
-                    disabled={loading}
-                  >
-                    🗑️ Eliminar
-                  </button>
-
-                </div>
-
-              </div>
-            )
-          }
+              )
+            }
+          )
         )}
 
       </div>
@@ -1366,6 +1856,461 @@ function Players({
   )
 }
 
+/* =========================================================
+   PERMISOS
+========================================================= */
+
+function Permissions({
+  profile,
+  categories,
+}) {
+  const [admins, setAdmins] =
+    useState([])
+
+  const [permissions, setPermissions] =
+    useState({})
+
+  const [selectedAdmin, setSelectedAdmin] =
+    useState('')
+
+  const [loading, setLoading] =
+    useState(false)
+
+  const [message, setMessage] =
+    useState('')
+
+  const groups =
+    categoriesByGender(categories)
+
+  useEffect(() => {
+    async function load() {
+
+      setMessage('')
+
+      const {
+        data: adminData,
+        error: adminError,
+      } =
+        await supabase
+          .from('profiles')
+          .select(
+            'id, full_name, role'
+          )
+          .eq(
+            'role',
+            'admin'
+          )
+          .order(
+            'full_name'
+          )
+
+      if (adminError) {
+        setMessage(
+          adminError.message
+        )
+        return
+      }
+
+      setAdmins(
+        adminData || []
+      )
+
+      if (
+        !selectedAdmin &&
+        adminData?.length
+      ) {
+        setSelectedAdmin(
+          adminData[0].id
+        )
+      }
+
+      const {
+        data: permissionData,
+        error: permissionError,
+      } =
+        await supabase
+          .from(
+            'admin_category_permissions'
+          )
+          .select(
+            'admin_id, category_id, can_view, can_edit'
+          )
+
+      if (permissionError) {
+        setMessage(
+          permissionError.message
+        )
+        return
+      }
+
+      const map = {}
+
+      ;(permissionData || [])
+        .forEach(
+          (item) => {
+            map[
+              `${item.admin_id}:${item.category_id}`
+            ] = item
+          }
+        )
+
+      setPermissions(map)
+    }
+
+    load()
+  }, [
+    selectedAdmin,
+  ])
+
+  if (
+    profile?.role !==
+    'super_admin'
+  ) {
+    return null
+  }
+
+  const currentPermission =
+    (categoryId) =>
+      permissions[
+        `${selectedAdmin}:${categoryId}`
+      ] || {
+        can_view: false,
+        can_edit: false,
+      }
+
+  async function savePermission(
+    category,
+    field,
+    value
+  ) {
+    if (!selectedAdmin) return
+
+    const current =
+      currentPermission(
+        category.id
+      )
+
+    const next = {
+      can_view:
+        field ===
+        'can_view'
+          ? value
+          : current.can_view,
+
+      can_edit:
+        field ===
+        'can_edit'
+          ? value
+          : current.can_edit,
+    }
+
+    if (next.can_edit) {
+      next.can_view = true
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+
+      if (
+        !next.can_view &&
+        !next.can_edit
+      ) {
+
+        const {
+          error,
+        } =
+          await supabase
+            .from(
+              'admin_category_permissions'
+            )
+            .delete()
+            .eq(
+              'admin_id',
+              selectedAdmin
+            )
+            .eq(
+              'category_id',
+              category.id
+            )
+
+        if (error) throw error
+
+        setPermissions(
+          (currentMap) => {
+            const copy = {
+              ...currentMap,
+            }
+
+            delete copy[
+              `${selectedAdmin}:${category.id}`
+            ]
+
+            return copy
+          }
+        )
+
+      } else {
+
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .from(
+              'admin_category_permissions'
+            )
+            .upsert(
+              {
+                admin_id:
+                  selectedAdmin,
+
+                category_id:
+                  category.id,
+
+                can_view:
+                  next.can_view,
+
+                can_edit:
+                  next.can_edit,
+              },
+              {
+                onConflict:
+                  'admin_id,category_id',
+              }
+            )
+            .select(
+              'admin_id, category_id, can_view, can_edit'
+            )
+            .single()
+
+        if (error) throw error
+
+        setPermissions(
+          (currentMap) => ({
+            ...currentMap,
+
+            [
+              `${selectedAdmin}:${category.id}`
+            ]:
+              data,
+          })
+        )
+      }
+
+      setMessage(
+        '✓ Permiso actualizado.'
+      )
+
+    } catch (error) {
+      setMessage(
+        error.message
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function renderGroup(gender) {
+
+    return (
+      <div
+        className="permission-group"
+        key={gender}
+      >
+
+        <div className="permission-group-head">
+
+          <strong>
+            {genderGroupLabel(
+              gender
+            )}
+          </strong>
+
+        </div>
+
+        {groups[gender].length === 0 ? (
+          <div className="empty">
+            No hay categorías.
+          </div>
+        ) : (
+          groups[gender].map(
+            (category) => {
+
+              const permission =
+                currentPermission(
+                  category.id
+                )
+
+              const owned =
+                category.admin_id ===
+                selectedAdmin
+
+              return (
+                <div
+                  className="permission-row"
+                  key={
+                    category.id
+                  }
+                >
+
+                  <div>
+
+                    <b>
+                      {category.name}
+                    </b>
+
+                    {owned && (
+                      <small>
+                        Asignada directamente a este administrador
+                      </small>
+                    )}
+
+                  </div>
+
+                  <label className="permission-check">
+
+                    <input
+                      type="checkbox"
+                      checked={
+                        owned ||
+                        permission.can_view
+                      }
+                      disabled={
+                        owned ||
+                        loading
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        savePermission(
+                          category,
+                          'can_view',
+                          event.target.checked
+                        )
+                      }
+                    />
+
+                    <span>
+                      Ver
+                    </span>
+
+                  </label>
+
+                  <label className="permission-check">
+
+                    <input
+                      type="checkbox"
+                      checked={
+                        owned ||
+                        permission.can_edit
+                      }
+                      disabled={
+                        owned ||
+                        loading
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        savePermission(
+                          category,
+                          'can_edit',
+                          event.target.checked
+                        )
+                      }
+                    />
+
+                    <span>
+                      Editar
+                    </span>
+
+                  </label>
+
+                </div>
+              )
+            }
+          )
+        )}
+
+      </div>
+    )
+  }
+
+  return (
+    <section>
+
+      <div className="page-head">
+
+        <div>
+
+          <h2>
+            Permisos de administradores
+          </h2>
+
+          <p>
+            Elegí qué ramas y categorías puede ver o editar cada administrador.
+          </p>
+
+        </div>
+
+      </div>
+
+      <div className="filter-box permission-admin-picker">
+
+        <label>
+          Administrador
+        </label>
+
+        <select
+          value={selectedAdmin}
+          onChange={(event) =>
+            setSelectedAdmin(
+              event.target.value
+            )
+          }
+        >
+
+          <option value="">
+            Seleccionar administrador
+          </option>
+
+          {admins.map(
+            (admin) => (
+              <option
+                key={admin.id}
+                value={admin.id}
+              >
+                {admin.full_name ||
+                  'Administrador sin nombre'}
+              </option>
+            )
+          )}
+
+        </select>
+
+      </div>
+
+      {!selectedAdmin ? (
+        <div className="empty">
+          No hay administradores para configurar.
+        </div>
+      ) : (
+        <div className="permissions-grid">
+          {renderGroup('male')}
+          {renderGroup('female')}
+        </div>
+      )}
+
+      {message && (
+        <div className="message">
+          {message}
+        </div>
+      )}
+
+    </section>
+  )
+}
 
 /* =========================================================
    ADMIN - HISTORIAL
@@ -1388,6 +2333,7 @@ function History({
     useState('all')
 
   useEffect(() => {
+
     async function loadSessions() {
 
       let query =
@@ -1434,6 +2380,7 @@ function History({
     }
 
     loadSessions()
+
   }, [
     categoryFilter,
   ])
@@ -1441,7 +2388,10 @@ function History({
   async function openSession(
     session
   ) {
-    setSelected(session)
+
+    setSelected(
+      session
+    )
 
     const {
       data,
@@ -1470,7 +2420,7 @@ function History({
         (player) =>
           player.id === id
       )?.full_name ||
-      'Jugadora'
+      'Jugador/a'
     )
   }
 
@@ -1524,9 +2474,16 @@ function History({
             (category) => (
               <option
                 key={category.id}
-                value={category.id}
+                value={
+                  category.id
+                }
               >
-                {category.name}
+                {genderGroupLabel(
+                  normalizeGender(
+                    category.gender
+                  )
+                )}{' '}
+                · {category.name}
               </option>
             )
           )}
@@ -1547,7 +2504,9 @@ function History({
             sessions.map(
               (session) => (
                 <button
-                  key={session.id}
+                  key={
+                    session.id
+                  }
                   className={
                     selected?.id ===
                     session.id
@@ -1584,7 +2543,9 @@ function History({
 
                   <small>
                     {
-                      session.categories?.name ||
+                      session
+                        .categories
+                        ?.name ||
                       'Sin categoría'
                     }
                   </small>
@@ -1602,6 +2563,7 @@ function History({
             'Elegí una fecha para ver la asistencia.'
           ) : (
             <>
+
               <h3>
                 {formatDate(
                   selected.session_date
@@ -1609,8 +2571,11 @@ function History({
               </h3>
 
               <p>
+
                 {
-                  selected.categories?.name ||
+                  selected
+                    .categories
+                    ?.name ||
                   'Sin categoría'
                 }
 
@@ -1622,6 +2587,7 @@ function History({
                   ]?.label ||
                   selected.activity_type
                 }
+
               </p>
 
               {rows.length === 0 ? (
@@ -1677,7 +2643,6 @@ function History({
   )
 }
 
-
 /* =========================================================
    JUGADORA
 ========================================================= */
@@ -1690,21 +2655,23 @@ function PlayerDashboard({
     useState([])
 
   useEffect(() => {
+
     async function loadAttendance() {
 
       const {
         data,
         error,
-      } = await supabase.rpc(
-        'player_attendance',
-        {
-          p_name:
-            player.name,
+      } =
+        await supabase.rpc(
+          'player_attendance',
+          {
+            p_name:
+              player.name,
 
-          p_code:
-            player.code,
-        }
-      )
+            p_code:
+              player.code,
+          }
+        )
 
       if (!error) {
         setRows(
@@ -1714,6 +2681,7 @@ function PlayerDashboard({
     }
 
     loadAttendance()
+
   }, [
     player,
   ])
@@ -1756,7 +2724,9 @@ function PlayerDashboard({
 
         <button
           className="logout"
-          onClick={onLogout}
+          onClick={
+            onLogout
+          }
         >
           Salir
         </button>
@@ -1783,7 +2753,9 @@ function PlayerDashboard({
                 <p>
                   Categoría:{' '}
                   <b>
-                    {player.category_name}
+                    {
+                      player.category_name
+                    }
                   </b>
                 </p>
               )}
@@ -1795,6 +2767,7 @@ function PlayerDashboard({
           <div className="stats">
 
             <div>
+
               <strong>
                 {counts.present}
               </strong>
@@ -1802,9 +2775,11 @@ function PlayerDashboard({
               <span>
                 Presentes
               </span>
+
             </div>
 
             <div>
+
               <strong>
                 {counts.late}
               </strong>
@@ -1812,9 +2787,11 @@ function PlayerDashboard({
               <span>
                 Tardanzas
               </span>
+
             </div>
 
             <div>
+
               <strong>
                 {counts.absent}
               </strong>
@@ -1822,6 +2799,7 @@ function PlayerDashboard({
               <span>
                 Ausencias
               </span>
+
             </div>
 
           </div>
@@ -1893,7 +2871,6 @@ function PlayerDashboard({
   )
 }
 
-
 /* =========================================================
    APP PRINCIPAL
 ========================================================= */
@@ -1912,6 +2889,9 @@ function App() {
   const [categories, setCategories] =
     useState([])
 
+  const [categoryPermissions, setCategoryPermissions] =
+    useState({})
+
   const [tab, setTab] =
     useState('home')
 
@@ -1929,10 +2909,6 @@ function App() {
       }
 
     })
-
-  /* ---------------------------------------------
-     CARGAR ADMIN
-  --------------------------------------------- */
 
   async function loadAdmin(user) {
 
@@ -1953,7 +2929,6 @@ function App() {
       console.error(
         profileError
       )
-
       return
     }
 
@@ -1962,59 +2937,171 @@ function App() {
     )
 
     if (
-      profileData?.role ===
-      'admin'
+      ![
+        'admin',
+        'super_admin',
+      ].includes(
+        profileData?.role
+      )
+    ) {
+      setCategories([])
+      setPlayers([])
+      setCategoryPermissions({})
+      return
+    }
+
+    const {
+      data: categoryData,
+      error: categoryError,
+    } =
+      await supabase
+        .from('categories')
+        .select('*')
+        .eq(
+          'active',
+          true
+        )
+        .order(
+          'gender'
+        )
+        .order(
+          'name'
+        )
+
+    if (categoryError) {
+      console.error(
+        categoryError
+      )
+      return
+    }
+
+    let permissionMap = {}
+
+    if (
+      profileData.role !==
+      'super_admin'
     ) {
 
       const {
-        data: categoryData,
-        error: categoryError,
+        data: permissionData,
+        error: permissionError,
       } =
         await supabase
-          .from('categories')
-          .select('*')
-          .order('name')
-
-      if (categoryError) {
-        console.error(
-          categoryError
-        )
-      } else {
-        setCategories(
-          categoryData || []
-        )
-      }
-
-      const {
-        data: playerData,
-        error: playerError,
-      } =
-        await supabase
-          .from('players')
-          .select('*')
+          .from(
+            'admin_category_permissions'
+          )
+          .select(
+            'category_id, can_view, can_edit'
+          )
           .eq(
-            'active',
-            true
-          )
-          .order(
-            'full_name'
+            'admin_id',
+            profileData.id
           )
 
-      if (playerError) {
+      if (permissionError) {
         console.error(
-          playerError
+          permissionError
         )
       } else {
-        setPlayers(
-          playerData || []
+
+        ;(
+          permissionData ||
+          []
+        ).forEach(
+          (item) => {
+
+            permissionMap[
+              item.category_id
+            ] = {
+              can_view:
+                Boolean(
+                  item.can_view
+                ),
+
+              can_edit:
+                Boolean(
+                  item.can_edit
+                ),
+            }
+
+          }
         )
+
       }
     }
-  }
 
-  /* ---------------------------------------------
-     SESIÓN ADMIN
-  --------------------------------------------- */
+    setCategoryPermissions(
+      permissionMap
+    )
+
+    /*
+      IMPORTANTE:
+      Solo se aceptan categorías con
+      gender válido (female/male).
+
+      Las categorías antiguas con
+      gender = null no se muestran.
+    */
+
+    const validCategories =
+      (
+        categoryData ||
+        []
+      ).filter(
+        (category) =>
+          ['female', 'male'].includes(
+            normalizeGender(
+              category.gender
+            )
+          )
+      )
+
+    const visibleCategories =
+      validCategories.filter(
+        (category) =>
+          hasCategoryPermission(
+            profileData,
+            category,
+            permissionMap,
+            'view'
+          )
+      )
+
+    setCategories(
+      visibleCategories
+    )
+
+    const {
+      data: playerData,
+      error: playerError,
+    } =
+      await supabase
+        .from('players')
+        .select('*')
+        .eq(
+          'active',
+          true
+        )
+        .order(
+          'last_name'
+        )
+        .order(
+          'first_name'
+        )
+        .order(
+          'full_name'
+        )
+
+    if (playerError) {
+      console.error(
+        playerError
+      )
+    } else {
+      setPlayers(
+        playerData || []
+      )
+    }
+  }
 
   useEffect(() => {
 
@@ -2063,9 +3150,11 @@ function App() {
             if (
               newSession
             ) {
+
               loadAdmin(
                 newSession.user
               )
+
             } else {
 
               setProfile(
@@ -2079,6 +3168,11 @@ function App() {
               setCategories(
                 []
               )
+
+              setCategoryPermissions(
+                {}
+              )
+
             }
 
           }
@@ -2088,10 +3182,6 @@ function App() {
       subscription.unsubscribe()
 
   }, [])
-
-  /* ---------------------------------------------
-     SUPABASE NO CONECTADO
-  --------------------------------------------- */
 
   if (!supabase) {
 
@@ -2118,10 +3208,6 @@ function App() {
     )
   }
 
-  /* ---------------------------------------------
-     JUGADORA
-  --------------------------------------------- */
-
   if (
     player &&
     !session
@@ -2144,10 +3230,6 @@ function App() {
       />
     )
   }
-
-  /* ---------------------------------------------
-     LOGIN
-  --------------------------------------------- */
 
   if (
     !session ||
@@ -2183,10 +3265,6 @@ function App() {
       />
     )
   }
-
-  /* ---------------------------------------------
-     ADMIN
-  --------------------------------------------- */
 
   const refresh =
     () =>
@@ -2259,6 +3337,25 @@ function App() {
           Historial
         </button>
 
+        {profile.role ===
+          'super_admin' && (
+          <button
+            className={
+              tab ===
+              'permissions'
+                ? 'active'
+                : ''
+            }
+            onClick={() =>
+              setTab(
+                'permissions'
+              )
+            }
+          >
+            Permisos
+          </button>
+        )}
+
       </nav>
 
       <div className="content">
@@ -2268,13 +3365,20 @@ function App() {
             profile={profile}
             players={players}
             categories={categories}
+            permissions={
+              categoryPermissions
+            }
           />
         )}
 
         {tab === 'players' && (
           <Players
+            profile={profile}
             players={players}
             categories={categories}
+            permissions={
+              categoryPermissions
+            }
             refresh={refresh}
           />
         )}
@@ -2286,11 +3390,22 @@ function App() {
           />
         )}
 
+        {tab ===
+          'permissions' &&
+          profile.role ===
+            'super_admin' && (
+          <Permissions
+            profile={profile}
+            categories={
+              categories
+            }
+          />
+        )}
+
       </div>
 
     </main>
   )
 }
-
 
 export default App
