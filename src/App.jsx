@@ -203,7 +203,7 @@ function buildPlayerAccessText(
   const label =
     category
       ? genderLabel(category)
-      : 'Jugador/a'
+      : 'Jugador@s'
 
   return `${label}: ${player.full_name}
 
@@ -1388,7 +1388,7 @@ function Players({
       if (error) throw error
 
       setMessage(
-        '✓ Jugador/a actualizado correctamente.'
+        '✓ Jugador@s actualizado correctamente.'
       )
 
       cancelEdit()
@@ -1413,7 +1413,7 @@ function Players({
     const label =
       category
         ? genderLabel(category)
-        : 'Jugador/a'
+        : 'Jugador@s'
 
     const confirmed =
       window.confirm(
@@ -1687,7 +1687,7 @@ Cada ${playerLabel.toLowerCase()} debe ingresar con su nombre y su código perso
         <button disabled={loading}>
           {loading
             ? 'Agregando...'
-            : '+ Agregar jugador/a'}
+            : '+ Agregar Jugador@s'}
         </button>
 
       </form>
@@ -1770,7 +1770,7 @@ Cada ${playerLabel.toLowerCase()} debe ingresar con su nombre y su código perso
             <div>
 
               <h3>
-                ✏️ Editar jugador/a
+                ✏️ Editar Jugador@s
               </h3>
 
               <p>
@@ -1845,7 +1845,7 @@ Cada ${playerLabel.toLowerCase()} debe ingresar con su nombre y su código perso
         <div className="player-filter-search">
 
           <label>
-            Buscar jugador/a
+            Buscar Jugador@s
           </label>
 
           <input
@@ -2839,7 +2839,7 @@ function History({
         (player) =>
           player.id === id
       )?.full_name ||
-      'Jugador/a'
+      'Jugador@s'
     )
   }
 
@@ -3122,7 +3122,7 @@ function History({
 }
 
 /* =========================================================
-   JUGADOR/A
+   Jugador@s
 ========================================================= */
 
 function PlayerDashboard({
