@@ -1,5 +1,5 @@
 -- =========================================================
--- ASISTENCIA VOLEY - BASE DE DATOS
+-- MUNICIPALIDAD DE SAN MARTÍN - VOLEY · BASE DE DATOS
 -- Ejecutar todo este archivo en Supabase SQL Editor.
 -- =========================================================
 
