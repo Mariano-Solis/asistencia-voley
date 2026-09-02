@@ -1,0 +1,122 @@
+name: Interface fixes
+
+on:
+  push:
+    paths:
+      - '.github/workflows/interface-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply interface fixes
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+
+          app = Path('src/App.jsx')
+          text = app.read_text(encoding='utf-8')
+
+          old = '''function ActivityPicker({ value, onChange }) {
+            return (
+              <div className="activity-picker">
+                {Object.entries(ACTIVITY_TYPES).map(([key, item]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={value === key ? "active" : ""}
+                    onClick={() => onChange(key)}
+                  >
+                    {item.icon} {item.label}
+                  </button>
+                ))}
+              </div>
+            );
+          }'''
+
+          new = '''function ActivityPicker({ value, onChange, open, onToggle }) {
+            return (
+              <div className="activity-picker">
+                {Object.entries(ACTIVITY_TYPES).map(([key, item]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={value === key ? "active" : ""}
+                    aria-expanded={value === key ? open : false}
+                    onClick={() => {
+                      if (value === key) {
+                        onToggle();
+                        return;
+                      }
+                      onChange(key);
+                    }}
+                  >
+                    {item.icon} {item.label}
+                  </button>
+                ))}
+              </div>
+            );
+          }'''
+
+          if old not in text:
+              raise SystemExit('ActivityPicker block not found; aborting safely.')
+          text = text.replace(old, new, 1)
+
+          old_state = '''  const [activityType, setActivityType] = useState("training");
+  const [attendance, setAttendance] = useState({});'''
+          new_state = '''  const [activityType, setActivityType] = useState("training");
+  const [activityOpen, setActivityOpen] = useState(true);
+  const [attendance, setAttendance] = useState({});'''
+          if old_state not in text:
+              raise SystemExit('Attendance state block not found; aborting safely.')
+          text = text.replace(old_state, new_state, 1)
+
+          old_picker = '''        <label>Actividad</label>
+        <ActivityPicker value={activityType} onChange={setActivityType} />
+        {activityType === "match" && ('''
+          new_picker = '''        <label>Actividad</label>
+        <ActivityPicker
+          value={activityType}
+          open={activityOpen}
+          onToggle={() => setActivityOpen((open) => !open)}
+          onChange={(nextType) => {
+            setActivityType(nextType);
+            setActivityOpen(true);
+          }}
+        />
+        {activityOpen && activityType === "match" && ('''
+          if old_picker not in text:
+              raise SystemExit('Attendance activity picker block not found; aborting safely.')
+          text = text.replace(old_picker, new_picker, 1)
+
+          text = text.replace('''        {activityType === "tournament" && (
+          <div className="event-extra event-grid">''', '''        {activityOpen && activityType === "tournament" && (
+          <div className="event-extra event-grid">''', 1)
+
+          app.write_text(text, encoding='utf-8')
+
+          css = Path('src/styles.css')
+          css_text = css.read_text(encoding='utf-8')
+          marker = '/* TEMP_INTERFACE_FIX_MARKER */'
+          if marker not in css_text:
+              css_text += '''\n\n/* TEMP_INTERFACE_FIX_MARKER */\n/* Navegación siempre en un único renglón en escritorio; en móvil se desplaza horizontalmente. */\n.app > nav {\n  flex-wrap: nowrap !important;\n  white-space: nowrap;\n  overflow-x: auto;\n  overflow-y: hidden;\n  width: 100%;\n}\n\n.app > nav button {\n  flex: 0 0 auto !important;\n  white-space: nowrap;\n}\n'''
+              css.write_text(css_text, encoding='utf-8')
+
+          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
+          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          subprocess.run(['git', 'add', 'src/App.jsx', 'src/styles.css', '.github/workflows/interface-fix.yml'], check=True)
+          subprocess.run(['git', 'commit', '-m', 'fix: keep navigation in one row and toggle activity details'], check=True)
+          subprocess.run(['git', 'push'], check=True)
+      - name: Remove temporary workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/interface-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: remove temporary interface workflow'
+          git push
