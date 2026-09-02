@@ -1,0 +1,1 @@
+Assets reserved for MGSM Voley Mendoza branding.
