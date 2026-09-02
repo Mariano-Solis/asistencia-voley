@@ -355,16 +355,21 @@ function ActivityPicker({ value, onChange }) {
 
 function CategoryPicker({ categories, value, onChange, disabled = false }) {
   const groups = categoriesByGender(categories);
+  const selectedGender = normalizeGender(
+    categories.find((c) => c.id === value)?.gender,
+  );
+  const [openGender, setOpenGender] = useState(
+    value && groups[selectedGender]?.some((c) => c.id === value)
+      ? selectedGender
+      : null,
+  );
+
   return (
     <div className="category-picker">
       <div className="category-picker-current">
         {value ? (
           <>
-            <span>
-              {genderGroupLabel(
-                normalizeGender(categories.find((c) => c.id === value)?.gender),
-              )}
-            </span>
+            <span>{genderGroupLabel(selectedGender)}</span>
             <strong>{categories.find((c) => c.id === value)?.name}</strong>
           </>
         ) : (
@@ -373,11 +378,15 @@ function CategoryPicker({ categories, value, onChange, disabled = false }) {
       </div>
       <div className="category-picker-groups">
         {["female", "male"].map((gender) => (
-          <details
-            key={gender}
-            open={groups[gender].some((c) => c.id === value)}
-          >
-            <summary>
+          <details key={gender} open={openGender === gender}>
+            <summary
+              onClick={(event) => {
+                event.preventDefault();
+                setOpenGender((current) =>
+                  current === gender ? null : gender,
+                );
+              }}
+            >
               <strong>{genderGroupLabel(gender)}</strong>
             </summary>
             <div className="category-picker-options">
@@ -387,7 +396,10 @@ function CategoryPicker({ categories, value, onChange, disabled = false }) {
                   key={category.id}
                   disabled={disabled}
                   className={value === category.id ? "selected" : ""}
-                  onClick={() => onChange(category.id)}
+                  onClick={() => {
+                    onChange(category.id);
+                    setOpenGender(gender);
+                  }}
                 >
                   {category.name}
                 </button>
@@ -1288,282 +1300,296 @@ function History({ profile, categories, permissions, players, refresh }) {
           ))}
         </select>
       </div>
-      <div className="history-grid">
-        <div className="sessions">
-          {sessions.length ? (
-            sessions.map((s) => (
-              <button
-                key={s.id}
-                className={`session ${selected?.id === s.id ? "active" : ""}`}
-                onClick={() => open(s)}
-              >
-                <strong>
-                  {new Date(s.session_date + "T12:00:00").toLocaleDateString(
-                    "es-AR",
+      {!selected ? (
+        <div className="history-grid">
+          <div className="sessions">
+            {sessions.length ? (
+              sessions.map((s) => (
+                <button
+                  key={s.id}
+                  className="session"
+                  onClick={() => open(s)}
+                >
+                  <strong>
+                    {new Date(s.session_date + "T12:00:00").toLocaleDateString(
+                      "es-AR",
+                    )}
+                  </strong>
+                  <small>
+                    {ACTIVITY_TYPES[s.activity_type]?.icon}{" "}
+                    {ACTIVITY_TYPES[s.activity_type]?.label}
+                  </small>
+                  <small>{s.categories?.name}</small>
+                  {s.activity_type === "match" && s.opponent && (
+                    <small>Vs. {s.opponent}</small>
                   )}
-                </strong>
-                <small>
-                  {ACTIVITY_TYPES[s.activity_type]?.icon}{" "}
-                  {ACTIVITY_TYPES[s.activity_type]?.label}
-                </small>
-                <small>{s.categories?.name}</small>
-                {s.activity_type === "match" && s.opponent && (
-                  <small>Vs. {s.opponent}</small>
-                )}
-                {s.activity_type === "tournament" && (
-                  <small>{sessionVenue(s) || "Sin lugar"}</small>
-                )}
-              </button>
-            ))
-          ) : (
-            <div className="empty">No hay registros.</div>
-          )}
+                  {s.activity_type === "tournament" && (
+                    <small>{sessionVenue(s) || "Sin lugar"}</small>
+                  )}
+                </button>
+              ))
+            ) : (
+              <div className="empty">No hay registros.</div>
+            )}
+          </div>
         </div>
-        <div className="history-detail">
-          {!selected ? (
-            <div>Elegí un registro.</div>
-          ) : (
-            <>
-              <div className="detail-head">
-                <div>
-                  <h3>
-                    {ACTIVITY_TYPES[type]?.icon} {ACTIVITY_TYPES[type]?.label}
-                  </h3>
-                  <p>{selected.categories?.name}</p>
-                </div>
-                {editable && (
-                  <div className="record-actions">
-                    <button
-                      className="edit-btn"
-                      onClick={() => setEditing(true)}
-                    >
-                      ✏️ Modificar
-                    </button>
-                    <button
-                      className="delete-btn"
-                      onClick={remove}
-                      disabled={loading}
-                    >
-                      🗑️ Eliminar
-                    </button>
-                  </div>
-                )}
+      ) : (
+        <div className="history-detail history-detail-full">
+          <div
+            className="detail-head session-detail-header"
+            onClick={() => {
+              if (!editing) setSelected(null);
+            }}
+            role={!editing ? "button" : undefined}
+            tabIndex={!editing ? 0 : undefined}
+            onKeyDown={(event) => {
+              if (!editing && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                setSelected(null);
+              }
+            }}
+          >
+            <div>
+              <span className="detail-back">← Historial</span>
+              <h3>
+                {ACTIVITY_TYPES[type]?.icon} {ACTIVITY_TYPES[type]?.label}
+              </h3>
+              <p>{selected.categories?.name}</p>
+            </div>
+            {editable && (
+              <div
+                className="record-actions"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  className="edit-btn"
+                  onClick={() => setEditing(true)}
+                >
+                  ✏️ Modificar
+                </button>
+                <button
+                  className="delete-btn"
+                  onClick={remove}
+                  disabled={loading}
+                >
+                  🗑️ Eliminar
+                </button>
               </div>
-              {editing ? (
-                <div className="edit-session-form">
+            )}
+          </div>
+          {editing ? (
+            <div className="edit-session-form">
+              <label>
+                Fecha
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </label>
+              <label>
+                Actividad
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                >
+                  {Object.entries(ACTIVITY_TYPES).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {type === "match" && (
+                <>
                   <label>
-                    Fecha
+                    Rival
                     <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      value={opponent}
+                      onChange={(e) => setOpponent(e.target.value)}
                     />
                   </label>
                   <label>
-                    Actividad
-                    <select
-                      value={type}
-                      onChange={(e) => setType(e.target.value)}
-                    >
-                      {Object.entries(ACTIVITY_TYPES).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
+                    Lugar
+                    <input
+                      value={matchLocation}
+                      onChange={(e) => setMatchLocation(e.target.value)}
+                    />
                   </label>
-                  {type === "match" && (
-                    <>
-                      <label>
-                        Rival
-                        <input
-                          value={opponent}
-                          onChange={(e) => setOpponent(e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        Lugar
-                        <input
-                          value={matchLocation}
-                          onChange={(e) => setMatchLocation(e.target.value)}
-                        />
-                      </label>
-                    </>
-                  )}
-                  {type === "tournament" && (
-                    <>
-                      <label>
-                        Lugar
-                        <input
-                          value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        Desde
-                        <input
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        Hasta
-                        <input
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                        />
-                      </label>
-                      <div className="tournament-dates">
-                        <label>Fechas adicionales</label>
-                        <div>
-                          {tournamentDates.map((value, index) => (
-                            <div className="date-row" key={`${value}-${index}`}>
-                              <input
-                                type="date"
-                                value={value}
-                                onChange={(e) =>
-                                  setTournamentDates((dates) =>
-                                    dates.map((item, itemIndex) =>
-                                      itemIndex === index
-                                        ? e.target.value
-                                        : item,
-                                    ),
-                                  )
-                                }
-                              />
-                              <button
-                                type="button"
-                                className="mini-delete"
-                                aria-label="Quitar fecha"
-                                onClick={() =>
-                                  setTournamentDates((dates) =>
-                                    dates.filter(
-                                      (_, itemIndex) => itemIndex !== index,
-                                    ),
-                                  )
-                                }
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          className="add-date-btn"
-                          onClick={() =>
-                            setTournamentDates((dates) => [
-                              ...dates,
-                              endDate || startDate || date,
-                            ])
-                          }
-                        >
-                          + Agregar fecha
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  <div className="form-actions">
-                    <button
-                      className="save-btn"
-                      onClick={saveEdit}
-                      disabled={loading}
-                    >
-                      ✓ Guardar cambios
-                    </button>
-                    <button
-                      className="link-btn"
-                      onClick={() => setEditing(false)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ) : (
+                </>
+              )}
+              {type === "tournament" && (
                 <>
-                  {selected.activity_type === "match" && selected.opponent && (
-                    <p>
-                      <b>Vs.:</b> {selected.opponent}
-                      {selected.event_location && <> · <b>Lugar:</b> {selected.event_location}</>}
-                    </p>
-                  )}
-                  {selected.activity_type === "tournament" && (
-                    <p>
-                      <b>Lugar:</b> {sessionVenue(selected) || "—"} ·{" "}
-                      <b>Fechas:</b>{" "}
-                      {sessionTournamentDates(selected).map(formatDate).join(", ")}
-                    </p>
-                  )}
-                  <div className="simple-list">
-                    {rows.map((r) => (
-                      <div className="simple-row" key={r.player_id}>
-                        <b>
-                          {players.find((p) => p.id === r.player_id)
-                            ?.full_name || "Jugador@"}
-                        </b>
-                        <div className="attendance-history-actions">
-                          <StatusButton
-                            value={r.status}
-                            onChange={async (status) => {
-                              const result = await supabase
-                                .from("attendance")
-                                .update({ status })
-                                .eq("session_id", selected.id)
-                                .eq("player_id", r.player_id);
-                              if (result.error)
-                                setMessage(errorText(result.error));
-                              else {
-                                setRows((x) =>
-                                  x.map((y) =>
-                                    y.player_id === r.player_id
-                                      ? { ...y, status }
-                                      : y,
-                                  ),
-                                );
-                                setMessage("✓ Asistencia modificada.");
-                              }
-                            }}
+                  <label>
+                    Lugar
+                    <input
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Desde
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Hasta
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </label>
+                  <div className="tournament-dates">
+                    <label>Fechas adicionales</label>
+                    <div>
+                      {tournamentDates.map((value, index) => (
+                        <div className="date-row" key={`${value}-${index}`}>
+                          <input
+                            type="date"
+                            value={value}
+                            onChange={(e) =>
+                              setTournamentDates((dates) =>
+                                dates.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? e.target.value
+                                    : item,
+                                ),
+                              )
+                            }
                           />
                           <button
                             type="button"
                             className="mini-delete"
-                            onClick={async () => {
-                              if (!window.confirm("¿Eliminar esta asistencia?"))
-                                return;
-                              const result = await supabase
-                                .from("attendance")
-                                .delete()
-                                .eq("session_id", selected.id)
-                                .eq("player_id", r.player_id);
-                              if (result.error)
-                                setMessage(errorText(result.error));
-                              else {
-                                setRows((x) =>
-                                  x.filter((y) => y.player_id !== r.player_id),
-                                );
-                                setAttendance((a) => {
-                                  const copy = { ...a };
-                                  delete copy[r.player_id];
-                                  return copy;
-                                });
-                                setMessage("✓ Asistencia eliminada.");
-                              }
-                            }}
+                            aria-label="Quitar fecha"
+                            onClick={() =>
+                              setTournamentDates((dates) =>
+                                dates.filter(
+                                  (_, itemIndex) => itemIndex !== index,
+                                ),
+                              )
+                            }
                           >
-                            🗑️
+                            ×
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="add-date-btn"
+                      onClick={() =>
+                        setTournamentDates((dates) => [
+                          ...dates,
+                          endDate || startDate || date,
+                        ])
+                      }
+                    >
+                      + Agregar fecha
+                    </button>
                   </div>
                 </>
               )}
+              <div className="form-actions">
+                <button
+                  className="save-btn"
+                  onClick={saveEdit}
+                  disabled={loading}
+                >
+                  ✓ Guardar cambios
+                </button>
+                <button
+                  className="link-btn"
+                  onClick={() => setEditing(false)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {selected.activity_type === "match" && selected.opponent && (
+                <p>
+                  <b>Vs.:</b> {selected.opponent}
+                  {selected.event_location && <> · <b>Lugar:</b> {selected.event_location}</>}
+                </p>
+              )}
+              {selected.activity_type === "tournament" && (
+                <p>
+                  <b>Lugar:</b> {sessionVenue(selected) || "—"} ·{" "}
+                  <b>Fechas:</b>{" "}
+                  {sessionTournamentDates(selected).map(formatDate).join(", ")}
+                </p>
+              )}
+              <div className="simple-list">
+                {rows.map((r) => (
+                  <div className="simple-row" key={r.player_id}>
+                    <b>
+                      {players.find((p) => p.id === r.player_id)
+                        ?.full_name || "Jugador@"}
+                    </b>
+                    <div className="attendance-history-actions">
+                      <StatusButton
+                        value={r.status}
+                        onChange={async (status) => {
+                          const result = await supabase
+                            .from("attendance")
+                            .update({ status })
+                            .eq("session_id", selected.id)
+                            .eq("player_id", r.player_id);
+                          if (result.error)
+                            setMessage(errorText(result.error));
+                          else {
+                            setRows((x) =>
+                              x.map((y) =>
+                                y.player_id === r.player_id
+                                  ? { ...y, status }
+                                  : y,
+                              ),
+                            );
+                            setMessage("✓ Asistencia modificada.");
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="mini-delete"
+                        onClick={async () => {
+                          if (!window.confirm("¿Eliminar esta asistencia?"))
+                            return;
+                          const result = await supabase
+                            .from("attendance")
+                            .delete()
+                            .eq("session_id", selected.id)
+                            .eq("player_id", r.player_id);
+                          if (result.error)
+                            setMessage(errorText(result.error));
+                          else {
+                            setRows((x) =>
+                              x.filter((y) => y.player_id !== r.player_id),
+                            );
+                            setAttendance((a) => {
+                              const copy = { ...a };
+                              delete copy[r.player_id];
+                              return copy;
+                            });
+                            setMessage("✓ Asistencia eliminada.");
+                          }
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </>
           )}
         </div>
-      </div>
+      )}
       {message && <div className="message">{message}</div>}
     </section>
   );
