@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import LegacyPlayerSelfEdit from './LegacyPlayerSelfEdit'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -13,5 +14,8 @@ import './player-self-edit.css'
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode><App /></React.StrictMode>
+  <React.StrictMode>
+    <App />
+    <LegacyPlayerSelfEdit />
+  </React.StrictMode>
 )
