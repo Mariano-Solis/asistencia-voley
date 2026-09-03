@@ -2,7 +2,6 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import LegacyPlayerSelfEdit from './LegacyPlayerSelfEdit'
-import AuthRecoveryFix from './AuthRecoveryFix'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -18,6 +17,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
     <LegacyPlayerSelfEdit />
-    <AuthRecoveryFix />
   </React.StrictMode>
 )
