@@ -37,20 +37,23 @@ export default function LegacyPlayerSelfEdit() {
         return;
       }
 
-      const result = await supabase
-        .from("players")
-        .select("id,user_id,first_name,last_name,full_name,dni,birth_date,sex,selfie_path,access_code,active")
-        .eq("id", legacy.id)
-        .maybeSingle();
+      // Legacy players are intentionally not readable directly through the
+      // players table because RLS protects that table. This RPC validates the
+      // player id + personal code and returns only the player's own fields.
+      const result = await supabase.rpc("player_profile_by_code", {
+        p_player_id: legacy.id,
+        p_code: clean(legacy.code).toUpperCase(),
+      });
 
-      if (result.error || !result.data?.active) {
+      if (result.error || !result.data?.ok || !result.data?.player?.active) {
         setPlayer(null);
         return;
       }
 
-      setPlayer(result.data);
+      const current = result.data.player;
+      setPlayer(current);
       setCode(clean(legacy.code).toUpperCase());
-      hydratePlayer(result.data, { first: setFirst, last: setLast, dni: setDni, birth: setBirth, sex: setSex });
+      hydratePlayer(current, { first: setFirst, last: setLast, dni: setDni, birth: setBirth, sex: setSex });
     } catch (_) {
       setPlayer(null);
     }
