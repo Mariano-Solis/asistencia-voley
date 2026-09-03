@@ -81,23 +81,24 @@ function PlayerSelfEdit() {
     return () => { mounted = false; data?.subscription?.unsubscribe(); };
   }, []);
 
+  // La edición propia se centraliza en "Mis datos". Eliminamos cualquier
+  // botón antiguo/duplicado que diga "Editar mis datos" para no dejar
+  // controles visibles sin funcionalidad.
   useEffect(() => {
-    if (!player || !session?.legacy) return;
-    const bind = () => {
-      document.querySelectorAll(".profile-edit-btn").forEach(btn => {
-        if (btn.dataset.selfEditBound === "1") return;
-        btn.dataset.selfEditBound = "1";
-        btn.addEventListener("click", () => {
-          setMessage("");
-          setOpen(true);
-        });
+    if (!player) return;
+    const removeDuplicate = () => {
+      document.querySelectorAll("button, a").forEach((el) => {
+        const text = String(el.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (text === "editar mis datos" || text.includes("✏️ editar mis datos")) {
+          el.remove();
+        }
       });
     };
-    bind();
-    const observer = new MutationObserver(bind);
+    removeDuplicate();
+    const observer = new MutationObserver(removeDuplicate);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [player, session]);
+  }, [player]);
 
   async function save() {
     if (!player || !session) return;
@@ -147,7 +148,7 @@ function PlayerSelfEdit() {
         <div className="player-self-edit-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <section className="player-self-edit-modal" role="dialog" aria-modal="true" aria-label="Editar mis datos">
             <div className="player-self-edit-head">
-              <div><span className="player-self-edit-kicker">MI PERFIL</span><h2>Editar mis datos</h2><p>Solo vos podés modificar tus datos personales.</p></div>
+              <div><span className="player-self-edit-kicker">MI PERFIL</span><h2>Mis datos</h2><p>Solo vos podés modificar tus datos personales.</p></div>
               <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar">×</button>
             </div>
             <div className="player-self-edit-grid">
