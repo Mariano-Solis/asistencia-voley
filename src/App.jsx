@@ -81,15 +81,13 @@ function PlayerSelfEdit() {
     return () => { mounted = false; data?.subscription?.unsubscribe(); };
   }, []);
 
-  // La edición propia se centraliza en "Mis datos". Eliminamos cualquier
-  // botón antiguo/duplicado que diga "Editar mis datos" para no dejar
-  // controles visibles sin funcionalidad.
+  // El boton antiguo vive dentro de AppNew. Se elimina de forma global,
+  // independientemente de que este componente haya cargado el perfil.
   useEffect(() => {
-    if (!player) return;
     const removeDuplicate = () => {
-      document.querySelectorAll("button, a").forEach((el) => {
+      document.querySelectorAll(".profile-edit-btn, button, a").forEach((el) => {
         const text = String(el.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
-        if (text === "editar mis datos" || text.includes("✏️ editar mis datos")) {
+        if (el.classList?.contains("profile-edit-btn") || text === "editar mis datos" || text.includes("✏️ editar mis datos")) {
           el.remove();
         }
       });
@@ -98,7 +96,7 @@ function PlayerSelfEdit() {
     const observer = new MutationObserver(removeDuplicate);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [player]);
+  }, []);
 
   async function save() {
     if (!player || !session) return;
