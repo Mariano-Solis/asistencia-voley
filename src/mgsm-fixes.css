@@ -1,0 +1,20 @@
+/* MGSM VOLEY · final interaction polish */
+.hidden-file{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+.selfie-field{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:12px;border:1px dashed #d4d4d4;border-radius:10px;background:#fafafa;color:#555;font-size:12px;font-weight:800}
+.selfie-field>span:first-child{width:100%;font-size:11px;color:#555}
+.file-button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 15px;border-radius:10px;background:#161616;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.14);font-size:12px;font-weight:800;cursor:pointer;transition:transform .16s,background .16s,box-shadow .16s}
+.file-button:hover{background:#c51f28;transform:translateY(-1px);box-shadow:0 5px 12px rgba(197,31,40,.2)}
+.file-name{display:inline-flex;align-items:center;min-height:32px;padding:7px 10px;border-radius:8px;background:#fff1f2;color:#9f1119;font-size:10px;font-weight:800;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-edit-btn{background:#161616!important;color:#fff!important;border-radius:10px!important;padding:11px 15px!important;font-weight:800!important;box-shadow:0 3px 9px rgba(0,0,0,.16)!important;transition:transform .16s,background .16s!important}
+.profile-edit-btn:hover{background:#c51f28!important;transform:translateY(-1px)}
+.admin-create-card{padding:18px;margin-bottom:15px}
+.admin-create-card form{display:grid;gap:11px}
+.admin-list{display:grid;gap:9px}
+.admin-row{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.admin-row b,.admin-row span{display:block}.admin-row span{color:#777;font-size:10px;margin-top:3px}
+@media(max-width:760px){
+  .selfie-field{align-items:flex-start}
+  .file-button{width:100%}
+  .profile-edit-btn{width:100%}
+  .admin-create-card .three{grid-template-columns:1fr}
+}
