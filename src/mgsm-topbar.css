@@ -1,9 +1,9 @@
 /* =========================================================
    MGSM · LOGO OFICIAL EN EL ENCABEZADO
-   Este archivo complementa styles.css sin tocar la lógica.
+   Usa el logo real empaquetado por Vite, no una ruta /Logo.jpg.
 ========================================================= */
 .topbar{
-  padding-left:100px;
+  padding-left:100px !important;
 }
 
 .topbar::before{
@@ -14,16 +14,19 @@
   transform:translateY(-50%);
   width:62px;
   height:62px;
-  background:url('/Logo.jpg') center/contain no-repeat;
+  background-image:var(--mgsm-logo-url);
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:contain;
   border-radius:50%;
   box-shadow:0 2px 10px rgba(0,0,0,.22);
-  z-index:3;
+  z-index:20;
   pointer-events:none;
 }
 
 @media(max-width:760px){
   .topbar{
-    padding-left:65px;
+    padding-left:65px !important;
   }
 
   .topbar::before{
