@@ -1,0 +1,221 @@
+/* =========================================================
+   MGSM · PULIDO VISUAL SIDEBAR + NAVEGACION
+   Solo CSS: no modifica ninguna logica ni funcionalidad.
+========================================================= */
+
+.app>nav{
+  padding:20px 12px 22px;
+  background:linear-gradient(180deg,#fff 0%,#fbfbfb 100%);
+  border-right:1px solid #dedede;
+  box-shadow:4px 0 22px rgba(0,0,0,.045);
+}
+
+.app>nav:before{
+  width:128px;
+  height:128px;
+  flex-basis:128px;
+  margin:0 auto 18px;
+  background-image:var(--mgsm-logo-url) !important;
+  filter:drop-shadow(0 5px 10px rgba(0,0,0,.10));
+}
+
+.app>nav button{
+  min-height:46px;
+  margin:1px 0;
+  padding:10px 12px;
+  gap:10px;
+  border:1px solid transparent;
+  border-radius:10px;
+  color:#3b3b3b;
+  font-size:13px;
+  letter-spacing:.005em;
+  box-shadow:none;
+}
+
+/* Icono visual por sección, sin tocar el texto ni los handlers React. */
+.app>nav button:before{
+  width:28px;
+  height:28px;
+  flex:0 0 28px;
+  display:grid;
+  place-items:center;
+  background:#f3f3f3;
+  border-radius:8px;
+  color:#666;
+  font-size:15px;
+  line-height:1;
+  content:"";
+}
+
+.app>nav button:nth-of-type(1):before{content:"🏐"}
+.app>nav button:nth-of-type(2):before{content:"👥"}
+.app>nav button:nth-of-type(3):before{content:"🕘"}
+.app>nav button:nth-of-type(4):before{content:"▦"}
+.app>nav button:nth-of-type(5):before{content:"🔐"}
+
+.app>nav button:hover{
+  background:#fff1f2;
+  color:var(--mgsm-red);
+  border-color:#f8d6d9;
+  transform:translateX(1px);
+}
+
+.app>nav button:hover:before{
+  background:#ffe5e7;
+  color:var(--mgsm-red);
+}
+
+.app>nav button.active{
+  background:linear-gradient(90deg,var(--mgsm-red),#b81720);
+  color:#fff;
+  border-color:var(--mgsm-red);
+  box-shadow:0 6px 15px rgba(197,31,40,.18);
+}
+
+.app>nav button.active:before{
+  background:rgba(255,255,255,.18);
+  color:#fff;
+}
+
+.app>nav:after{
+  margin-top:auto;
+  padding:15px 5px 2px;
+  font-size:10px;
+  letter-spacing:.14em;
+}
+
+/* El logo oficial también debe aparecer correctamente en el footer. */
+.app>footer img,
+.player-app .brand img,
+.auth-card .brand img{
+  content:var(--mgsm-logo-url) !important;
+}
+
+/* Login: identidad más protagonista, sin agrandar innecesariamente la tarjeta. */
+.auth-card .brand{
+  justify-content:center;
+  margin-bottom:8px;
+}
+
+.auth-card .brand img{
+  width:76px;
+  height:76px;
+  border-width:3px;
+  box-shadow:0 5px 18px rgba(0,0,0,.14);
+}
+
+.auth-card .brand strong{
+  font-size:18px;
+}
+
+.auth-card .brand span{
+  font-size:10px;
+  margin-top:6px;
+}
+
+/* Desktop: que el contenido respire sin perder densidad institucional. */
+@media(min-width:1101px){
+  .content-inner{padding-top:28px}
+  .page-title{margin-bottom:18px}
+}
+
+/* Tablet y celular: sidebar fuera del flujo visual y controles cómodos. */
+@media(max-width:900px){
+  .app{
+    display:block;
+    min-height:100vh;
+  }
+
+  .app>nav{
+    width:100%;
+    min-height:0;
+    display:flex;
+    flex-direction:row;
+    flex-wrap:wrap;
+    gap:6px;
+    padding:9px 10px;
+    border-right:0;
+    border-bottom:1px solid #ddd;
+    box-shadow:0 3px 14px rgba(0,0,0,.06);
+  }
+
+  .app>nav:before{
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
+    margin:0 5px 0 0;
+  }
+
+  .app>nav button{
+    width:auto;
+    min-height:42px;
+    flex:1 1 auto;
+    justify-content:center;
+    padding:8px 10px;
+  }
+
+  .app>nav button:before{
+    width:25px;
+    height:25px;
+    flex-basis:25px;
+    font-size:13px;
+  }
+
+  .app>nav:after{display:none}
+
+  .content{
+    min-height:calc(100vh - 150px);
+  }
+
+  .topbar{
+    min-height:70px;
+  }
+}
+
+@media(max-width:560px){
+  .topbar{
+    min-height:64px;
+    padding:8px 12px;
+  }
+
+  .brand.compact img{width:42px;height:42px}
+  .brand.compact strong{font-size:12px}
+  .brand.compact span{font-size:8px}
+
+  .top-user{
+    gap:7px;
+    font-size:11px;
+  }
+
+  .top-user .role{display:none}
+  .topbar button{padding:8px 10px;font-size:11px}
+
+  .app>nav{
+    padding:7px;
+    gap:5px;
+  }
+
+  .app>nav:before{display:none}
+
+  .app>nav button{
+    min-height:40px;
+    font-size:11px;
+    padding:7px 6px;
+    gap:5px;
+  }
+
+  .app>nav button:before{
+    width:23px;
+    height:23px;
+    flex-basis:23px;
+    font-size:12px;
+  }
+
+  .auth-card .brand{
+    flex-direction:column;
+    text-align:center;
+    gap:8px;
+  }
+
+  .auth-card .brand img{width:82px;height:82px}
+}
