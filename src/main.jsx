@@ -5,6 +5,7 @@ import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
 import './mgsm-logo-assets.css'
+import './mgsm-sidebar-polish.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
