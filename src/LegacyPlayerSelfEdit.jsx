@@ -31,8 +31,7 @@ export default function LegacyPlayerSelfEdit() {
   const load = async () => {
     if (!supabase || typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(PLAYER_KEY);
-      const legacy = JSON.parse(raw || "null");
+      const legacy = JSON.parse(localStorage.getItem(PLAYER_KEY) || "null");
       if (!legacy?.legacy || !legacy.id || !legacy.code) {
         setPlayer(null);
         return;
@@ -59,12 +58,10 @@ export default function LegacyPlayerSelfEdit() {
 
   useEffect(() => {
     load();
-
     const onStorage = (event) => {
       if (!event.key || event.key === PLAYER_KEY) load();
     };
     const onFocus = () => load();
-
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", onFocus);
     return () => {
@@ -72,6 +69,19 @@ export default function LegacyPlayerSelfEdit() {
       window.removeEventListener("focus", onFocus);
     };
   }, []);
+
+  const uploadLegacySelfie = async (file) => {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/player-selfie-upload`;
+    const form = new FormData();
+    form.append("player_id", player.id);
+    form.append("code", code);
+    form.append("file", file);
+
+    const response = await fetch(url, { method: "POST", body: form });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok) throw new Error(data?.error || "No se pudo cargar la selfie.");
+    return data.path;
+  };
 
   const save = async () => {
     if (!player || !code) return;
@@ -84,23 +94,8 @@ export default function LegacyPlayerSelfEdit() {
     setMessage("");
 
     try {
-      // Legacy access is deliberately handled by the protected RPC. The player
-      // never receives permission to update administrative columns directly.
-      // The selfie is sent only when the legacy storage path is already usable.
       let selfiePath = null;
-
-      if (selfie) {
-        // Legacy players have no auth.uid(). Keep the same folder convention
-        // used by the existing player-selfie flow. If Storage rejects the upload,
-        // the profile data is not partially saved and the user gets a clear error.
-        const path = `legacy-${player.id}/${Date.now()}-${selfie.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const upload = await supabase.storage.from("player-selfies").upload(path, selfie, {
-          upsert: false,
-          contentType: selfie.type || "image/jpeg",
-        });
-        if (upload.error) throw upload.error;
-        selfiePath = path;
-      }
+      if (selfie) selfiePath = await uploadLegacySelfie(selfie);
 
       const result = await supabase.rpc("player_update_by_code", {
         p_player_id: player.id,
@@ -130,7 +125,6 @@ export default function LegacyPlayerSelfEdit() {
       hydratePlayer(updated, { first: setFirst, last: setLast, dni: setDni, birth: setBirth, sex: setSex });
       setSelfie(null);
       setMessage("✓ Datos actualizados correctamente.");
-
       setTimeout(() => setOpen(false), 900);
     } catch (e) {
       setMessage(e?.message || "No se pudieron guardar los cambios.");
@@ -146,10 +140,7 @@ export default function LegacyPlayerSelfEdit() {
       <button
         className="player-self-edit-fab legacy-player-self-edit-fab"
         type="button"
-        onClick={() => {
-          setMessage("");
-          setOpen(true);
-        }}
+        onClick={() => { setMessage(""); setOpen(true); }}
         aria-label="Editar mis datos"
       >
         ✏️ Mis datos
@@ -185,13 +176,7 @@ export default function LegacyPlayerSelfEdit() {
               <label className="selfie-field">
                 <span>Selfie</span>
                 <span className="file-button">📷 {selfie ? "Cambiar selfie" : "Cargar mi selfie"}</span>
-                <input
-                  className="hidden-file"
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={(e) => setSelfie(e.target.files?.[0] || null)}
-                />
+                <input className="hidden-file" type="file" accept="image/*" capture="user" onChange={(e) => setSelfie(e.target.files?.[0] || null)} />
                 {selfie && <span className="file-name">✓ {selfie.name}</span>}
               </label>
 
@@ -199,9 +184,7 @@ export default function LegacyPlayerSelfEdit() {
 
               <div className="player-self-edit-actions">
                 <button type="button" className="secondary" onClick={() => !saving && setOpen(false)}>Cancelar</button>
-                <button type="button" className="primary" disabled={saving} onClick={save}>
-                  {saving ? "Guardando..." : "Guardar cambios"}
-                </button>
+                <button type="button" className="primary" disabled={saving} onClick={save}>{saving ? "Guardando..." : "Guardar cambios"}</button>
               </div>
             </div>
           </section>
