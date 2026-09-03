@@ -15,6 +15,7 @@ export default function AuthRecoveryFix() {
 
   useEffect(() => {
     if (!supabase) return;
+
     const onRecovery = (event) => {
       if (event === "PASSWORD_RECOVERY") {
         setModal("password");
@@ -23,33 +24,52 @@ export default function AuthRecoveryFix() {
         setConfirmPassword("");
       }
     };
+
     const { data } = supabase.auth.onAuthStateChange(onRecovery);
     return () => data?.subscription?.unsubscribe();
   }, []);
 
   useEffect(() => {
+    let lastCard = null;
+    let lastEmailInput = null;
+
     const findLogin = () => {
       const cards = Array.from(document.querySelectorAll(".auth-card"));
       const card = cards.find((el) => {
         const text = (el.textContent || "").toLowerCase();
         return text.includes("acceso con código personal") && text.includes("correo electrónico");
       });
+
       if (!card) {
-        setTarget(null);
+        if (lastCard !== null || lastEmailInput !== null) {
+          lastCard = null;
+          lastEmailInput = null;
+          setTarget(null);
+        }
         return;
       }
+
       const form = card.querySelector("form");
       if (!form) return;
-      const inputs = Array.from(form.querySelectorAll('input[type="email"], input[type="password"]'));
-      const emailInput = inputs.find((input) => input.type === "email");
-      const passwordInput = inputs.find((input) => input.type === "password");
+
+      const emailInput = form.querySelector('input[type="email"]');
+      const passwordInput = form.querySelector('input[type="password"]');
       if (!emailInput || !passwordInput) return;
-      setTarget({ card, emailInput });
+
+      if (lastCard !== card || lastEmailInput !== emailInput) {
+        lastCard = card;
+        lastEmailInput = emailInput;
+        setTarget({ card, emailInput });
+      }
     };
 
     findLogin();
-    const observer = new MutationObserver(findLogin);
+
+    const observer = new MutationObserver(() => {
+      findLogin();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
+
     window.addEventListener("resize", findLogin);
     return () => {
       observer.disconnect();
@@ -61,11 +81,18 @@ export default function AuthRecoveryFix() {
     const cleanOldControls = () => {
       document.querySelectorAll(".voley-auth-recovery-controls").forEach((el) => el.remove());
     };
+
     cleanOldControls();
     const observer = new MutationObserver(cleanOldControls);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (target?.emailInput) {
+      setEmail(target.emailInput.value || "");
+    }
+  }, [target?.emailInput]);
 
   function openForgot() {
     const value = target?.emailInput?.value?.trim() || "";
@@ -84,10 +111,13 @@ export default function AuthRecoveryFix() {
   async function sendRecovery() {
     const value = email.trim().toLowerCase();
     if (!value) return setMessage("Ingresá tu correo electrónico.");
+
     setLoading(true);
     setMessage("");
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(value, { redirectTo: PUBLIC_APP_URL });
+      const { error } = await supabase.auth.resetPasswordForEmail(value, {
+        redirectTo: PUBLIC_APP_URL,
+      });
       if (error) throw error;
       setMessage("✓ Correo enviado. Revisá Recibidos y Spam/Correo no deseado.");
     } catch (error) {
@@ -100,6 +130,7 @@ export default function AuthRecoveryFix() {
   async function resendVerification() {
     const value = email.trim().toLowerCase();
     if (!value) return setMessage("Ingresá el correo con el que te registraste.");
+
     setLoading(true);
     setMessage("");
     try {
@@ -123,8 +154,13 @@ export default function AuthRecoveryFix() {
   }
 
   async function updatePassword() {
-    if (newPassword.length < 6) return setMessage("La nueva contraseña debe tener al menos 6 caracteres.");
-    if (newPassword !== confirmPassword) return setMessage("Las contraseñas no coinciden.");
+    if (newPassword.length < 6) {
+      return setMessage("La nueva contraseña debe tener al menos 6 caracteres.");
+    }
+    if (newPassword !== confirmPassword) {
+      return setMessage("Las contraseñas no coinciden.");
+    }
+
     setLoading(true);
     setMessage("");
     try {
@@ -140,46 +176,197 @@ export default function AuthRecoveryFix() {
   }
 
   const controls = target?.card ? (
-    <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", margin: "10px 0 2px", position: "relative", zIndex: 5 }}>
-      <button type="button" onClick={openForgot} style={{ border: 0, background: "none", color: "#b5121b", textDecoration: "underline", cursor: "pointer", font: "inherit", padding: 6 }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        gap: 16,
+        flexWrap: "wrap",
+        margin: "10px 0 2px",
+        position: "relative",
+        zIndex: 5,
+      }}
+    >
+      <button
+        type="button"
+        onClick={openForgot}
+        style={{
+          border: 0,
+          background: "none",
+          color: "#b5121b",
+          textDecoration: "underline",
+          cursor: "pointer",
+          font: "inherit",
+          padding: 6,
+        }}
+      >
         ¿Olvidaste tu contraseña?
       </button>
-      <button type="button" onClick={openResend} style={{ border: 0, background: "none", color: "#333", textDecoration: "underline", cursor: "pointer", font: "inherit", padding: 6 }}>
+      <button
+        type="button"
+        onClick={openResend}
+        style={{
+          border: 0,
+          background: "none",
+          color: "#333",
+          textDecoration: "underline",
+          cursor: "pointer",
+          font: "inherit",
+          padding: 6,
+        }}
+      >
         📩 Reenviar correo de verificación
       </button>
     </div>
   ) : null;
 
-  useEffect(() => {
-    if (target?.emailInput) setEmail(target.emailInput.value || "");
-  }, [target?.emailInput]);
-
   const modalView = modal ? (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100000, background: "rgba(0,0,0,.68)", display: "grid", placeItems: "center", padding: 18 }}>
-      <section style={{ width: "min(430px,100%)", background: "#fff", borderRadius: 18, padding: 24, boxShadow: "0 24px 70px rgba(0,0,0,.35)" }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100000,
+        background: "rgba(0,0,0,.68)",
+        display: "grid",
+        placeItems: "center",
+        padding: 18,
+      }}
+    >
+      <section
+        style={{
+          width: "min(430px,100%)",
+          background: "#fff",
+          borderRadius: 18,
+          padding: 24,
+          boxShadow: "0 24px 70px rgba(0,0,0,.35)",
+        }}
+      >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ margin: 0, color: "#111" }}>{modal === "forgot" ? "Recuperar contraseña" : modal === "resend" ? "Verificar cuenta" : "Nueva contraseña"}</h2>
-          <button type="button" onClick={() => setModal(null)} style={{ border: 0, background: "none", fontSize: 28, cursor: "pointer" }}>×</button>
+          <h2 style={{ margin: 0, color: "#111" }}>
+            {modal === "forgot"
+              ? "Recuperar contraseña"
+              : modal === "resend"
+                ? "Verificar cuenta"
+                : "Nueva contraseña"}
+          </h2>
+          <button
+            type="button"
+            onClick={() => setModal(null)}
+            style={{ border: 0, background: "none", fontSize: 28, cursor: "pointer" }}
+          >
+            ×
+          </button>
         </div>
+
         <p style={{ color: "#555", lineHeight: 1.5 }}>
-          {modal === "forgot" && "Ingresá el correo de tu cuenta. Te enviaremos un enlace para crear una nueva contraseña."}
-          {modal === "resend" && "Ingresá el correo usado al registrarte. Si la cuenta todavía necesita confirmación, te enviaremos un nuevo correo."}
+          {modal === "forgot" &&
+            "Ingresá el correo de tu cuenta. Te enviaremos un enlace para crear una nueva contraseña."}
+          {modal === "resend" &&
+            "Ingresá el correo usado al registrarte. Si la cuenta todavía necesita confirmación, te enviaremos un nuevo correo."}
           {modal === "password" && "Elegí una nueva contraseña para tu cuenta."}
         </p>
-        {modal === "password" ? <>
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nueva contraseña" autoFocus style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #ccc", marginBottom: 10 }} />
-          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repetir contraseña" style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #ccc", marginBottom: 12 }} />
-        </> : <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo electrónico" autoFocus style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #ccc", marginBottom: 12 }} />}
-        {message && <div style={{ background: "#f4f4f4", borderRadius: 10, padding: 12, marginBottom: 12, lineHeight: 1.45 }}>{message}</div>}
-        <button type="button" disabled={loading} onClick={modal === "forgot" ? sendRecovery : modal === "resend" ? resendVerification : updatePassword} style={{ width: "100%", border: 0, borderRadius: 10, padding: 13, background: "#b5121b", color: "#fff", fontWeight: 700, cursor: loading ? "wait" : "pointer" }}>
-          {loading ? "Enviando..." : modal === "forgot" ? "Enviar recuperación" : modal === "resend" ? "Reenviar correo" : "Guardar nueva contraseña"}
+
+        {modal === "password" ? (
+          <>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Nueva contraseña"
+              autoFocus
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid #ccc",
+                marginBottom: 10,
+              }}
+            />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repetir contraseña"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid #ccc",
+                marginBottom: 12,
+              }}
+            />
+          </>
+        ) : (
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Correo electrónico"
+            autoFocus
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid #ccc",
+              marginBottom: 12,
+            }}
+          />
+        )}
+
+        {message && (
+          <div
+            style={{
+              background: "#f4f4f4",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 12,
+              lineHeight: 1.45,
+            }}
+          >
+            {message}
+          </div>
+        )}
+
+        <button
+          type="button"
+          disabled={loading}
+          onClick={
+            modal === "forgot"
+              ? sendRecovery
+              : modal === "resend"
+                ? resendVerification
+                : updatePassword
+          }
+          style={{
+            width: "100%",
+            border: 0,
+            borderRadius: 10,
+            padding: 13,
+            background: "#b5121b",
+            color: "#fff",
+            fontWeight: 700,
+            cursor: loading ? "wait" : "pointer",
+          }}
+        >
+          {loading
+            ? "Enviando..."
+            : modal === "forgot"
+              ? "Enviar recuperación"
+              : modal === "resend"
+                ? "Reenviar correo"
+                : "Guardar nueva contraseña"}
         </button>
       </section>
     </div>
   ) : null;
 
-  return <>
-    {target?.card && createPortal(controls, target.card)}
-    {modalView && createPortal(modalView, document.body)}
-  </>;
+  return (
+    <>
+      {target?.card && createPortal(controls, target.card)}
+      {modalView && createPortal(modalView, document.body)}
+    </>
+  );
 }
