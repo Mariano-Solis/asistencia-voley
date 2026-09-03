@@ -1,37 +1,10 @@
-/* =========================================================
-   MGSM · LOGO OFICIAL EN EL ENCABEZADO
-   Usa el logo real empaquetado por Vite, no una ruta /Logo.jpg.
-========================================================= */
-.topbar{
-  padding-left:100px !important;
-}
-
-.topbar::before{
-  content:"";
-  position:absolute;
-  left:20px;
-  top:50%;
-  transform:translateY(-50%);
-  width:62px;
-  height:62px;
-  background-image:var(--mgsm-logo-url);
-  background-position:center;
-  background-repeat:no-repeat;
-  background-size:contain;
-  border-radius:50%;
-  box-shadow:0 2px 10px rgba(0,0,0,.22);
-  z-index:20;
-  pointer-events:none;
-}
-
+/* MGSM VOLEY · logo único en el encabezado */
+.topbar{padding-left:clamp(18px,3vw,38px)!important}
+.topbar::before{display:none!important}
+.topbar .brand img{width:72px;height:72px;border-width:3px}
+.topbar .brand strong{font-size:20px}
 @media(max-width:760px){
-  .topbar{
-    padding-left:65px !important;
-  }
-
-  .topbar::before{
-    left:10px;
-    width:46px;
-    height:46px;
-  }
+  .topbar{padding-left:12px!important}
+  .topbar .brand img{width:52px;height:52px}
+  .topbar .brand strong{font-size:15px}
 }
