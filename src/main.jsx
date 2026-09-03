@@ -7,6 +7,7 @@ import './mgsm-topbar.css'
 import './mgsm-logo-assets.css'
 import './mgsm-sidebar-polish.css'
 import './mgsm-fixes.css'
+import './professor-signup.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
