@@ -1,0 +1,21 @@
+/* =========================================================
+   MGSM · FUENTE ÚNICA DEL LOGO OFICIAL
+   Corrige todas las referencias CSS a /Logo.jpg, que no se
+   sirven directamente desde la raíz del repositorio en Vite.
+========================================================= */
+
+.brand img{
+  content:var(--mgsm-logo-url);
+}
+
+.app>nav:before{
+  background-image:var(--mgsm-logo-url) !important;
+}
+
+.watermark{
+  background-image:linear-gradient(rgba(255,255,255,.91),rgba(255,255,255,.91)),var(--mgsm-logo-url) !important;
+}
+
+.auth:after{
+  background-image:linear-gradient(rgba(255,255,255,.78),rgba(255,255,255,.92)),var(--mgsm-logo-url) !important;
+}
