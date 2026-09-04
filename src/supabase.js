@@ -2,15 +2,29 @@ import { createClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+const OFFICIAL_APP_URL = 'https://voleysanmartin.com.ar/'
+
+if (typeof window !== 'undefined') {
+  const hostname = window.location.hostname.toLowerCase()
+  const isVercelHost = hostname === 'asistencia-voley.vercel.app' || hostname.endsWith('.vercel.app')
+
+  if (isVercelHost) {
+    const official = new URL(OFFICIAL_APP_URL)
+    official.pathname = window.location.pathname
+    official.search = window.location.search
+    official.hash = window.location.hash
+    window.location.replace(official.toString())
+  }
+}
 
 const getAuthRedirectUrl = () => {
   if (typeof window === 'undefined') {
-    return 'https://voleysanmartin.com.ar/'
+    return OFFICIAL_APP_URL
   }
 
   return window.location.hostname === 'localhost'
     ? window.location.origin
-    : 'https://voleysanmartin.com.ar/'
+    : OFFICIAL_APP_URL
 }
 
 const client = url && key
