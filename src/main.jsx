@@ -15,6 +15,7 @@ import './professor-signup.css'
 import './player-self-edit.css'
 import './mgsm-actions-polish.css'
 import './mgsm-visual-audit.css'
+import './mgsm-spacing-hotfix.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
