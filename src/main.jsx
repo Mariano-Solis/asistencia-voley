@@ -12,6 +12,7 @@ import './mgsm-sidebar-polish.css'
 import './mgsm-fixes.css'
 import './professor-signup.css'
 import './player-self-edit.css'
+import './mgsm-actions-polish.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
