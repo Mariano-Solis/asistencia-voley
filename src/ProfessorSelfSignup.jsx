@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-const PUBLIC_APP_URL = "https://asistencia-voley.vercel.app/";
+const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
 
 export default function ProfessorSelfSignup() {
   const [visible, setVisible] = useState(false);
