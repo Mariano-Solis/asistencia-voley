@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
+import PhotoSourcePicker from './PhotoSourcePicker'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -17,5 +18,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
     <DualRoleSelfEnrollment />
+    <PhotoSourcePicker />
   </React.StrictMode>
 )
