@@ -10,13 +10,17 @@ export default function ProfessorSelfSignup() {
   const [last, setLast] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [alsoPlayer, setAlsoPlayer] = useState(false);
   const [sex, setSex] = useState("female");
   const [dni, setDni] = useState("");
   const [birth, setBirth] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [activationOpen, setActivationOpen] = useState(false);
+  const [activationCode, setActivationCode] = useState("");
+  const [activationMessage, setActivationMessage] = useState("");
+  const [activating, setActivating] = useState(false);
 
   useEffect(() => {
     const sync = () => setVisible(!!document.querySelector(".auth"));
@@ -30,11 +34,48 @@ export default function ProfessorSelfSignup() {
     if (!visible) setOpen(false);
   }, [visible]);
 
+  useEffect(() => {
+    if (!supabase) return;
+    let mounted = true;
+
+    const checkPendingProfessor = async (session) => {
+      if (!mounted || !session?.user) {
+        setActivationOpen(false);
+        setActivationCode("");
+        setActivationMessage("");
+        return;
+      }
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+      setActivationOpen(data?.role === "pending_admin");
+      if (data?.role !== "pending_admin") {
+        setActivationCode("");
+        setActivationMessage("");
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => checkPendingProfessor(data?.session));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => checkPendingProfessor(session), 0);
+    });
+
+    return () => {
+      mounted = false;
+      data?.subscription?.unsubscribe();
+    };
+  }, []);
+
   async function submit(e) {
     e.preventDefault();
     setMessage("");
-    if (!first.trim() || !last.trim() || !email.trim() || password.length < 6 || !code.trim()) {
-      setMessage("Completá nombre, apellido, correo, contraseña y código de registro.");
+    if (!first.trim() || !last.trim() || !email.trim() || password.length < 6) {
+      setMessage("Completá nombre, apellido, correo y una contraseña de al menos 6 caracteres.");
       return;
     }
     if (alsoPlayer && (!dni.trim() || !birth)) {
@@ -57,7 +98,6 @@ export default function ProfessorSelfSignup() {
             dni: alsoPlayer ? dni.trim() : null,
             birth_date: alsoPlayer ? birth : null,
             role,
-            registration_code: code.trim(),
           },
           emailRedirectTo: PUBLIC_APP_URL,
         },
@@ -68,7 +108,6 @@ export default function ProfessorSelfSignup() {
       setLast("");
       setEmail("");
       setPassword("");
-      setCode("");
       setAlsoPlayer(false);
       setSex("female");
       setDni("");
@@ -77,14 +116,14 @@ export default function ProfessorSelfSignup() {
       if (alsoPlayer) {
         setMessage(
           data.session
-            ? "✓ Cuenta creada como Profe + Jugador@. Podés usar el mismo correo y contraseña para ambos accesos."
-            : "✓ Cuenta creada como Profe + Jugador@. Revisá tu correo para confirmarla. Después podrás entrar con el mismo correo y contraseña desde Profe o Jugador@s."
+            ? "✓ Cuenta creada como Profe + Jugador@. Para activar el acceso de Profe te pediremos el código al ingresar."
+            : "✓ Cuenta creada como Profe + Jugador@. Revisá tu correo para confirmarla. El código de Profe se pedirá recién al ingresar."
         );
       } else {
         setMessage(
           data.session
-            ? "✓ Cuenta de Profe creada. Ya podés ingresar desde Profe."
-            : "✓ Solicitud creada. Revisá tu correo para confirmar la cuenta y luego ingresá desde Profe."
+            ? "✓ Cuenta de Profe creada. Ahora se te pedirá el código para activar el acceso de Profe."
+            : "✓ Cuenta de Profe creada. Revisá tu correo para confirmarla. El código se pedirá recién cuando ingreses."
         );
       }
     } catch (e) {
@@ -94,15 +133,48 @@ export default function ProfessorSelfSignup() {
     }
   }
 
-  if (!visible) return null;
+  async function activateProfessor(e) {
+    e.preventDefault();
+    setActivationMessage("");
+    if (!activationCode.trim()) {
+      setActivationMessage("Ingresá el código de acceso de Profe.");
+      return;
+    }
+
+    setActivating(true);
+    try {
+      const { data, error } = await supabase.rpc("activate_professor_access", {
+        p_code: activationCode.trim().toUpperCase(),
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.message || "No se pudo activar el acceso de Profe.");
+
+      setActivationMessage("✓ Acceso de Profe activado correctamente. Entrando...");
+      setTimeout(() => window.location.reload(), 650);
+    } catch (e) {
+      setActivationMessage(e?.message || "Código de acceso de Profe inválido.");
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  async function logoutPending() {
+    setActivationOpen(false);
+    setActivationCode("");
+    setActivationMessage("");
+    await supabase.auth.signOut();
+    window.location.reload();
+  }
 
   return (
     <>
-      <button className="professor-signup-trigger" type="button" onClick={() => { setMessage(""); setOpen(true); }}>
-        👨‍🏫 Crear cuenta de Profe
-      </button>
+      {visible && (
+        <button className="professor-signup-trigger" type="button" onClick={() => { setMessage(""); setOpen(true); }}>
+          👨‍🏫 Crear cuenta de Profe
+        </button>
+      )}
 
-      {open && (
+      {visible && open && (
         <div className="professor-signup-overlay" role="dialog" aria-modal="true" aria-label="Crear cuenta de Profe">
           <div className="professor-signup-card">
             <div className="professor-signup-head">
@@ -144,12 +216,40 @@ export default function ProfessorSelfSignup() {
 
               <input required type="email" placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} />
               <input required minLength={6} type="password" placeholder="Contraseña (mínimo 6 caracteres)" value={password} onChange={e => setPassword(e.target.value)} />
-              <input required placeholder="Código de registro de Profe" value={code} onChange={e => setCode(e.target.value.toUpperCase())} />
-              <small>El código evita que cualquier persona pueda registrarse como administradora.</small>
+              <small>Primero creás la cuenta. El código de acceso de Profe se pedirá recién después, cuando ingreses.</small>
               <button className="primary" disabled={saving}>{saving ? "Creando cuenta..." : alsoPlayer ? "Crear cuenta Profe + Jugador@" : "Crear mi cuenta de Profe"}</button>
             </form>
 
             {message && <div className="message">{message}</div>}
+          </div>
+        </div>
+      )}
+
+      {activationOpen && (
+        <div className="professor-signup-overlay" role="dialog" aria-modal="true" aria-label="Activar acceso de Profe" style={{ zIndex: 100001 }}>
+          <div className="professor-signup-card">
+            <div className="professor-signup-head">
+              <div>
+                <span className="professor-signup-kicker">MGSM VOLEY MENDOZA</span>
+                <h2>Activar acceso de Profe</h2>
+                <p>Tu cuenta ya está creada. Ahora ingresá el código institucional para habilitar el panel de Profe.</p>
+              </div>
+            </div>
+
+            <form onSubmit={activateProfessor} className="professor-signup-form">
+              <input
+                required
+                autoFocus
+                placeholder="Código de acceso de Profe"
+                value={activationCode}
+                onChange={e => setActivationCode(e.target.value.toUpperCase())}
+              />
+              <small>Este código ya no se pide para registrarte. Se usa únicamente para habilitar el acceso administrativo.</small>
+              <button className="primary" disabled={activating}>{activating ? "Validando..." : "Ingresar como Profe"}</button>
+              <button type="button" onClick={logoutPending} disabled={activating}>Salir</button>
+            </form>
+
+            {activationMessage && <div className="message">{activationMessage}</div>}
           </div>
         </div>
       )}
