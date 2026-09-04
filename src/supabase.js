@@ -5,20 +5,18 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const getAuthRedirectUrl = () => {
   if (typeof window === 'undefined') {
-    return 'https://asistencia-voley.vercel.app/'
+    return 'https://voleysanmartin.com.ar/'
   }
 
   return window.location.hostname === 'localhost'
     ? window.location.origin
-    : 'https://asistencia-voley.vercel.app/'
+    : 'https://voleysanmartin.com.ar/'
 }
 
 const client = url && key
   ? createClient(url, key)
   : null
 
-// Keep the existing auth calls untouched in the rest of the app while making
-// email confirmation return to the real application instead of localhost.
 if (client) {
   const originalSignUp = client.auth.signUp.bind(client.auth)
 
