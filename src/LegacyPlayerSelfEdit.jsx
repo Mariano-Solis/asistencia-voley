@@ -36,13 +36,24 @@ export default function LegacyPlayerSelfEdit() {
     setMessage("");
   };
 
+  const isLegacyDashboardVisible = () => {
+    if (typeof document === "undefined") return false;
+    return !!document.querySelector(".player-app");
+  };
+
   const load = async () => {
     if (!supabase || typeof window === "undefined") return;
 
     try {
-      // This component is only for the legacy name + personal-code flow.
-      // If there is a real Supabase Auth session, the authenticated player's
-      // profile is managed by PlayerDashboard and this legacy editor must stay hidden.
+      // The legacy editor is valid only while the player dashboard itself is
+      // mounted. This prevents stale localStorage/session state from exposing
+      // the floating "Mis datos" control on the public login screen.
+      if (!isLegacyDashboardVisible()) {
+        clearPlayer();
+        return;
+      }
+
+      // Authenticated players use PlayerDashboard/PlayerSelfEdit instead.
       const { data: authData } = await supabase.auth.getSession();
       if (authData?.session) {
         clearPlayer();
@@ -55,9 +66,6 @@ export default function LegacyPlayerSelfEdit() {
         return;
       }
 
-      // Legacy players are intentionally not readable directly through the
-      // players table because RLS protects that table. This RPC validates the
-      // player id + personal code and returns only the player's own fields.
       const result = await supabase.rpc("player_profile_by_code", {
         p_player_id: legacy.id,
         p_code: clean(legacy.code).toUpperCase(),
@@ -92,20 +100,25 @@ export default function LegacyPlayerSelfEdit() {
 
     const onFocus = () => load();
 
-    // Supabase Auth changes happen in the same tab, where the browser's
-    // native "storage" event is not fired. Listening to Auth guarantees that
-    // the legacy floating editor disappears immediately on authenticated logout/login.
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
       setTimeout(load, 0);
     });
 
-    // Legacy name+code logout removes PLAYER_KEY in the same tab and does not
-    // necessarily produce an Auth event. A lightweight sync keeps the floating
-    // button tied to the real legacy session state instead of stale React state.
+    // Same-tab localStorage changes do not fire the browser storage event.
+    // Also, React can swap .player-app for the login screen without any auth
+    // event in the legacy flow. Keep the editor tied to the actual visible
+    // player dashboard, not merely to stale state or a saved personal code.
     const syncTimer = window.setInterval(() => {
+      const dashboardVisible = isLegacyDashboardVisible();
       const raw = localStorage.getItem(PLAYER_KEY);
-      if (!raw && player) clearPlayer();
-    }, 500);
+
+      if (!dashboardVisible || !raw) {
+        if (player || open) clearPlayer();
+        return;
+      }
+
+      if (!player) load();
+    }, 250);
 
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", onFocus);
@@ -116,7 +129,7 @@ export default function LegacyPlayerSelfEdit() {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", onFocus);
     };
-  }, [player]);
+  }, [player, open]);
 
   const uploadLegacySelfie = async (file) => {
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/player-selfie-upload`;
@@ -134,7 +147,7 @@ export default function LegacyPlayerSelfEdit() {
   };
 
   const save = async () => {
-    if (!player || !code) return;
+    if (!player || !code || !isLegacyDashboardVisible()) return;
 
     if (!clean(first) || !clean(last) || !birth) {
       setMessage("Completá nombre, apellido y fecha de nacimiento.");
@@ -145,6 +158,14 @@ export default function LegacyPlayerSelfEdit() {
     setMessage("");
 
     try {
+      // Revalidate that the legacy session still exists immediately before
+      // allowing a personal-data write.
+      const legacy = JSON.parse(localStorage.getItem(PLAYER_KEY) || "null");
+      if (!legacy?.legacy || legacy.id !== player.id || clean(legacy.code).toUpperCase() !== code) {
+        clearPlayer();
+        return;
+      }
+
       let selfiePath = null;
       if (selfie) selfiePath = await uploadLegacySelfie(selfie);
 
@@ -190,7 +211,7 @@ export default function LegacyPlayerSelfEdit() {
     }
   };
 
-  if (!player) return null;
+  if (!player || !isLegacyDashboardVisible()) return null;
 
   return (
     <>
@@ -198,6 +219,7 @@ export default function LegacyPlayerSelfEdit() {
         className="player-self-edit-fab legacy-player-self-edit-fab"
         type="button"
         onClick={() => {
+          if (!isLegacyDashboardVisible()) return;
           setMessage("");
           setOpen(true);
         }}
@@ -206,7 +228,7 @@ export default function LegacyPlayerSelfEdit() {
         ✏️ Mis datos
       </button>
 
-      {open && (
+      {open && isLegacyDashboardVisible() && (
         <div
           className="player-self-edit-backdrop"
           onMouseDown={(e) => {
@@ -237,30 +259,18 @@ export default function LegacyPlayerSelfEdit() {
               <div className="two">
                 <label>
                   Nombre
-                  <input
-                    value={first}
-                    onChange={(e) => setFirst(e.target.value)}
-                    autoComplete="given-name"
-                  />
+                  <input value={first} onChange={(e) => setFirst(e.target.value)} autoComplete="given-name" />
                 </label>
                 <label>
                   Apellido
-                  <input
-                    value={last}
-                    onChange={(e) => setLast(e.target.value)}
-                    autoComplete="family-name"
-                  />
+                  <input value={last} onChange={(e) => setLast(e.target.value)} autoComplete="family-name" />
                 </label>
               </div>
 
               <div className="two">
                 <label>
                   DNI
-                  <input
-                    value={dni}
-                    onChange={(e) => setDni(e.target.value)}
-                    inputMode="numeric"
-                  />
+                  <input value={dni} onChange={(e) => setDni(e.target.value)} inputMode="numeric" />
                 </label>
                 <label>
                   Sexo
@@ -273,18 +283,12 @@ export default function LegacyPlayerSelfEdit() {
 
               <label>
                 Fecha de nacimiento
-                <input
-                  type="date"
-                  value={birth}
-                  onChange={(e) => setBirth(e.target.value)}
-                />
+                <input type="date" value={birth} onChange={(e) => setBirth(e.target.value)} />
               </label>
 
               <label className="selfie-field">
                 <span>Selfie</span>
-                <span className="file-button">
-                  📷 {selfie ? "Cambiar selfie" : "Cargar mi selfie"}
-                </span>
+                <span className="file-button">📷 {selfie ? "Cambiar selfie" : "Cargar mi selfie"}</span>
                 <input
                   className="hidden-file"
                   type="file"
@@ -298,19 +302,10 @@ export default function LegacyPlayerSelfEdit() {
               {message && <div className="message">{message}</div>}
 
               <div className="player-self-edit-actions">
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => !saving && setOpen(false)}
-                >
+                <button type="button" className="secondary" onClick={() => !saving && setOpen(false)}>
                   Cancelar
                 </button>
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={saving}
-                  onClick={save}
-                >
+                <button type="button" className="primary" disabled={saving} onClick={save}>
                   {saving ? "Guardando..." : "Guardar cambios"}
                 </button>
               </div>
