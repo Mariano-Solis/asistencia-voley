@@ -1,0 +1,138 @@
+/* =========================================================
+   MGSM VOLEY · AJUSTE FINO DE ESPACIADO
+   Solo presentación: no modifica lógica ni permisos.
+========================================================= */
+
+/* ---------------------------------------------------------
+   PERMISOS · selector de Profe con aire y jerarquía
+--------------------------------------------------------- */
+.content-inner section:has(.permission-list) > .card:not(.permission-row){
+  padding:20px 22px!important;
+  margin-bottom:18px!important;
+  border-radius:18px!important;
+  overflow:hidden;
+}
+
+.content-inner section:has(.permission-list) > .card:not(.permission-row) > label{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:10px!important;
+  margin:0!important;
+  color:#34373d!important;
+  font-size:12px!important;
+  font-weight:800!important;
+  line-height:1.3!important;
+}
+
+.content-inner section:has(.permission-list) > .card:not(.permission-row) select{
+  margin:0!important;
+  min-height:52px!important;
+  padding:12px 16px!important;
+  border-radius:13px!important;
+  background:#fff!important;
+  font-size:15px!important;
+  font-weight:650!important;
+  box-shadow:0 2px 8px rgba(0,0,0,.03)!important;
+}
+
+.permission-list{
+  margin-top:0!important;
+}
+
+.permission-row{
+  padding:18px 20px!important;
+  border-radius:16px!important;
+}
+
+.permission-row > b{
+  line-height:1.35!important;
+}
+
+/* ---------------------------------------------------------
+   PERFIL JUGADOR@ · Mi asistencia dentro del recuadro
+--------------------------------------------------------- */
+.player-wrap > .card:not(.access-box){
+  overflow:hidden;
+}
+
+.player-wrap > .card:not(.access-box) > .card-head{
+  margin:0!important;
+  padding:18px 20px 16px!important;
+  border-bottom:1px solid #eceef1!important;
+  background:linear-gradient(180deg,#fff 0%,#fcfcfd 100%)!important;
+}
+
+.player-wrap > .card:not(.access-box) > .card-head h2,
+.player-wrap > .card:not(.access-box) > .card-head h3{
+  margin:0!important;
+  font-size:18px!important;
+  line-height:1.25!important;
+}
+
+.player-wrap > .card:not(.access-box) > .simple-list{
+  padding:8px 20px 20px!important;
+}
+
+.player-wrap > .card:not(.access-box) > .simple-list > .empty{
+  padding:34px 14px!important;
+  margin:0!important;
+}
+
+/* ---------------------------------------------------------
+   CONTRASEÑAS · un único control por campo y bien ubicado
+--------------------------------------------------------- */
+.auth-card form > .password-visibility-toggle,
+.professor-signup-form > .password-visibility-toggle,
+.voley-auth-modal .password-visibility-toggle{
+  margin:-3px 0 3px 2px!important;
+}
+
+.password-visibility-toggle + .password-visibility-toggle{
+  display:none!important;
+}
+
+/* ---------------------------------------------------------
+   MÓVIL · mantener separación sin inflar la pantalla
+--------------------------------------------------------- */
+@media(max-width:760px){
+  .content-inner section:has(.permission-list) > .card:not(.permission-row){
+    padding:17px!important;
+    margin-bottom:16px!important;
+  }
+
+  .content-inner section:has(.permission-list) > .card:not(.permission-row) select{
+    min-height:50px!important;
+    font-size:14px!important;
+  }
+
+  .permission-row{
+    padding:17px!important;
+    gap:14px!important;
+  }
+
+  .player-wrap > .card:not(.access-box) > .card-head{
+    padding:17px 18px 15px!important;
+  }
+
+  .player-wrap > .card:not(.access-box) > .simple-list{
+    padding:7px 18px 18px!important;
+  }
+}
+
+@media(max-width:520px){
+  .content-inner section:has(.permission-list) > .card:not(.permission-row){
+    padding:16px!important;
+  }
+
+  .permission-row{
+    padding:16px!important;
+  }
+
+  .player-wrap > .card:not(.access-box) > .card-head{
+    padding:16px!important;
+  }
+
+  .player-wrap > .card:not(.access-box) > .simple-list{
+    padding:6px 16px 16px!important;
+  }
+}
