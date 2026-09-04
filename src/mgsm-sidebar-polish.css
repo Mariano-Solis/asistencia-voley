@@ -16,6 +16,10 @@
   flex-basis:128px;
   margin:0 auto 18px;
   background-image:var(--mgsm-logo-url) !important;
+  background-size:145% 145% !important;
+  background-position:center !important;
+  background-repeat:no-repeat !important;
+  border-radius:50%;
   filter:drop-shadow(0 5px 10px rgba(0,0,0,.10));
 }
 
@@ -52,6 +56,7 @@
 .app>nav button:nth-of-type(3):before{content:"🕘"}
 .app>nav button:nth-of-type(4):before{content:"▦"}
 .app>nav button:nth-of-type(5):before{content:"🔐"}
+.app>nav button:nth-of-type(6):before{content:"🔑"}
 
 .app>nav button:hover{
   background:#fff1f2;
