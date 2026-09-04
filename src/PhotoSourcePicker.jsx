@@ -64,17 +64,20 @@ export default function PhotoSourcePicker() {
 
   function chooseCamera() {
     if (!targetInput || !cameraInputRef.current) return;
+    const cameraInput = cameraInputRef.current;
+    cameraInput.setAttribute("accept", "image/*");
+    cameraInput.setAttribute("capture", "user");
     setOpen(false);
-    // IMPORTANTE: click sincrónico dentro del gesto del usuario. En Android/Chrome,
-    // capture="user" sobre un input exclusivo fuerza la cámara frontal.
-    cameraInputRef.current.click();
+    cameraInput.click();
   }
 
   function chooseGallery() {
     if (!targetInput || !galleryInputRef.current) return;
+    const galleryInput = galleryInputRef.current;
+    galleryInput.setAttribute("accept", "image/*");
+    galleryInput.removeAttribute("capture");
     setOpen(false);
-    // Input separado, sin atributo capture: abre el selector/galería.
-    galleryInputRef.current.click();
+    galleryInput.click();
   }
 
   return (
