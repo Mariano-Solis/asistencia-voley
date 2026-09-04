@@ -1,0 +1,139 @@
+:root{--mgsm-red:#b5121b;--mgsm-red-dark:#8f0f16;--mgsm-ink:#17181b;--mgsm-soft:#f5f6f8;--mgsm-line:#e3e6ea}
+
+/* Botones flotantes creados para doble función */
+button[style*="position: fixed"][style*="borderRadius: 999"],
+button[style*="position: fixed"][style*="border-radius: 999"]{
+  min-height:52px!important;
+  padding:0 20px!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  border-radius:16px!important;
+  background:linear-gradient(135deg,var(--mgsm-red) 0%,var(--mgsm-red-dark) 100%)!important;
+  color:#fff!important;
+  font:800 14px/1.15 inherit!important;
+  letter-spacing:.01em!important;
+  box-shadow:0 12px 30px rgba(181,18,27,.28),0 2px 8px rgba(0,0,0,.12)!important;
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease!important;
+}
+button[style*="position: fixed"][style*="borderRadius: 999"]:hover,
+button[style*="position: fixed"][style*="border-radius: 999"]:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 16px 34px rgba(181,18,27,.32),0 4px 10px rgba(0,0,0,.14)!important;
+  filter:saturate(1.04)!important;
+}
+button[style*="position: fixed"][style*="borderRadius: 999"]:active,
+button[style*="position: fixed"][style*="border-radius: 999"]:active{transform:translateY(0)!important}
+
+/* Crear cuenta de Profe */
+.professor-signup-trigger{
+  min-height:52px!important;
+  border-radius:16px!important;
+  padding:0 22px!important;
+  background:linear-gradient(135deg,var(--mgsm-red),var(--mgsm-red-dark))!important;
+  box-shadow:0 12px 30px rgba(181,18,27,.28),0 2px 8px rgba(0,0,0,.12)!important;
+  letter-spacing:.01em!important;
+}
+.professor-signup-trigger:hover{box-shadow:0 16px 34px rgba(181,18,27,.33),0 4px 10px rgba(0,0,0,.14)!important}
+
+/* Selector Cámara / Galería */
+div[role="dialog"][aria-label="Elegir origen de la foto"] section{
+  border:1px solid rgba(181,18,27,.10)!important;
+  border-radius:24px!important;
+  padding:24px!important;
+  box-shadow:0 26px 70px rgba(0,0,0,.28)!important;
+}
+div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:first-child button{
+  width:40px!important;
+  height:40px!important;
+  border-radius:12px!important;
+  background:var(--mgsm-soft)!important;
+  color:var(--mgsm-ink)!important;
+  display:grid!important;
+  place-items:center!important;
+  transition:background .15s ease,transform .15s ease!important;
+}
+div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:first-child button:hover{background:#eceff2!important;transform:scale(1.04)!important}
+div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:last-child{
+  grid-template-columns:1fr 1fr!important;
+  gap:12px!important;
+}
+div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:last-child button{
+  min-height:92px!important;
+  border-radius:16px!important;
+  padding:16px 14px!important;
+  font:800 15px/1.25 inherit!important;
+  box-shadow:0 6px 18px rgba(0,0,0,.08)!important;
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease!important;
+}
+div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:last-child button:first-child{
+  background:linear-gradient(135deg,var(--mgsm-red),var(--mgsm-red-dark))!important;
+  border:1px solid transparent!important;
+  color:#fff!important;
+}
+div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:last-child button:last-child{
+  background:#fff!important;
+  border:1px solid var(--mgsm-line)!important;
+  color:var(--mgsm-ink)!important;
+}
+div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:last-child button:hover{transform:translateY(-2px)!important;box-shadow:0 10px 24px rgba(0,0,0,.12)!important}
+
+/* Gestión de eliminación de Profes */
+[data-professor-delete-manager]>.card{
+  border:1px solid #eadde0!important;
+  border-radius:20px!important;
+  background:linear-gradient(180deg,#fff 0%,#fffafa 100%)!important;
+  box-shadow:0 10px 28px rgba(23,24,27,.07)!important;
+}
+[data-professor-delete-manager] .admin-row{
+  align-items:center!important;
+  border:1px solid var(--mgsm-line)!important;
+  border-radius:16px!important;
+  padding:14px 16px!important;
+  background:#fff!important;
+}
+[data-professor-delete-manager] .danger{
+  min-width:122px!important;
+  min-height:44px!important;
+  padding:0 16px!important;
+  border:1px solid #f0c8cc!important;
+  border-radius:12px!important;
+  background:#fff!important;
+  color:var(--mgsm-red)!important;
+  font:800 13px/1 inherit!important;
+  box-shadow:0 4px 12px rgba(181,18,27,.08)!important;
+  transition:background .15s ease,color .15s ease,transform .15s ease,box-shadow .15s ease!important;
+}
+[data-professor-delete-manager] .danger:hover:not(:disabled){
+  background:var(--mgsm-red)!important;
+  color:#fff!important;
+  border-color:var(--mgsm-red)!important;
+  transform:translateY(-1px)!important;
+  box-shadow:0 8px 18px rgba(181,18,27,.22)!important;
+}
+[data-professor-delete-manager] .danger:disabled{opacity:.55!important;cursor:wait!important}
+
+/* Botones secundarios de modales recientes */
+.modal .form-actions>button:not(.primary),
+.professor-signup-card .form-actions>button:not(.primary){
+  min-height:44px;
+  border:1px solid var(--mgsm-line);
+  border-radius:12px;
+  background:#fff;
+  color:var(--mgsm-ink);
+  font-weight:750;
+  padding:0 16px;
+}
+.modal .form-actions>.primary,
+.professor-signup-form>.primary{
+  min-height:48px;
+  border-radius:13px!important;
+  background:linear-gradient(135deg,var(--mgsm-red),var(--mgsm-red-dark))!important;
+  box-shadow:0 8px 18px rgba(181,18,27,.20)!important;
+}
+
+@media(max-width:600px){
+  div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:last-child{grid-template-columns:1fr!important}
+  div[role="dialog"][aria-label="Elegir origen de la foto"] section>div:last-child button{min-height:62px!important}
+  [data-professor-delete-manager] .admin-row{gap:12px!important;align-items:flex-start!important;flex-direction:column!important}
+  [data-professor-delete-manager] .danger{width:100%!important}
+  button[style*="position: fixed"][style*="borderRadius: 999"],button[style*="position: fixed"][style*="border-radius: 999"]{right:14px!important;bottom:14px!important;max-width:calc(100vw - 28px)!important}
+}
