@@ -4,35 +4,65 @@ export default function UXEnhancements() {
   const [photo, setPhoto] = useState(null);
 
   useEffect(() => {
-    const enhancePasswords = () => {
-      document.querySelectorAll('input[type="password"], input[data-password-visibility="managed"]').forEach((input) => {
-        if (input.dataset.passwordVisibility === "managed") return;
-        input.dataset.passwordVisibility = "managed";
+    let observer;
+    let scheduled = false;
+
+    const isVisible = (element) => {
+      if (!element?.isConnected) return false;
+      const style = window.getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
+    };
+
+    const rebuildPasswordToggles = () => {
+      scheduled = false;
+      observer?.disconnect();
+
+      document.querySelectorAll(".password-visibility-toggle").forEach((toggle) => toggle.remove());
+
+      const inputs = Array.from(
+        document.querySelectorAll('input[type="password"], input[data-password-visibility-managed="true"]')
+      ).filter(isVisible);
+
+      inputs.forEach((input) => {
+        input.dataset.passwordVisibilityManaged = "true";
 
         const label = document.createElement("label");
         label.className = "password-visibility-toggle";
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.setAttribute("aria-label", "Mostrar contraseña");
+        checkbox.checked = input.type === "text";
+        checkbox.setAttribute("aria-label", checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña");
 
         const text = document.createElement("span");
-        text.textContent = "Mostrar contraseña";
+        text.textContent = checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña";
 
         checkbox.addEventListener("change", () => {
           input.type = checkbox.checked ? "text" : "password";
+          checkbox.setAttribute("aria-label", checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña");
           text.textContent = checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña";
         });
 
         label.append(checkbox, text);
         input.insertAdjacentElement("afterend", label);
       });
+
+      observer?.observe(document.body, { childList: true, subtree: true });
     };
 
-    enhancePasswords();
-    const observer = new MutationObserver(enhancePasswords);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    const scheduleRebuild = () => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(rebuildPasswordToggles);
+    };
+
+    observer = new MutationObserver(scheduleRebuild);
+    rebuildPasswordToggles();
+
+    return () => {
+      observer?.disconnect();
+      document.querySelectorAll(".password-visibility-toggle").forEach((toggle) => toggle.remove());
+    };
   }, []);
 
   useEffect(() => {
