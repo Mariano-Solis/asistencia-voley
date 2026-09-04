@@ -28,12 +28,30 @@ export default function LegacyPlayerSelfEdit() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
+  const clearPlayer = () => {
+    setPlayer(null);
+    setCode("");
+    setOpen(false);
+    setSelfie(null);
+    setMessage("");
+  };
+
   const load = async () => {
     if (!supabase || typeof window === "undefined") return;
+
     try {
+      // This component is only for the legacy name + personal-code flow.
+      // If there is a real Supabase Auth session, the authenticated player's
+      // profile is managed by PlayerDashboard and this legacy editor must stay hidden.
+      const { data: authData } = await supabase.auth.getSession();
+      if (authData?.session) {
+        clearPlayer();
+        return;
+      }
+
       const legacy = JSON.parse(localStorage.getItem(PLAYER_KEY) || "null");
       if (!legacy?.legacy || !legacy.id || !legacy.code) {
-        setPlayer(null);
+        clearPlayer();
         return;
       }
 
@@ -46,32 +64,59 @@ export default function LegacyPlayerSelfEdit() {
       });
 
       if (result.error || !result.data?.ok || !result.data?.player?.active) {
-        setPlayer(null);
+        clearPlayer();
         return;
       }
 
       const current = result.data.player;
       setPlayer(current);
       setCode(clean(legacy.code).toUpperCase());
-      hydratePlayer(current, { first: setFirst, last: setLast, dni: setDni, birth: setBirth, sex: setSex });
+      hydratePlayer(current, {
+        first: setFirst,
+        last: setLast,
+        dni: setDni,
+        birth: setBirth,
+        sex: setSex,
+      });
     } catch (_) {
-      setPlayer(null);
+      clearPlayer();
     }
   };
 
   useEffect(() => {
     load();
+
     const onStorage = (event) => {
       if (!event.key || event.key === PLAYER_KEY) load();
     };
+
     const onFocus = () => load();
+
+    // Supabase Auth changes happen in the same tab, where the browser's
+    // native "storage" event is not fired. Listening to Auth guarantees that
+    // the legacy floating editor disappears immediately on authenticated logout/login.
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      setTimeout(load, 0);
+    });
+
+    // Legacy name+code logout removes PLAYER_KEY in the same tab and does not
+    // necessarily produce an Auth event. A lightweight sync keeps the floating
+    // button tied to the real legacy session state instead of stale React state.
+    const syncTimer = window.setInterval(() => {
+      const raw = localStorage.getItem(PLAYER_KEY);
+      if (!raw && player) clearPlayer();
+    }, 500);
+
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", onFocus);
+
     return () => {
+      authListener?.subscription?.unsubscribe();
+      window.clearInterval(syncTimer);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [player]);
 
   const uploadLegacySelfie = async (file) => {
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/player-selfie-upload`;
@@ -82,12 +127,15 @@ export default function LegacyPlayerSelfEdit() {
 
     const response = await fetch(url, { method: "POST", body: form });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data?.ok) throw new Error(data?.error || "No se pudo cargar la selfie.");
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || "No se pudo cargar la selfie.");
+    }
     return data.path;
   };
 
   const save = async () => {
     if (!player || !code) return;
+
     if (!clean(first) || !clean(last) || !birth) {
       setMessage("Completá nombre, apellido y fecha de nacimiento.");
       return;
@@ -125,7 +173,13 @@ export default function LegacyPlayerSelfEdit() {
       };
 
       setPlayer(updated);
-      hydratePlayer(updated, { first: setFirst, last: setLast, dni: setDni, birth: setBirth, sex: setSex });
+      hydratePlayer(updated, {
+        first: setFirst,
+        last: setLast,
+        dni: setDni,
+        birth: setBirth,
+        sex: setSex,
+      });
       setSelfie(null);
       setMessage("✓ Datos actualizados correctamente.");
       setTimeout(() => setOpen(false), 900);
@@ -143,7 +197,10 @@ export default function LegacyPlayerSelfEdit() {
       <button
         className="player-self-edit-fab legacy-player-self-edit-fab"
         type="button"
-        onClick={() => { setMessage(""); setOpen(true); }}
+        onClick={() => {
+          setMessage("");
+          setOpen(true);
+        }}
         aria-label="Editar mis datos"
       >
         ✏️ Mis datos
@@ -156,38 +213,106 @@ export default function LegacyPlayerSelfEdit() {
             if (e.target === e.currentTarget && !saving) setOpen(false);
           }}
         >
-          <section className="player-self-edit-modal" role="dialog" aria-modal="true" aria-label="Editar mis datos">
+          <section
+            className="player-self-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Editar mis datos"
+          >
             <div className="player-self-edit-head">
               <div>
                 <strong>Mis datos</strong>
                 <span>Actualizá tu información personal</span>
               </div>
-              <button type="button" onClick={() => !saving && setOpen(false)} aria-label="Cerrar">×</button>
+              <button
+                type="button"
+                onClick={() => !saving && setOpen(false)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
             </div>
 
             <div className="player-self-edit-form">
               <div className="two">
-                <label>Nombre<input value={first} onChange={(e) => setFirst(e.target.value)} autoComplete="given-name" /></label>
-                <label>Apellido<input value={last} onChange={(e) => setLast(e.target.value)} autoComplete="family-name" /></label>
+                <label>
+                  Nombre
+                  <input
+                    value={first}
+                    onChange={(e) => setFirst(e.target.value)}
+                    autoComplete="given-name"
+                  />
+                </label>
+                <label>
+                  Apellido
+                  <input
+                    value={last}
+                    onChange={(e) => setLast(e.target.value)}
+                    autoComplete="family-name"
+                  />
+                </label>
               </div>
+
               <div className="two">
-                <label>DNI<input value={dni} onChange={(e) => setDni(e.target.value)} inputMode="numeric" /></label>
-                <label>Sexo<select value={sex} onChange={(e) => setSex(e.target.value)}><option value="female">Femenino</option><option value="male">Masculino</option></select></label>
+                <label>
+                  DNI
+                  <input
+                    value={dni}
+                    onChange={(e) => setDni(e.target.value)}
+                    inputMode="numeric"
+                  />
+                </label>
+                <label>
+                  Sexo
+                  <select value={sex} onChange={(e) => setSex(e.target.value)}>
+                    <option value="female">Femenino</option>
+                    <option value="male">Masculino</option>
+                  </select>
+                </label>
               </div>
-              <label>Fecha de nacimiento<input type="date" value={birth} onChange={(e) => setBirth(e.target.value)} /></label>
+
+              <label>
+                Fecha de nacimiento
+                <input
+                  type="date"
+                  value={birth}
+                  onChange={(e) => setBirth(e.target.value)}
+                />
+              </label>
 
               <label className="selfie-field">
                 <span>Selfie</span>
-                <span className="file-button">📷 {selfie ? "Cambiar selfie" : "Cargar mi selfie"}</span>
-                <input className="hidden-file" type="file" accept="image/*" capture="user" onChange={(e) => setSelfie(e.target.files?.[0] || null)} />
+                <span className="file-button">
+                  📷 {selfie ? "Cambiar selfie" : "Cargar mi selfie"}
+                </span>
+                <input
+                  className="hidden-file"
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  onChange={(e) => setSelfie(e.target.files?.[0] || null)}
+                />
                 {selfie && <span className="file-name">✓ {selfie.name}</span>}
               </label>
 
               {message && <div className="message">{message}</div>}
 
               <div className="player-self-edit-actions">
-                <button type="button" className="secondary" onClick={() => !saving && setOpen(false)}>Cancelar</button>
-                <button type="button" className="primary" disabled={saving} onClick={save}>{saving ? "Guardando..." : "Guardar cambios"}</button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => !saving && setOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={saving}
+                  onClick={save}
+                >
+                  {saving ? "Guardando..." : "Guardar cambios"}
+                </button>
               </div>
             </div>
           </section>
