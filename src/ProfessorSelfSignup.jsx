@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 
 const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
 
 export default function ProfessorSelfSignup() {
-  const [visible, setVisible] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
   const [open, setOpen] = useState(false);
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
@@ -18,16 +19,46 @@ export default function ProfessorSelfSignup() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const sync = () => setVisible(!!document.querySelector(".auth"));
+    let host = null;
+
+    const sync = () => {
+      const card = document.querySelector(".auth-card");
+      const activeTab = card?.querySelector(".auth-tabs button.active")?.textContent?.trim() || "";
+      const shouldShow = activeTab === "Profe" || activeTab === "Crear cuenta";
+
+      if (!card || !shouldShow) {
+        if (host?.isConnected) host.remove();
+        host = null;
+        setPortalTarget(null);
+        setOpen(false);
+        return;
+      }
+
+      if (!host || !host.isConnected) {
+        host = document.createElement("div");
+        host.className = "professor-signup-inline-host";
+        const subtitle = card.querySelector(".auth-subtitle");
+        if (subtitle) subtitle.insertAdjacentElement("afterend", host);
+        else card.appendChild(host);
+      }
+
+      setPortalTarget(host);
+    };
+
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
 
-  useEffect(() => {
-    if (!visible) setOpen(false);
-  }, [visible]);
+    return () => {
+      observer.disconnect();
+      if (host?.isConnected) host.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -130,13 +161,19 @@ export default function ProfessorSelfSignup() {
     }
   }
 
-  if (!visible) return null;
-
   return (
     <>
-      <button className="professor-signup-trigger" type="button" onClick={() => { setMessage(""); setOpen(true); }}>
-        👨‍🏫 Crear cuenta de Profe
-      </button>
+      {portalTarget && createPortal(
+        <button
+          className="professor-signup-inline-trigger"
+          type="button"
+          onClick={() => { setMessage(""); setOpen(true); }}
+        >
+          <span aria-hidden="true">👨‍🏫</span>
+          <span>Crear cuenta de Profe</span>
+        </button>,
+        portalTarget
+      )}
 
       {open && (
         <div className="professor-signup-overlay" role="dialog" aria-modal="true" aria-label="Crear cuenta de Profe">
