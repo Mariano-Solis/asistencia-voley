@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
 import PhotoSourcePicker from './PhotoSourcePicker'
+import ProfessorDeleteManager from './ProfessorDeleteManager'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -19,5 +20,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
     <DualRoleSelfEnrollment />
     <PhotoSourcePicker />
+    <ProfessorDeleteManager />
   </React.StrictMode>
 )
