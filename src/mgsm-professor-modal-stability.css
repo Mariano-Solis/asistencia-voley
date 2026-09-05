@@ -1,0 +1,171 @@
+/* =========================================================
+   MGSM VOLEY · ESTABILIDAD FICHA DE PROFE + TOPBAR MOVIL
+========================================================= */
+
+@media(max-width:560px){
+  /* Topbar compacta: identidad institucional en una sola linea. */
+  main.app > .topbar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;
+    column-gap:5px!important;
+    padding:7px 6px!important;
+  }
+
+  main.app > .topbar > .brand{
+    min-width:0!important;
+    gap:5px!important;
+  }
+
+  main.app > .topbar > .brand img{
+    width:36px!important;
+    height:36px!important;
+    flex:0 0 36px!important;
+  }
+
+  main.app > .topbar > .brand div{
+    min-width:0!important;
+  }
+
+  main.app > .topbar > .brand strong{
+    display:block!important;
+    overflow:visible!important;
+    white-space:nowrap!important;
+    font-size:9px!important;
+    line-height:1!important;
+    letter-spacing:-.02em!important;
+  }
+
+  main.app > .topbar > .brand span{
+    display:block!important;
+    margin-top:3px!important;
+    font-size:6.5px!important;
+    white-space:nowrap!important;
+  }
+
+  main.app > .topbar > .top-user{
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:auto minmax(34px,46px) auto!important;
+    align-items:center!important;
+    gap:4px!important;
+    text-align:center!important;
+  }
+
+  .admin-player-switch-topbar{
+    min-height:42px!important;
+    padding:5px 6px!important;
+    gap:4px!important;
+    font-size:8px!important;
+    border-radius:9px!important;
+  }
+
+  .admin-player-switch-icon{
+    font-size:11px!important;
+  }
+
+  .admin-player-switch-label{
+    gap:0!important;
+  }
+
+  main.app > .topbar > .top-user > span:not([data-admin-player-switch-host]):not(.role){
+    min-width:0!important;
+    font-size:9px!important;
+    line-height:1.05!important;
+    white-space:normal!important;
+  }
+
+  .top-user > button:last-child{
+    min-height:40px!important;
+    padding:7px!important;
+    font-size:9px!important;
+  }
+
+  /* La ficha vive en document.body y siempre arranca en el viewport. */
+  .professor-detail-modal{
+    position:fixed!important;
+    inset:0!important;
+    z-index:13000!important;
+    display:flex!important;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    padding:8px!important;
+    overflow:hidden!important;
+  }
+
+  .professor-detail-card{
+    width:100%!important;
+    max-height:calc(100dvh - 16px)!important;
+    margin:0!important;
+    padding:0 12px 16px!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain!important;
+    border-radius:14px!important;
+  }
+
+  /* Encabezado unico y permanente: Volver + ACTIVO/INACTIVO + X. */
+  .professor-detail-head{
+    position:sticky!important;
+    top:0!important;
+    z-index:50!important;
+    display:grid!important;
+    grid-template-columns:1fr auto!important;
+    gap:8px!important;
+    margin:0 -12px 14px!important;
+    padding:10px 12px!important;
+    background:#fff!important;
+    border-bottom:1px solid #ececef!important;
+    box-shadow:0 5px 12px rgba(0,0,0,.05)!important;
+  }
+
+  .professor-detail-back{
+    grid-column:1!important;
+    grid-row:1!important;
+    justify-self:start!important;
+    display:inline-flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-height:38px!important;
+  }
+
+  .professor-detail-head-actions{
+    grid-column:2!important;
+    grid-row:1!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:8px!important;
+  }
+
+  .professor-detail-title{
+    grid-column:1 / -1!important;
+    grid-row:2!important;
+  }
+
+  .professor-detail-title h2{
+    margin:3px 0 0!important;
+    white-space:normal!important;
+    font-size:18px!important;
+  }
+
+  .professor-detail-status{
+    display:inline-flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+    min-width:76px!important;
+    padding:8px 9px!important;
+    font-size:10px!important;
+  }
+
+  .professor-detail-close{
+    display:grid!important;
+    visibility:visible!important;
+    opacity:1!important;
+    width:32px!important;
+    height:32px!important;
+    flex:0 0 32px!important;
+    place-items:center!important;
+    font-size:21px!important;
+  }
+}
