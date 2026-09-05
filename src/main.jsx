@@ -9,6 +9,8 @@ import WorkflowCore from './WorkflowCore'
 import PermissionsEnhancement from './PermissionsEnhancement'
 import WorkflowDOMPolish from './WorkflowDOMPolish'
 import AdminCollapsibles from './AdminCollapsibles'
+import PlayerAttendanceFilter from './PlayerAttendanceFilter'
+import ProfessorTrainingHub from './ProfessorTrainingHub'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -22,6 +24,7 @@ import './mgsm-visual-audit.css'
 import './mgsm-spacing-hotfix.css'
 import './mgsm-workflow-enhancements.css'
 import './admin-collapsibles.css'
+import './mgsm-player-training.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
@@ -36,5 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PermissionsEnhancement />
     <WorkflowDOMPolish />
     <AdminCollapsibles />
+    <PlayerAttendanceFilter />
+    <ProfessorTrainingHub />
   </React.StrictMode>
 )
