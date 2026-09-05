@@ -29,6 +29,7 @@ import './mgsm-player-training.css'
 import './mgsm-player-attendance-safe.css'
 import './mgsm-final-ui.css'
 import './mgsm-professor-modal-stability.css'
+import './mgsm-ultra-visual.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
