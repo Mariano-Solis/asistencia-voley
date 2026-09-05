@@ -12,6 +12,7 @@ import AdminCollapsibles from './AdminCollapsibles'
 import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
+import ProfessorDetailGuard from './ProfessorDetailGuard'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -28,6 +29,7 @@ import './admin-collapsibles.css'
 import './mgsm-player-training.css'
 import './mgsm-player-attendance-safe.css'
 import './mgsm-final-ui.css'
+import './mgsm-professor-guard.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
@@ -45,5 +47,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <SafePlayerAttendanceFilter />
     <ProfessorTrainingHub />
     <AdminDualTopbarAction />
+    <ProfessorDetailGuard />
   </React.StrictMode>
 )
