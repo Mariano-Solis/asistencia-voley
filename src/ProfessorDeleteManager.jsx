@@ -8,154 +8,103 @@ export default function ProfessorDeleteManager() {
   const [admins, setAdmins] = useState([]);
   const [message, setMessage] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [togglingId, setTogglingId] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
     let mounted = true;
-
     const evaluateSession = async (session) => {
-      if (!mounted || !session?.user) {
-        setIsSuperAdmin(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
+      if (!mounted || !session?.user) return setIsSuperAdmin(false);
+      const { data } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
       if (mounted) setIsSuperAdmin(data?.role === "super_admin");
     };
-
     supabase.auth.getSession().then(({ data }) => evaluateSession(data?.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setTimeout(() => evaluateSession(session), 0);
-    });
-
-    return () => {
-      mounted = false;
-      data?.subscription?.unsubscribe();
-    };
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => setTimeout(() => evaluateSession(session), 0));
+    return () => { mounted = false; data?.subscription?.unsubscribe(); };
   }, []);
 
   useEffect(() => {
-    if (!isSuperAdmin) {
-      setMountNode(null);
-      return;
-    }
-
+    if (!isSuperAdmin) return setMountNode(null);
     const syncMount = () => {
-      const sections = Array.from(document.querySelectorAll("section"));
-      const profesSection = sections.find((section) => {
-        const title = section.querySelector(".page-title h1");
-        return title?.textContent?.trim() === "Profes";
+      const section = Array.from(document.querySelectorAll("section")).find((s) => s.querySelector(".page-title h1")?.textContent?.trim() === "Profes");
+      if (!section) return setMountNode(null);
+
+      section.querySelectorAll(".admin-list").forEach((list) => {
+        if (!list.closest("[data-professor-delete-manager]")) list.style.display = "none";
       });
 
-      if (!profesSection) {
-        setMountNode(null);
-        return;
-      }
-
-      let node = profesSection.querySelector("[data-professor-delete-manager]");
+      let node = section.querySelector("[data-professor-delete-manager]");
       if (!node) {
         node = document.createElement("div");
         node.setAttribute("data-professor-delete-manager", "true");
-        profesSection.appendChild(node);
+        section.appendChild(node);
       }
       setMountNode(node);
     };
-
     syncMount();
     const observer = new MutationObserver(syncMount);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [isSuperAdmin]);
 
-  useEffect(() => {
-    if (!mountNode || !isSuperAdmin) return;
-    loadAdmins();
-  }, [mountNode, isSuperAdmin]);
+  useEffect(() => { if (mountNode && isSuperAdmin) loadAdmins(); }, [mountNode, isSuperAdmin]);
 
   async function loadAdmins() {
     setMessage("");
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id,full_name,role")
-      .in("role", ["admin", "pending_admin"])
-      .order("full_name");
-
-    if (error) {
-      setMessage(error.message || "No se pudieron cargar los Profes.");
-      return;
-    }
+    const { data, error } = await supabase.from("profiles").select("id,full_name,role,active").in("role", ["admin", "pending_admin"]).order("full_name");
+    if (error) return setMessage(error.message || "No se pudieron cargar los Profes.");
     setAdmins(data || []);
+  }
+
+  async function toggleActive(professor) {
+    const next = professor.active === false;
+    setTogglingId(professor.id);
+    setMessage("");
+    const { error } = await supabase.from("profiles").update({ active: next }).eq("id", professor.id);
+    setTogglingId("");
+    if (error) return setMessage(error.message || "No se pudo cambiar el estado del Profe.");
+    setAdmins((current) => current.map((item) => item.id === professor.id ? { ...item, active: next } : item));
+    setMessage(next ? `✓ ${professor.full_name} quedó ACTIVO.` : `✓ ${professor.full_name} quedó INACTIVO y en modo solo lectura.`);
   }
 
   async function removeProfessor(professor) {
     const name = professor.full_name || "este Profe";
     const warning = `¿Eliminar definitivamente a ${name}?\n\nSe eliminará su cuenta de acceso. Si también era Jugador@, se eliminará además su ficha de Jugador@ y su asistencia personal. Las categorías, Jugador@s y registros administrativos que hubiera gestionado se conservarán y pasarán al Super Administrador.`;
     if (!window.confirm(warning)) return;
-
     setDeletingId(professor.id);
     setMessage("");
     try {
-      const { data, error } = await supabase.functions.invoke("delete-professor", {
-        body: { user_id: professor.id },
-      });
-
+      const { data, error } = await supabase.functions.invoke("delete-professor", { body: { user_id: professor.id } });
       if (error) {
         let detail = error.message || "No se pudo eliminar el Profe.";
-        try {
-          const body = await error.context?.json?.();
-          if (body?.error) detail = body.error;
-        } catch (_) {}
+        try { const body = await error.context?.json?.(); if (body?.error) detail = body.error; } catch (_) {}
         throw new Error(detail);
       }
       if (!data?.ok) throw new Error(data?.error || "No se pudo eliminar el Profe.");
-
       setAdmins((current) => current.filter((item) => item.id !== professor.id));
       setMessage(`✓ ${name} fue eliminado correctamente.`);
-      setTimeout(() => window.location.reload(), 700);
     } catch (error) {
       setMessage(error?.message || "No se pudo eliminar el Profe.");
-    } finally {
-      setDeletingId("");
-    }
+    } finally { setDeletingId(""); }
   }
 
   if (!mountNode || !isSuperAdmin) return null;
 
   return createPortal(
-    <div className="card" style={{ marginTop: 18 }}>
-      <div className="card-head">
-        <div>
-          <h2>Eliminar Profe</h2>
-          <span>Control exclusivo del Super Administrador.</span>
-        </div>
-      </div>
-
+    <div className="card professor-unified-card">
+      <div className="card-head"><div><h2>Gestión de Profes</h2><span>Control exclusivo del Super Administrador.</span></div></div>
+      <p className="professor-status-note">ACTIVO permite cargar y modificar información. INACTIVO conserva el acceso y la lectura, pero bloquea las modificaciones administrativas.</p>
       {message && <div className="message">{message}</div>}
-
-      <div className="admin-list">
-        {admins.length ? admins.map((professor) => (
-          <div className="card admin-row" key={professor.id} style={{ marginTop: 10 }}>
-            <div>
-              <b>{professor.full_name || "Profe"}</b>
-              <span>{professor.role === "pending_admin" ? "Cuenta pendiente de Profe" : "Cuenta de Profe"}</span>
-            </div>
-            <button
-              type="button"
-              className="danger"
-              disabled={deletingId === professor.id}
-              onClick={() => removeProfessor(professor)}
-            >
-              {deletingId === professor.id ? "Eliminando..." : "🗑️ Eliminar"}
-            </button>
-          </div>
-        )) : <div className="empty">No hay Profes para eliminar.</div>}
+      <div className="professor-unified-list">
+        {admins.length ? admins.map((professor) => {
+          const active = professor.active !== false;
+          return <div className="professor-unified-row" key={professor.id}>
+            <div><b>{professor.full_name || "Profe"}</b><span>{professor.role === "pending_admin" ? "Cuenta pendiente de Profe" : "Cuenta de Profe"}</span></div>
+            <button type="button" className={`professor-status-btn ${active ? "active" : "inactive"}`} disabled={togglingId === professor.id} onClick={() => toggleActive(professor)}>{togglingId === professor.id ? "Guardando..." : active ? "ACTIVO" : "INACTIVO"}</button>
+            <button type="button" className="professor-delete-btn" disabled={deletingId === professor.id} onClick={() => removeProfessor(professor)}>{deletingId === professor.id ? "Eliminando..." : "🗑️ Eliminar"}</button>
+          </div>;
+        }) : <div className="empty">No hay Profes registrados.</div>}
       </div>
-    </div>,
-    mountNode,
+    </div>, mountNode
   );
 }
