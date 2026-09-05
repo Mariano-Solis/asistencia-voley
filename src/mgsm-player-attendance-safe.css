@@ -1,0 +1,54 @@
+.player-app .stats .card.attendance-filter-button{
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+  border:2px solid rgba(181,18,27,.14);
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
+}
+.player-app .stats .card.attendance-filter-button:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(0,0,0,.10);
+  border-color:rgba(181,18,27,.35);
+}
+.player-app .stats .card.attendance-filter-button:focus-visible{
+  outline:3px solid rgba(181,18,27,.22);
+  outline-offset:3px;
+}
+.player-app .stats .card.attendance-filter-button::after{
+  content:"Ver";
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:10px;
+  min-width:62px;
+  min-height:30px;
+  padding:4px 12px;
+  border-radius:999px;
+  background:#111;
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+.player-app .stats .card.attendance-filter-button.attendance-stat-active{
+  border-color:#b5121b;
+  background:linear-gradient(180deg,#fff 0%,#fff7f7 100%);
+  box-shadow:0 10px 26px rgba(181,18,27,.14);
+}
+.player-app .stats .card.attendance-filter-button.attendance-stat-active::after{
+  content:"Mostrando";
+  background:#b5121b;
+}
+.player-app .history-row[hidden],
+.player-app .attendance-filter-empty-safe[hidden]{
+  display:none !important;
+}
+@media (max-width:700px){
+  .player-app .stats .card.attendance-filter-button{
+    min-height:118px;
+    padding:18px 12px;
+  }
+  .player-app .stats .card.attendance-filter-button::after{
+    margin-top:8px;
+  }
+}
