@@ -42,7 +42,7 @@ export default function AdminDualTopbarAction() {
       const topUser = document.querySelector("main.app .topbar .top-user");
 
       document.querySelectorAll("button").forEach((button) => {
-        if ((button.textContent || "").trim().includes("Ir a mi perfil de Jugador@") && button.style.position === "fixed") {
+        if ((button.textContent || "").includes("Ir a mi perfil") && button.style.position === "fixed") {
           button.style.display = "none";
         }
       });
@@ -76,7 +76,11 @@ export default function AdminDualTopbarAction() {
 
   return createPortal(
     <button type="button" className="admin-player-switch-topbar" onClick={switchToPlayer}>
-      🏐 Ir a mi perfil de Jugador@
+      <span className="admin-player-switch-icon">🏐</span>
+      <span className="admin-player-switch-label">
+        <span>Ir a mi perfil</span>
+        <span>de Jugador@</span>
+      </span>
     </button>,
     host,
   );
