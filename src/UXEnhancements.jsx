@@ -13,41 +13,66 @@ export default function UXEnhancements() {
       return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
     };
 
-    const rebuildPasswordToggles = () => {
-      scheduled = false;
-      observer?.disconnect();
+    const enforceVisibility = (input) => {
+      if (!input?.isConnected || input.dataset.passwordVisibilityManaged !== "true") return;
+      const shouldShow = input.dataset.passwordVisible === "true";
+      const expectedType = shouldShow ? "text" : "password";
+      if (input.type !== expectedType) input.type = expectedType;
+    };
 
-      document.querySelectorAll(".password-visibility-toggle").forEach((toggle) => toggle.remove());
+    const buildToggle = (input) => {
+      if (!isVisible(input)) return;
+      input.dataset.passwordVisibilityManaged = "true";
+      if (!input.dataset.passwordVisible) input.dataset.passwordVisible = "false";
+      enforceVisibility(input);
 
-      const inputs = Array.from(
-        document.querySelectorAll('input[type="password"], input[data-password-visibility-managed="true"]')
-      ).filter(isVisible);
+      const next = input.nextElementSibling;
+      if (next?.classList?.contains("password-visibility-toggle")) {
+        const checkbox = next.querySelector('input[type="checkbox"]');
+        const text = next.querySelector("span");
+        const shown = input.dataset.passwordVisible === "true";
+        if (checkbox) checkbox.checked = shown;
+        if (text) text.textContent = shown ? "Ocultar contraseña" : "Mostrar contraseña";
+        return;
+      }
 
-      inputs.forEach((input) => {
-        input.dataset.passwordVisibilityManaged = "true";
+      const label = document.createElement("label");
+      label.className = "password-visibility-toggle";
 
-        const label = document.createElement("label");
-        label.className = "password-visibility-toggle";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = input.dataset.passwordVisible === "true";
 
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = input.type === "text";
-        checkbox.setAttribute("aria-label", checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña");
+      const text = document.createElement("span");
+      const syncLabel = () => {
+        const shown = input.dataset.passwordVisible === "true";
+        checkbox.checked = shown;
+        checkbox.setAttribute("aria-label", shown ? "Ocultar contraseña" : "Mostrar contraseña");
+        text.textContent = shown ? "Ocultar contraseña" : "Mostrar contraseña";
+      };
 
-        const text = document.createElement("span");
-        text.textContent = checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña";
-
-        checkbox.addEventListener("change", () => {
-          input.type = checkbox.checked ? "text" : "password";
-          checkbox.setAttribute("aria-label", checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña");
-          text.textContent = checkbox.checked ? "Ocultar contraseña" : "Mostrar contraseña";
-        });
-
-        label.append(checkbox, text);
-        input.insertAdjacentElement("afterend", label);
+      checkbox.addEventListener("change", () => {
+        input.dataset.passwordVisible = checkbox.checked ? "true" : "false";
+        enforceVisibility(input);
+        syncLabel();
+        input.focus({ preventScroll: true });
       });
 
-      observer?.observe(document.body, { childList: true, subtree: true });
+      syncLabel();
+      label.append(checkbox, text);
+      input.insertAdjacentElement("afterend", label);
+    };
+
+    const rebuildPasswordToggles = () => {
+      scheduled = false;
+      document.querySelectorAll(".password-visibility-toggle").forEach((toggle) => {
+        const previous = toggle.previousElementSibling;
+        if (!previous?.matches?.('input[type="password"], input[data-password-visibility-managed="true"]') || !isVisible(previous)) toggle.remove();
+      });
+
+      Array.from(document.querySelectorAll('input[type="password"], input[data-password-visibility-managed="true"]'))
+        .filter(isVisible)
+        .forEach(buildToggle);
     };
 
     const scheduleRebuild = () => {
@@ -56,11 +81,37 @@ export default function UXEnhancements() {
       requestAnimationFrame(rebuildPasswordToggles);
     };
 
-    observer = new MutationObserver(scheduleRebuild);
+    const keepVisibleWhileTyping = (event) => {
+      const input = event.target;
+      if (!input?.matches?.('input[data-password-visibility-managed="true"]')) return;
+      if (input.dataset.passwordVisible === "true") {
+        queueMicrotask(() => enforceVisibility(input));
+        requestAnimationFrame(() => enforceVisibility(input));
+      }
+    };
+
+    document.addEventListener("input", keepVisibleWhileTyping, true);
+    document.addEventListener("keyup", keepVisibleWhileTyping, true);
+
+    observer = new MutationObserver((mutations) => {
+      let needsRebuild = false;
+      for (const mutation of mutations) {
+        if (mutation.type === "attributes" && mutation.attributeName === "type") {
+          enforceVisibility(mutation.target);
+        } else if (mutation.type === "childList") {
+          needsRebuild = true;
+        }
+      }
+      if (needsRebuild) scheduleRebuild();
+    });
+
     rebuildPasswordToggles();
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["type"] });
 
     return () => {
-      observer?.disconnect();
+      observer.disconnect();
+      document.removeEventListener("input", keepVisibleWhileTyping, true);
+      document.removeEventListener("keyup", keepVisibleWhileTyping, true);
       document.querySelectorAll(".password-visibility-toggle").forEach((toggle) => toggle.remove());
     };
   }, []);
