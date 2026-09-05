@@ -1,0 +1,103 @@
+/* =========================================================
+   MGSM VOLEY · GUARDIA DE NAVEGACIÓN PROFE + TOPBAR MÓVIL
+========================================================= */
+
+.professor-detail-guard-back{
+  position:fixed;
+  top:14px;
+  left:14px;
+  z-index:12050;
+  min-height:40px;
+  padding:9px 12px;
+  border-radius:10px;
+  background:#f3f3f4;
+  color:#26282d;
+  font-size:11px;
+  font-weight:850;
+  box-shadow:0 5px 16px rgba(0,0,0,.12);
+}
+
+@media(min-width:561px){
+  .professor-detail-guard-back{display:none}
+}
+
+@media(max-width:560px){
+  /* Si la cabecera interna se desplaza por cualquier interferencia del DOM,
+     este control queda siempre fuera del modal y accesible. */
+  .professor-detail-guard-back{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    top:calc(env(safe-area-inset-top, 0px) + 12px);
+    left:12px;
+  }
+
+  main.app > .topbar{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    column-gap:5px!important;
+    padding:7px 6px!important;
+  }
+
+  main.app > .topbar > .brand{
+    gap:5px!important;
+  }
+
+  main.app > .topbar > .brand img{
+    width:36px!important;
+    height:36px!important;
+    flex:0 0 36px!important;
+  }
+
+  main.app > .topbar > .brand strong{
+    display:block!important;
+    overflow:visible!important;
+    white-space:nowrap!important;
+    font-size:9px!important;
+    line-height:1!important;
+    letter-spacing:-.02em;
+  }
+
+  main.app > .topbar > .brand span{
+    font-size:6.5px!important;
+    margin-top:3px!important;
+    white-space:nowrap;
+  }
+
+  main.app > .topbar > .top-user{
+    grid-template-columns:auto minmax(34px,46px) auto!important;
+    gap:4px!important;
+  }
+
+  .admin-player-switch-topbar{
+    min-height:42px!important;
+    padding:5px 6px!important;
+    gap:4px!important;
+    font-size:8px!important;
+    border-radius:9px!important;
+  }
+
+  .admin-player-switch-icon{
+    font-size:11px!important;
+  }
+
+  .admin-player-switch-label{
+    gap:0!important;
+  }
+
+  main.app > .topbar > .top-user > span:not([data-admin-player-switch-host]):not(.role){
+    font-size:9px!important;
+    line-height:1.05!important;
+  }
+
+  .top-user > button:last-child{
+    padding:7px 7px!important;
+    font-size:9px!important;
+    min-height:40px;
+  }
+
+  /* El botón interno sigue existiendo para escritorio, pero en móvil
+     evitamos dos botones de volver a la vez. */
+  .professor-detail-back{
+    visibility:hidden!important;
+  }
+}
