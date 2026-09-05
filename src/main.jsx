@@ -5,7 +5,8 @@ import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
 import PhotoSourcePicker from './PhotoSourcePicker'
 import ProfessorDeleteManager from './ProfessorDeleteManager'
 import UXEnhancements from './UXEnhancements'
-import WorkflowEnhancements from './WorkflowEnhancements'
+import WorkflowCore from './WorkflowCore'
+import PermissionsEnhancement from './PermissionsEnhancement'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PhotoSourcePicker />
     <ProfessorDeleteManager />
     <UXEnhancements />
-    <WorkflowEnhancements />
+    <WorkflowCore />
+    <PermissionsEnhancement />
   </React.StrictMode>
 )
