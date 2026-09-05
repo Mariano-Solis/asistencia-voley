@@ -7,6 +7,7 @@ import ProfessorDeleteManager from './ProfessorDeleteManager'
 import UXEnhancements from './UXEnhancements'
 import WorkflowCore from './WorkflowCore'
 import PermissionsEnhancement from './PermissionsEnhancement'
+import WorkflowDOMPolish from './WorkflowDOMPolish'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -31,5 +32,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <UXEnhancements />
     <WorkflowCore />
     <PermissionsEnhancement />
+    <WorkflowDOMPolish />
   </React.StrictMode>
 )
