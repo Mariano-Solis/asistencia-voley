@@ -1,0 +1,153 @@
+/* =========================================================
+   MGSM VOLEY · PERFIL JUGADOR@ + ENTRENAMIENTO PROFE
+========================================================= */
+
+/* ---------------------------------------------------------
+   PERFIL JUGADOR@ · tarjetas de resumen clickeables
+--------------------------------------------------------- */
+.player-app .stats .card{
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.player-app .stats .card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(0,0,0,.08);
+}
+
+.player-app .stats .card:focus-visible{
+  outline:3px solid rgba(181,18,27,.22);
+  outline-offset:3px;
+}
+
+.player-app .stats .card.attendance-stat-active{
+  border-color:#b5121b!important;
+  background:linear-gradient(180deg,#fff 0%,#fff5f5 100%)!important;
+  box-shadow:0 10px 26px rgba(181,18,27,.12)!important;
+}
+
+.player-app .stats .card.attendance-stat-active::after{
+  content:"Filtrando";
+  position:absolute;
+  top:10px;
+  right:10px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#b5121b;
+  color:#fff;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+.attendance-filter-empty{
+  margin:10px 0 0!important;
+}
+
+/* ---------------------------------------------------------
+   NAVEGACIÓN · Entrenamiento
+--------------------------------------------------------- */
+main.app > nav button[data-training-hub-button]::before{
+  content:"🏐"!important;
+}
+
+.training-hub-section{
+  display:grid;
+  gap:18px;
+}
+
+.training-resource-card,
+.training-library-ready{
+  padding:22px!important;
+  display:flex;
+  align-items:center;
+  gap:18px;
+  border-radius:20px!important;
+}
+
+.training-resource-icon{
+  width:58px;
+  height:58px;
+  min-width:58px;
+  display:grid;
+  place-items:center;
+  border-radius:18px;
+  background:#fff2f2;
+  font-size:28px;
+}
+
+.training-resource-card h2,
+.training-library-ready h2{
+  margin:3px 0 6px;
+  color:#17181b;
+}
+
+.training-resource-card p,
+.training-library-ready p{
+  margin:0;
+  color:#666b73;
+  line-height:1.55;
+}
+
+.training-resource-link{
+  min-height:48px;
+  padding:0 18px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:14px;
+  background:linear-gradient(180deg,#c91924 0%,#aa0f18 100%);
+  color:#fff!important;
+  text-decoration:none!important;
+  font-weight:850;
+  white-space:nowrap;
+  box-shadow:0 8px 18px rgba(181,18,27,.18);
+}
+
+.training-resource-link:hover{
+  transform:translateY(-1px);
+}
+
+.training-library-ready{
+  justify-content:space-between;
+  background:linear-gradient(180deg,#fff 0%,#fafafb 100%)!important;
+}
+
+.training-coming-soon{
+  padding:8px 12px;
+  border-radius:999px;
+  background:#eceef1;
+  color:#5d626a;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+
+@media(max-width:760px){
+  .training-resource-card,
+  .training-library-ready{
+    padding:18px!important;
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .training-resource-link{
+    width:100%;
+    box-sizing:border-box;
+  }
+
+  .training-coming-soon{
+    align-self:flex-start;
+  }
+
+  .player-app .stats .card.attendance-stat-active::after{
+    position:static;
+    display:inline-block;
+    margin-top:7px;
+  }
+}
