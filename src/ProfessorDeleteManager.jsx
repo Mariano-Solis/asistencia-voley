@@ -150,8 +150,19 @@ export default function ProfessorDeleteManager() {
     setMessage("");
     const { error } = await supabase.from("profiles").update({ active: next }).eq("id", professor.id);
     setTogglingId("");
-    if (error) return setMessage(error.message || "No se pudo cambiar el estado del Profe.");
+    if (error) {
+      const text = error.message || "No se pudo cambiar el estado del Profe.";
+      setMessage(text);
+      if (selectedProfessor?.id === professor.id) setDetailsError(text);
+      return;
+    }
+
     setAdmins((current) => current.map((item) => item.id === professor.id ? { ...item, active: next } : item));
+    if (selectedProfessor?.id === professor.id) {
+      setSelectedProfessor((current) => current ? { ...current, active: next } : current);
+      setDetails((current) => current ? { ...current, profile: { ...current.profile, active: next } } : current);
+      setDetailsError("");
+    }
     setMessage(next ? `✓ ${professor.full_name} quedó ACTIVO.` : `✓ ${professor.full_name} quedó INACTIVO y en modo solo lectura.`);
   }
 
@@ -208,11 +219,22 @@ export default function ProfessorDeleteManager() {
       {selectedProfessor && <div className="professor-detail-modal" role="dialog" aria-modal="true" aria-label={`Datos de ${selectedProfessor.full_name || "Profe"}`} onClick={closeDetails}>
         <div className="card professor-detail-card" onClick={(event) => event.stopPropagation()}>
           <div className="professor-detail-head">
-            <div>
+            <button type="button" className="professor-detail-back" onClick={closeDetails}>← Volver a Profes</button>
+            <div className="professor-detail-title">
               <span className="eyebrow">Ficha del Profe</span>
               <h2>{selectedProfessor.full_name || "Profe"}</h2>
             </div>
-            <button type="button" className="professor-detail-close" aria-label="Cerrar" onClick={closeDetails}>×</button>
+            <div className="professor-detail-head-actions">
+              <button
+                type="button"
+                className={`professor-status-btn professor-detail-status ${details?.profile?.active === false ? "inactive" : "active"}`}
+                disabled={!details || togglingId === selectedProfessor.id}
+                onClick={() => toggleActive({ ...selectedProfessor, active: details?.profile?.active })}
+              >
+                {togglingId === selectedProfessor.id ? "Guardando..." : details?.profile?.active === false ? "INACTIVO" : "ACTIVO"}
+              </button>
+              <button type="button" className="professor-detail-close" aria-label="Cerrar" onClick={closeDetails}>×</button>
+            </div>
           </div>
 
           {detailsLoading && <div className="empty">Cargando datos...</div>}
