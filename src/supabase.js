@@ -44,6 +44,21 @@ if (client) {
       },
     })
   }
+
+  const originalStorageFrom = client.storage.from.bind(client.storage)
+  client.storage.from = (bucket) => {
+    const bucketApi = originalStorageFrom(bucket)
+    const originalGetPublicUrl = bucketApi.getPublicUrl.bind(bucketApi)
+
+    bucketApi.getPublicUrl = (path, options) => {
+      if (typeof path === 'string' && /^https?:\/\//i.test(path)) {
+        return { data: { publicUrl: path } }
+      }
+      return originalGetPublicUrl(path, options)
+    }
+
+    return bucketApi
+  }
 }
 
 export const supabase = client
