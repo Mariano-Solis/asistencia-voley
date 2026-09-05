@@ -43,8 +43,8 @@ export default function WorkflowDOMPolish(){
       const players=sections.find(s=>s.querySelector(".page-title h1")?.textContent?.trim()==="Jugador@s");
       if(players){
         const host=players.querySelector("[data-roster-share-v2]");
-        const filter=players.querySelector(".filter-card");
-        if(host&&filter&&filter.nextElementSibling!==host)filter.insertAdjacentElement("afterend",host);
+        const toolbar=players.querySelector(".toolbar");
+        if(host&&toolbar&&toolbar.nextElementSibling!==host)toolbar.insertAdjacentElement("afterend",host);
       }
 
       const history=sections.find(s=>s.querySelector(".page-title h1")?.textContent?.trim()==="Historial");
@@ -52,6 +52,15 @@ export default function WorkflowDOMPolish(){
         const host=history.querySelector("[data-history-tool-v2]");
         const title=history.querySelector(".page-title");
         if(host&&title&&title.nextElementSibling!==host)title.insertAdjacentElement("afterend",host);
+
+        const categorySelect=host?.querySelector("label:nth-of-type(2) select");
+        const sessionList=history.querySelector(".session-list");
+        const updateSessions=()=>{if(sessionList)sessionList.style.display=categorySelect?.value?"":"none";};
+        updateSessions();
+        if(categorySelect&&!categorySelect.dataset.sessionVisibilityListener){
+          categorySelect.dataset.sessionVisibilityListener="true";
+          categorySelect.addEventListener("change",updateSessions);
+        }
       }
     };
     sync();
