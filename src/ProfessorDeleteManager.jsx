@@ -195,97 +195,101 @@ export default function ProfessorDeleteManager() {
 
   if (!mountNode || !isSuperAdmin) return null;
 
-  return createPortal(
-    <>
-      <div className="card professor-unified-card">
-        <div className="card-head"><div><h2>Gestión de Profes</h2><span>Control exclusivo del Super Administrador.</span></div></div>
-        <p className="professor-status-note">Tocá el nombre de un Profe para ver su ficha completa. ACTIVO permite cargar y modificar información; INACTIVO conserva el acceso en modo solo lectura.</p>
-        {message && <div className="message">{message}</div>}
-        <div className="professor-unified-list">
-          {admins.length ? admins.map((professor) => {
-            const active = professor.active !== false;
-            return <div className="professor-unified-row" key={professor.id}>
-              <button type="button" className="professor-info-button" onClick={() => openDetails(professor)}>
-                <b>{professor.full_name || "Profe"}</b>
-                <span>{professor.role === "pending_admin" ? "Cuenta pendiente de Profe" : "Cuenta de Profe"} · Ver datos</span>
-              </button>
-              <button type="button" className={`professor-status-btn ${active ? "active" : "inactive"}`} disabled={togglingId === professor.id} onClick={() => toggleActive(professor)}>{togglingId === professor.id ? "Guardando..." : active ? "ACTIVO" : "INACTIVO"}</button>
-              <button type="button" className="professor-delete-btn" disabled={deletingId === professor.id} onClick={() => removeProfessor(professor)}>{deletingId === professor.id ? "Eliminando..." : "🗑️ Eliminar"}</button>
-            </div>;
-          }) : <div className="empty">No hay Profes registrados.</div>}
-        </div>
+  const listPortal = createPortal(
+    <div className="card professor-unified-card">
+      <div className="card-head"><div><h2>Gestión de Profes</h2><span>Control exclusivo del Super Administrador.</span></div></div>
+      <p className="professor-status-note">Tocá el nombre de un Profe para ver su ficha completa. ACTIVO permite cargar y modificar información; INACTIVO conserva el acceso en modo solo lectura.</p>
+      {message && <div className="message">{message}</div>}
+      <div className="professor-unified-list">
+        {admins.length ? admins.map((professor) => {
+          const active = professor.active !== false;
+          return <div className="professor-unified-row" key={professor.id}>
+            <button type="button" className="professor-info-button" onClick={() => openDetails(professor)}>
+              <b>{professor.full_name || "Profe"}</b>
+              <span>{professor.role === "pending_admin" ? "Cuenta pendiente de Profe" : "Cuenta de Profe"} · Ver datos</span>
+            </button>
+            <button type="button" className={`professor-status-btn ${active ? "active" : "inactive"}`} disabled={togglingId === professor.id} onClick={() => toggleActive(professor)}>{togglingId === professor.id ? "Guardando..." : active ? "ACTIVO" : "INACTIVO"}</button>
+            <button type="button" className="professor-delete-btn" disabled={deletingId === professor.id} onClick={() => removeProfessor(professor)}>{deletingId === professor.id ? "Eliminando..." : "🗑️ Eliminar"}</button>
+          </div>;
+        }) : <div className="empty">No hay Profes registrados.</div>}
       </div>
+    </div>,
+    mountNode,
+  );
 
-      {selectedProfessor && <div className="professor-detail-modal" role="dialog" aria-modal="true" aria-label={`Datos de ${selectedProfessor.full_name || "Profe"}`} onClick={closeDetails}>
-        <div className="card professor-detail-card" onClick={(event) => event.stopPropagation()}>
-          <div className="professor-detail-head">
-            <button type="button" className="professor-detail-back" onClick={closeDetails}>← Volver a Profes</button>
-            <div className="professor-detail-title">
-              <span className="eyebrow">Ficha del Profe</span>
-              <h2>{selectedProfessor.full_name || "Profe"}</h2>
-            </div>
-            <div className="professor-detail-head-actions">
-              <button
-                type="button"
-                className={`professor-status-btn professor-detail-status ${details?.profile?.active === false ? "inactive" : "active"}`}
-                disabled={!details || togglingId === selectedProfessor.id}
-                onClick={() => toggleActive({ ...selectedProfessor, active: details?.profile?.active })}
-              >
-                {togglingId === selectedProfessor.id ? "Guardando..." : details?.profile?.active === false ? "INACTIVO" : "ACTIVO"}
-              </button>
-              <button type="button" className="professor-detail-close" aria-label="Cerrar" onClick={closeDetails}>×</button>
-            </div>
+  const detailPortal = selectedProfessor ? createPortal(
+    <div className="professor-detail-modal" role="dialog" aria-modal="true" aria-label={`Datos de ${selectedProfessor.full_name || "Profe"}`} onClick={closeDetails}>
+      <div className="card professor-detail-card" onClick={(event) => event.stopPropagation()}>
+        <div className="professor-detail-head">
+          <button type="button" className="professor-detail-back" onClick={closeDetails}>← Volver a Profes</button>
+          <div className="professor-detail-title">
+            <span className="eyebrow">Ficha del Profe</span>
+            <h2>{selectedProfessor.full_name || "Profe"}</h2>
+          </div>
+          <div className="professor-detail-head-actions">
+            <button
+              type="button"
+              className={`professor-status-btn professor-detail-status ${details?.profile?.active === false ? "inactive" : "active"}`}
+              disabled={!details || togglingId === selectedProfessor.id}
+              onClick={() => toggleActive({ ...selectedProfessor, active: details?.profile?.active })}
+            >
+              {togglingId === selectedProfessor.id ? "Guardando..." : details?.profile?.active === false ? "INACTIVO" : "ACTIVO"}
+            </button>
+            <button type="button" className="professor-detail-close" aria-label="Cerrar" onClick={closeDetails}>×</button>
+          </div>
+        </div>
+
+        {detailsLoading && <div className="empty">Cargando datos...</div>}
+        {detailsError && <div className="message">{detailsError}</div>}
+
+        {details && <>
+          <div className="professor-detail-grid">
+            <div className="professor-detail-item"><span>Estado</span><b>{details.profile?.active === false ? "INACTIVO" : "ACTIVO"}</b></div>
+            <div className="professor-detail-item"><span>Rol</span><b>{details.profile?.role === "pending_admin" ? "Profe pendiente" : "Profe"}</b></div>
+            <div className="professor-detail-item"><span>Alta</span><b>{dateText(details.profile?.created_at)}</b></div>
+            <div className="professor-detail-item"><span>También es Jugador@</span><b>{details.player ? "Sí" : "No"}</b></div>
+            <div className="professor-detail-item"><span>Categorías a cargo</span><b>{details.categories.length}</b></div>
+            <div className="professor-detail-item"><span>Actividades cargadas</span><b>{details.activities.total}</b></div>
           </div>
 
-          {detailsLoading && <div className="empty">Cargando datos...</div>}
-          {detailsError && <div className="message">{detailsError}</div>}
-
-          {details && <>
-            <div className="professor-detail-grid">
-              <div className="professor-detail-item"><span>Estado</span><b>{details.profile?.active === false ? "INACTIVO" : "ACTIVO"}</b></div>
-              <div className="professor-detail-item"><span>Rol</span><b>{details.profile?.role === "pending_admin" ? "Profe pendiente" : "Profe"}</b></div>
-              <div className="professor-detail-item"><span>Alta</span><b>{dateText(details.profile?.created_at)}</b></div>
-              <div className="professor-detail-item"><span>También es Jugador@</span><b>{details.player ? "Sí" : "No"}</b></div>
-              <div className="professor-detail-item"><span>Categorías a cargo</span><b>{details.categories.length}</b></div>
-              <div className="professor-detail-item"><span>Actividades cargadas</span><b>{details.activities.total}</b></div>
+          <div className="professor-detail-sections">
+            <div className="professor-detail-section">
+              <h3>Categorías y permisos</h3>
+              <div className="professor-detail-list">
+                {details.categories.length ? details.categories.map((category) => <div key={category.id}>
+                  <b>{genderText(category.gender)} · {category.name}</b>
+                  <span>{category.can_edit ? "Puede ver y editar" : category.can_view ? "Solo lectura" : "Sin acceso"}</span>
+                </div>) : <div className="empty">No tiene categorías asignadas.</div>}
+              </div>
             </div>
 
-            <div className="professor-detail-sections">
-              <div className="professor-detail-section">
-                <h3>Categorías y permisos</h3>
-                <div className="professor-detail-list">
-                  {details.categories.length ? details.categories.map((category) => <div key={category.id}>
-                    <b>{genderText(category.gender)} · {category.name}</b>
-                    <span>{category.can_edit ? "Puede ver y editar" : category.can_view ? "Solo lectura" : "Sin acceso"}</span>
-                  </div>) : <div className="empty">No tiene categorías asignadas.</div>}
-                </div>
+            <div className="professor-detail-section">
+              <h3>Actividad administrativa</h3>
+              <div className="professor-detail-list">
+                <div><b>Entrenamientos</b><span>{details.activities.training}</span></div>
+                <div><b>Partidos</b><span>{details.activities.match}</span></div>
+                <div><b>Torneos</b><span>{details.activities.tournament}</span></div>
               </div>
-
-              <div className="professor-detail-section">
-                <h3>Actividad administrativa</h3>
-                <div className="professor-detail-list">
-                  <div><b>Entrenamientos</b><span>{details.activities.training}</span></div>
-                  <div><b>Partidos</b><span>{details.activities.match}</span></div>
-                  <div><b>Torneos</b><span>{details.activities.tournament}</span></div>
-                </div>
-              </div>
-
-              {details.player && <div className="professor-detail-section">
-                <h3>Perfil de Jugador@ asociado</h3>
-                <div className="professor-detail-list">
-                  <div><b>Nombre</b><span>{details.player.full_name || "—"}</span></div>
-                  <div><b>DNI</b><span>{details.player.dni || "—"}</span></div>
-                  <div><b>Fecha de nacimiento</b><span>{dateText(details.player.birth_date)}</span></div>
-                  <div><b>Rama</b><span>{genderText(details.player.sex)}</span></div>
-                  <div><b>Categoría</b><span>{detailCategory}</span></div>
-                  <div><b>Equipo</b><span>{details.player.team ? `Equipo ${details.player.team}` : "Sin asignar"}</span></div>
-                  <div><b>Código personal</b><span>{details.player.access_code || "—"}</span></div>
-                </div>
-              </div>}
             </div>
-          </>}
-        </div>
-      </div>}
-    </>, mountNode
-  );
+
+            {details.player && <div className="professor-detail-section">
+              <h3>Perfil de Jugador@ asociado</h3>
+              <div className="professor-detail-list">
+                <div><b>Nombre</b><span>{details.player.full_name || "—"}</span></div>
+                <div><b>DNI</b><span>{details.player.dni || "—"}</span></div>
+                <div><b>Fecha de nacimiento</b><span>{dateText(details.player.birth_date)}</span></div>
+                <div><b>Rama</b><span>{genderText(details.player.sex)}</span></div>
+                <div><b>Categoría</b><span>{detailCategory}</span></div>
+                <div><b>Equipo</b><span>{details.player.team ? `Equipo ${details.player.team}` : "Sin asignar"}</span></div>
+                <div><b>Código personal</b><span>{details.player.access_code || "—"}</span></div>
+              </div>
+            </div>}
+          </div>
+        </>}
+      </div>
+    </div>,
+    document.body,
+  ) : null;
+
+  return <>{listPortal}{detailPortal}</>;
 }
