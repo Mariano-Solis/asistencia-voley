@@ -184,6 +184,17 @@ function parseJsonText(text) {
   }
 }
 
+function runtimeGatewayToken(req) {
+  const explicitKey = process.env.AI_GATEWAY_API_KEY;
+  if (explicitKey) return explicitKey;
+
+  const headerValue = req.headers["x-vercel-oidc-token"];
+  if (Array.isArray(headerValue)) return headerValue[0] || "";
+  if (typeof headerValue === "string" && headerValue) return headerValue;
+
+  return process.env.VERCEL_OIDC_TOKEN || "";
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return json(res, 405, { error: "Método no permitido." });
 
@@ -252,13 +263,16 @@ Respondé EXCLUSIVAMENTE JSON válido con esta forma exacta:
         : { type: "input_image", image_url: `data:${mimeType};base64,${base64}`, detail: "high" },
     ];
 
-    const oidcToken = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
-    if (!oidcToken) return json(res, 503, { error: "El analizador inteligente no está disponible en este momento." });
+    const gatewayToken = runtimeGatewayToken(req);
+    if (!gatewayToken) {
+      console.error("No se recibió credencial OIDC de Vercel para el analizador de comprobantes.");
+      return json(res, 503, { error: "El analizador de comprobantes no está disponible en este momento." });
+    }
 
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${oidcToken}`,
+        Authorization: `Bearer ${gatewayToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
