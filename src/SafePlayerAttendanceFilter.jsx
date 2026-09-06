@@ -23,18 +23,21 @@ export default function SafePlayerAttendanceFilter() {
       return STATUS_BY_LABEL[label] || "";
     };
 
-    const refreshButtons = (playerApp) => {
-      if (!playerApp) return;
-      const active = playerApp.dataset.safeAttendanceFilter || "";
-      playerApp.querySelectorAll(".stats .card").forEach((card) => {
-        const status = getStatus(card);
-        if (!status) return;
-        card.classList.add("attendance-filter-button");
-        card.setAttribute("role", "button");
-        card.setAttribute("tabindex", "0");
-        card.setAttribute("aria-pressed", active === status ? "true" : "false");
-        card.classList.toggle("attendance-stat-active", active === status);
-      });
+    const decorateCard = (card) => {
+      if (!card) return;
+      const status = getStatus(card);
+      if (!status) return;
+      const playerApp = card.closest(".player-app");
+      const active = playerApp?.dataset.safeAttendanceFilter || "";
+      card.classList.add("attendance-filter-button");
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("aria-pressed", active === status ? "true" : "false");
+      card.classList.toggle("attendance-stat-active", active === status);
+    };
+
+    const refreshVisibleCards = (playerApp) => {
+      playerApp?.querySelectorAll(".stats .card").forEach(decorateCard);
     };
 
     const applyFilter = (playerApp, status) => {
@@ -50,7 +53,7 @@ export default function SafePlayerAttendanceFilter() {
       const rows = Array.from(list.querySelectorAll(":scope > .history-row"));
       let visible = 0;
       rows.forEach((row) => {
-        const matches = !status || row.querySelector(`.badge.${status}`);
+        const matches = !status || !!row.querySelector(`.badge.${status}`);
         row.hidden = !matches;
         if (matches) visible += 1;
       });
@@ -67,11 +70,21 @@ export default function SafePlayerAttendanceFilter() {
 
       const heading = attendanceCard.querySelector(".card-head h2");
       if (heading) heading.textContent = status ? TITLE_BY_STATUS[status] : "Mi asistencia";
-      refreshButtons(playerApp);
+      refreshVisibleCards(playerApp);
+    };
+
+    const onPointerOver = (event) => {
+      const card = event.target?.closest?.(".player-app .stats .card");
+      if (card) decorateCard(card);
+    };
+
+    const onFocusIn = (event) => {
+      const card = event.target?.closest?.(".player-app .stats .card");
+      if (card) decorateCard(card);
     };
 
     const onClick = (event) => {
-      const card = event.target.closest(".player-app .stats .card");
+      const card = event.target?.closest?.(".player-app .stats .card");
       if (!card) return;
       const playerApp = card.closest(".player-app");
       const status = getStatus(card);
@@ -83,20 +96,20 @@ export default function SafePlayerAttendanceFilter() {
 
     const onKeyDown = (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
-      const card = event.target.closest(".player-app .stats .card");
+      const card = event.target?.closest?.(".player-app .stats .card");
       if (!card) return;
       event.preventDefault();
       card.click();
     };
 
-    const initialize = () => document.querySelectorAll(".player-app").forEach(refreshButtons);
-    initialize();
-    const timer = window.setInterval(initialize, 1000);
+    document.addEventListener("pointerover", onPointerOver, true);
+    document.addEventListener("focusin", onFocusIn, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("keydown", onKeyDown, true);
 
     return () => {
-      window.clearInterval(timer);
+      document.removeEventListener("pointerover", onPointerOver, true);
+      document.removeEventListener("focusin", onFocusIn, true);
       document.removeEventListener("click", onClick, true);
       document.removeEventListener("keydown", onKeyDown, true);
     };
