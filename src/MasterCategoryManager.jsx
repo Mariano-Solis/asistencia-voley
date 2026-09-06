@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 
 const SEASON_YEAR = 2026;
+const MASTER_MIN_AGE = 30;
 const MASTER_TEAMS = ["A", "B", "C", "D"];
 const OTHER_TEAMS = ["A", "B", "C", "D", "E"];
 
@@ -106,13 +107,13 @@ export default function MasterCategoryManager() {
 
     const femaleCategories = c.data || [];
     const master = femaleCategories.find((row) => row.name?.trim().toLowerCase() === "master");
-    const over30 = (p.data || []).filter((row) => (seasonAge(row.birth_date) ?? -1) > 30);
+    const masterEligible = (p.data || []).filter((row) => (seasonAge(row.birth_date) ?? -1) >= MASTER_MIN_AGE);
 
     setCategories(femaleCategories);
     setMasterId(master?.id || "");
-    setPlayers(over30);
+    setPlayers(masterEligible);
 
-    const nextSelected = over30.find((row) => row.id === selectedId) || over30[0] || null;
+    const nextSelected = masterEligible.find((row) => row.id === selectedId) || masterEligible[0] || null;
     if (nextSelected) {
       setSelectedId(nextSelected.id);
       setCategoryId(nextSelected.category_id || master?.id || "");
@@ -200,15 +201,15 @@ export default function MasterCategoryManager() {
     <section className="master-manager-card card">
       <div className="master-manager-head">
         <div>
-          <span className="eyebrow">Rama Femenina · Regla +30</span>
+          <span className="eyebrow">Rama Femenina · Regla 30+</span>
           <h2>MASTER</h2>
           <p>
-            Toda jugadora que supere los 30 años se asigna automáticamente a MASTER. Sólo el Super Administrador puede crear una excepción y pasarla a otra categoría.
+            Toda jugadora que tenga 30 años o más al 31 de diciembre se asigna automáticamente a MASTER. Sólo el Super Administrador puede crear una excepción y pasarla a otra categoría.
           </p>
         </div>
         <div className="master-manager-count">
           <b>{players.length}</b>
-          <span>Jugadoras +30</span>
+          <span>Jugadoras 30+</span>
         </div>
       </div>
 
@@ -254,7 +255,7 @@ export default function MasterCategoryManager() {
           </div>
         </div>
       ) : (
-        <div className="empty">Todavía no hay jugadoras mayores de 30 años.</div>
+        <div className="empty">Todavía no hay jugadoras de 30 años o más.</div>
       )}
 
       {selected && (
