@@ -264,6 +264,7 @@ function AdminPaymentPanel({ role, onClose }) {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [reviewing, setReviewing] = useState("");
+  const [bulkReviewing, setBulkReviewing] = useState(false);
 
   async function load(clearMessage = false, showLoading = false) {
     if (refreshInFlightRef.current) return;
@@ -315,6 +316,8 @@ function AdminPaymentPanel({ role, onClose }) {
     const pay = paymentByPlayer[p.id];
     return sum + (pay?.validation_status === "validated" ? Number(pay.amount_due || 0) : 0);
   }, 0);
+  const receiptsCount = payments.filter((p) => !!p.receipt_path).length;
+  const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && p.validation_status !== "validated").length;
 
   async function updateFee(playerId, value) {
     if (role !== "super_admin") return;
@@ -337,6 +340,54 @@ function AdminPaymentPanel({ role, onClose }) {
       await load(false, false);
     }
     setReviewing("");
+  }
+
+  async function approveAllReceipts() {
+    if (role !== "super_admin" || bulkReviewing || unvalidatedReceiptsCount === 0) return;
+    const label = periodLabel(period);
+    const confirmed = window.confirm(`Vas a aprobar todos los comprobantes cargados de ${label}. ¿Querés continuar?`);
+    if (!confirmed) return;
+
+    setBulkReviewing(true);
+    setMessage("");
+    try {
+      const { data, error } = await supabase.functions.invoke("review-payment-receipt", {
+        body: { action: "bulk_validate", period_month: period },
+      });
+      if (error || !data?.ok) {
+        setMessage("No se pudieron aprobar todos los comprobantes.");
+      } else {
+        const count = Number(data.updated_count || 0);
+        setMessage(count > 0
+          ? `✓ Se aprobaron ${count} comprobante${count === 1 ? "" : "s"} de ${label}.`
+          : `✓ Todos los comprobantes de ${label} ya estaban aprobados.`);
+        await load(false, false);
+      }
+    } finally {
+      setBulkReviewing(false);
+    }
+  }
+
+  async function revokePayment(paymentId, playerName) {
+    if (role !== "super_admin" || reviewing) return;
+    const confirmed = window.confirm(`Vas a revocar la aprobación del comprobante de ${playerName}. Quedará pendiente de revisión. ¿Querés continuar?`);
+    if (!confirmed) return;
+
+    setReviewing(paymentId);
+    setMessage("");
+    try {
+      const { data, error } = await supabase.functions.invoke("review-payment-receipt", {
+        body: { action: "revoke", payment_id: paymentId },
+      });
+      if (error || !data?.ok) {
+        setMessage("No se pudo revocar la aprobación del comprobante.");
+      } else {
+        setMessage(`↩ Aprobación revocada para ${playerName}. El comprobante quedó pendiente de revisión.`);
+        await load(false, false);
+      }
+    } finally {
+      setReviewing("");
+    }
   }
 
   return (
@@ -366,6 +417,18 @@ function AdminPaymentPanel({ role, onClose }) {
           </select>
         </div>
 
+        {role === "super_admin" && (
+          <div className="stable-pay-bulk-actions">
+            <div>
+              <strong>Acciones del período · {periodLabel(period)}</strong>
+              <small>{receiptsCount} comprobante{receiptsCount === 1 ? "" : "s"} cargado{receiptsCount === 1 ? "" : "s"} · {unvalidatedReceiptsCount} sin aprobar</small>
+            </div>
+            <button type="button" className="approve-all" disabled={bulkReviewing || unvalidatedReceiptsCount === 0} onClick={approveAllReceipts}>
+              {bulkReviewing ? "⏳ Aprobando..." : `✓ Aprobar todos los comprobantes de ${periodLabel(period)}`}
+            </button>
+          </div>
+        )}
+
         {message && <div className="stable-pay-message">{message}</div>}
 
         <div className="stable-pay-admin-list">
@@ -382,10 +445,13 @@ function AdminPaymentPanel({ role, onClose }) {
                 <b className={`stable-pay-state ${state.cls}`}>{state.label}</b>
                 <div className="stable-pay-row-actions">
                   {payment?.receipt_path ? <button type="button" onClick={() => openReceipt(payment.receipt_path, setMessage)}>👁 Ver</button> : <span>Sin archivo</span>}
-                  {role === "super_admin" && payment?.validation_status === "manual_review" && <>
-                    <button type="button" className="approve" disabled={reviewing === payment.id} onClick={() => reviewPayment(payment.id, "validated")}>✓ Aprobar</button>
-                    <button type="button" className="reject" disabled={reviewing === payment.id} onClick={() => reviewPayment(payment.id, "rejected")}>✕ Rechazar</button>
+                  {role === "super_admin" && payment?.receipt_path && ["manual_review", "pending_validation", "rejected"].includes(payment.validation_status) && <>
+                    <button type="button" className="approve" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "validated")}>✓ Aprobar</button>
+                    {payment.validation_status !== "rejected" && <button type="button" className="reject" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "rejected")}>✕ Rechazar</button>}
                   </>}
+                  {role === "super_admin" && payment?.validation_status === "validated" && (
+                    <button type="button" className="revoke" disabled={reviewing === payment.id || bulkReviewing} onClick={() => revokePayment(payment.id, player.full_name)}>↩ Revocar aprobación</button>
+                  )}
                 </div>
               </article>
             );
