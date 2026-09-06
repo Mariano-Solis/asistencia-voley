@@ -1,0 +1,195 @@
+/* =========================================================
+   MUNICIPALIDAD DE SAN MARTÍN - VOLEY · DESTINO DE PAGO
+========================================================= */
+
+[data-player-payment-destination-host]{
+  width:100%;
+  margin:0 0 18px;
+}
+
+.player-payment-destination{
+  position:relative;
+  overflow:hidden;
+  border:2px solid #a30f17;
+  border-radius:22px;
+  padding:20px;
+  background:linear-gradient(135deg,#fff 0%,#fff8f8 62%,#fff 100%);
+  box-shadow:0 12px 30px rgba(122,14,20,.14);
+}
+
+.player-payment-destination::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:7px;
+  background:#a30f17;
+}
+
+.player-payment-destination-head{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  margin-bottom:17px;
+  padding-left:3px;
+}
+
+.player-payment-destination-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 48px;
+  width:48px;
+  height:48px;
+  border-radius:14px;
+  background:#a30f17;
+  color:#fff;
+  font-size:24px;
+  box-shadow:0 7px 18px rgba(163,15,23,.2);
+}
+
+.player-payment-destination-eyebrow{
+  display:block;
+  margin-bottom:3px;
+  color:#a30f17;
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.09em;
+}
+
+.player-payment-destination h2{
+  margin:0;
+  color:#17191d;
+  font-size:20px;
+  line-height:1.12;
+  font-weight:950;
+  letter-spacing:-.025em;
+}
+
+.player-payment-destination-grid{
+  display:grid;
+  grid-template-columns:1.25fr 1fr 1fr;
+  gap:11px;
+}
+
+.player-payment-destination-item{
+  min-width:0;
+  padding:14px;
+  border:1px solid #eadbdd;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 5px 14px rgba(24,28,34,.05);
+}
+
+.player-payment-destination-item>span{
+  display:block;
+  margin-bottom:5px;
+  color:#7e5559;
+  font-size:9px;
+  line-height:1;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.player-payment-destination-item strong{
+  display:block;
+  overflow-wrap:anywhere;
+  color:#181b20;
+  font-size:15px;
+  line-height:1.25;
+  font-weight:900;
+}
+
+.player-payment-destination-alias strong{
+  color:#9d0d15;
+  font-size:17px;
+}
+
+.player-payment-destination-item small{
+  display:block;
+  margin-top:4px;
+  color:#727983;
+  font-size:10.5px;
+  font-weight:750;
+}
+
+.player-payment-destination-item button{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%;
+  min-height:40px!important;
+  margin-top:11px;
+  padding:8px 11px!important;
+  border:1px solid #d9b7bb!important;
+  border-radius:10px!important;
+  background:#fff5f6!important;
+  color:#950c14!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  text-align:center!important;
+  box-shadow:none!important;
+}
+
+.player-payment-destination-item button:hover{
+  background:#a30f17!important;
+  color:#fff!important;
+  border-color:#a30f17!important;
+}
+
+.player-payment-destination-warning{
+  margin-top:13px;
+  padding:12px 14px;
+  border-radius:13px;
+  background:#a30f17;
+  color:#fff;
+  font-size:11.5px;
+  line-height:1.45;
+  font-weight:700;
+  text-align:center;
+}
+
+.player-payment-destination-warning b{
+  font-weight:950;
+}
+
+@media(max-width:760px){
+  .player-payment-destination{
+    padding:17px;
+    border-radius:19px;
+  }
+  .player-payment-destination-grid{
+    grid-template-columns:1fr;
+  }
+  .player-payment-destination-head{
+    align-items:flex-start;
+  }
+  .player-payment-destination h2{
+    font-size:18px;
+  }
+  .player-payment-destination-item strong{
+    font-size:14px;
+  }
+  .player-payment-destination-alias strong{
+    font-size:18px;
+  }
+}
+
+@media(max-width:420px){
+  .player-payment-destination{
+    padding:15px;
+  }
+  .player-payment-destination-icon{
+    flex-basis:43px;
+    width:43px;
+    height:43px;
+    font-size:21px;
+  }
+  .player-payment-destination h2{
+    font-size:16.5px;
+  }
+  .player-payment-destination-warning{
+    font-size:10.8px;
+  }
+}
