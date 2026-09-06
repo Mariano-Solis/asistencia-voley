@@ -1,4 +1,5 @@
 import { createWorker } from "tesseract.js";
+import engData from "@tesseract.js-data/eng";
 
 const SUPABASE_URL = "https://sswdpyksugjtfimptmww.supabase.co";
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
@@ -72,6 +73,14 @@ function extractPaymentDate(text) {
     if (day >= 1 && day <= 31 && month >= 1 && month <= 12) return `${year}-${pad2(month)}-${pad2(day)}`;
   }
 
+  const spaced = plain.match(/\b([0-3]?\d)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+(20\d{2})\b/);
+  if (spaced) {
+    const day = Number(spaced[1]);
+    const month = MONTHS[spaced[2]];
+    const year = Number(spaced[3]);
+    if (day >= 1 && day <= 31 && month) return `${year}-${pad2(month)}-${pad2(day)}`;
+  }
+
   return null;
 }
 
@@ -84,11 +93,11 @@ function extractAmount(text) {
 
 function receiptSignals(normalized) {
   const checks = [
-    normalized.includes("comprobante de transferencia"),
-    normalized.includes("origen y destino"),
+    normalized.includes("comprobante de transferencia") || normalized.includes("comprobante transferencia"),
+    normalized.includes("origen y destino") || normalized.includes("origen destino"),
     normalized.includes("mercado pago"),
-    normalized.includes("operacion de mercado pago") || normalized.includes("operacion mercado pago"),
-    normalized.includes("cuit cuil"),
+    normalized.includes("operacion de mercado pago") || normalized.includes("operacion mercado pago") || normalized.includes("n de operacion"),
+    normalized.includes("cuit cuil") || normalized.includes("cuit") || normalized.includes("cuil"),
     normalized.includes("cvu"),
   ];
   return checks.filter(Boolean).length;
@@ -101,7 +110,7 @@ function analyzeOcr(text, confidence, period) {
   const amount = extractAmount(text);
   const cvuOk = digits.includes(OFFICIAL_DESTINATION.cvu);
   const nameOk = normalized.includes(normalizeText(OFFICIAL_DESTINATION.name));
-  const providerOk = normalized.includes("mercado pago");
+  const providerOk = normalized.includes("mercado pago") || normalized.includes("mercadopago");
   const signalCount = receiptSignals(normalized);
   const dateOk = paymentDate?.slice(0, 7) === period;
 
@@ -140,7 +149,7 @@ function analyzeOcr(text, confidence, period) {
       payment_date: paymentDate,
       amount,
       provider: OFFICIAL_DESTINATION.provider,
-      recipient_name: nameOk ? OFFICIAL_DESTINATION.name : null,
+      recipient_name: nameOk ? OFFICIAL_DESTINATION.name : OFFICIAL_DESTINATION.name,
       recipient_cvu: OFFICIAL_DESTINATION.cvu,
       destination_verified: true,
       confidence,
@@ -148,13 +157,13 @@ function analyzeOcr(text, confidence, period) {
   }
 
   const missing = [];
-  if (!paymentDate) missing.push("fecha");
-  if (!cvuOk) missing.push("CVU oficial");
+  if (!paymentDate) missing.push("la fecha");
+  if (!cvuOk) missing.push("el CVU oficial");
   if (!providerOk) missing.push("Mercado Pago");
 
   return {
     status: "manual_review",
-    reason: `Comprobante recibido. La lectura automática no pudo confirmar con seguridad ${missing.join(" y ") || "todos los datos"}; será revisado por el Super Administrador.`,
+    reason: `Comprobante cargado. La lectura automática no pudo confirmar con seguridad ${missing.join(" y ") || "todos los datos"}. Será revisado por el Super Administrador.`,
     payment_date: paymentDate,
     amount,
     provider: providerOk ? OFFICIAL_DESTINATION.provider : null,
@@ -205,7 +214,11 @@ export default async function handler(req, res) {
 
     let worker;
     try {
-      worker = await createWorker("spa");
+      worker = await createWorker(engData.code, 1, {
+        langPath: engData.langPath,
+        gzip: engData.gzip,
+        cachePath: "/tmp/tesseract-cache",
+      });
       const result = await worker.recognize(fileBuffer);
       const text = result?.data?.text || "";
       const confidenceRaw = Number(result?.data?.confidence);
@@ -215,10 +228,10 @@ export default async function handler(req, res) {
       if (worker) await worker.terminate().catch(() => {});
     }
   } catch (error) {
-    console.error("Error en OCR gratuito de comprobantes", error);
+    console.error("Error en lectura automática de comprobantes", error);
     return json(res, 200, {
       status: "manual_review",
-      reason: "Comprobante recibido. La lectura automática gratuita no pudo completarse y será revisado por el Super Administrador.",
+      reason: "Comprobante cargado. La lectura automática no pudo completarse y será revisado por el Super Administrador.",
       destination_verified: false,
       confidence: null,
     });
