@@ -71,7 +71,7 @@ async function openReceipt(path, setMessage) {
     else window.location.href = data.signedUrl;
   } catch (error) {
     popup?.close();
-    setMessage?.(error?.message || "No se pudo abrir el comprobante.");
+    setMessage?.("No se pudo abrir el comprobante.");
   }
 }
 
@@ -106,7 +106,7 @@ function PlayerPayments({ playerId }) {
       setPlayer(p.data);
       setPayments(pay.data || []);
     } catch (error) {
-      setMessage(error?.message || "No se pudieron cargar tus pagos.");
+      setMessage("No se pudieron cargar tus pagos.");
     } finally {
       setLoading(false);
     }
@@ -153,27 +153,32 @@ function PlayerPayments({ playerId }) {
 
       if (error) {
         await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-        throw error;
-      }
-
-      if (data?.status === "rejected") {
-        setMessage(`✕ Archivo rechazado. ${data.reason || "No parece ser un comprobante de pago válido del mes en curso."}`);
+        setMessage("⚠ No se pudo verificar el comprobante en este momento. El archivo NO fue aceptado. Intentá nuevamente más tarde.");
         return;
       }
 
-      if (data?.status === "manual_review") {
-        setMessage(`⚠ El archivo parece un comprobante, pero necesita revisión del Super Administrador. ${data.reason || ""}`.trim());
-      } else if (data?.status === "validated") {
+      if (data?.status === "rejected") {
+        setMessage(`✕ Archivo rechazado. ${data.reason || "Comprobante no válido."}`);
+        return;
+      }
+
+      if (data?.status === "verification_unavailable") {
+        setMessage(`⚠ ${data.reason || "No se pudo verificar el comprobante en este momento. El archivo NO fue aceptado. Intentá nuevamente más tarde."}`);
+        return;
+      }
+
+      if (data?.status === "validated") {
         const provider = data.detected_provider ? ` · ${data.detected_provider}` : "";
         const detectedDate = data.detected_payment_date ? ` · ${new Date(`${data.detected_payment_date}T12:00:00`).toLocaleDateString("es-AR")}` : "";
         setMessage(`✓ Comprobante validado correctamente${provider}${detectedDate}.`);
-      } else {
-        setMessage("⚠ El comprobante quedó pendiente de revisión.");
+        await load(false);
+        return;
       }
 
-      await load(false);
+      setMessage("⚠ No se pudo verificar el comprobante en este momento. El archivo NO fue aceptado. Intentá nuevamente más tarde.");
     } catch (error) {
-      setMessage(error?.message || "No se pudo analizar el comprobante. Intentá nuevamente.");
+      await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+      setMessage("⚠ No se pudo verificar el comprobante en este momento. El archivo NO fue aceptado. Intentá nuevamente más tarde.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -298,7 +303,7 @@ function AdminPayments({ role }) {
       setCategories(c.data || []);
       setPayments(pay.data || []);
     } catch (error) {
-      setMessage(error?.message || "No se pudieron cargar los pagos.");
+      setMessage("No se pudieron cargar los pagos.");
     } finally {
       setLoading(false);
     }
@@ -358,7 +363,7 @@ function AdminPayments({ role }) {
       if (r.error) throw r.error;
       setPlayers((prev) => prev.map((p) => p.id === playerId ? { ...p, monthly_fee: r.data.monthly_fee } : p));
     } catch (error) {
-      setMessage(error?.message || "No se pudo actualizar la cuota.");
+      setMessage("No se pudo actualizar la cuota.");
     } finally {
       setSavingId("");
     }
@@ -377,7 +382,7 @@ function AdminPayments({ role }) {
       setMessage(decision === "validated" ? "✓ Comprobante aprobado manualmente." : "✓ Comprobante rechazado manualmente.");
       await load(false);
     } catch (error) {
-      setMessage(error?.message || "No se pudo resolver el comprobante.");
+      setMessage("No se pudo resolver el comprobante.");
     } finally {
       setReviewingId("");
     }
