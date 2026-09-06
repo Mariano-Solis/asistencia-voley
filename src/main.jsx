@@ -12,6 +12,7 @@ import AdminCollapsibles from './AdminCollapsibles'
 import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
 import MasterCategoryManager from './MasterCategoryManager'
+import PaymentHubStable from './PaymentHubStable'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
@@ -35,6 +36,7 @@ import './mgsm-ultra-final.css'
 import './mgsm-payments.css'
 import './mgsm-master-category.css'
 import './mgsm-payment-destination.css'
+import './mgsm-payments-stable.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
@@ -52,6 +54,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <SafePlayerAttendanceFilter />
     <ProfessorTrainingHub />
     <MasterCategoryManager />
+    <PaymentHubStable />
     <AdminDualTopbarAction />
   </React.StrictMode>
 )
