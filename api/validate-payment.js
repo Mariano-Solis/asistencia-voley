@@ -47,25 +47,19 @@ function destinationEvidence(value) {
     (recipientCvu && normalizeDigits(recipientCvu).length >= 10 && !cvuMatch) ||
     (recipientName && !nameMatch);
 
-  const exactEvidence = Boolean(aliasMatch || cvuMatch || nameMatch);
-
   return {
     recipientName,
     recipientAlias,
     recipientCvu,
-    exactEvidence,
+    exactEvidence: Boolean(aliasMatch || cvuMatch || nameMatch),
     explicitMismatch,
   };
 }
 
 function normalizeResult(value, period) {
   const confidence = Number(value?.confidence);
-  const safeConfidence = Number.isFinite(confidence)
-    ? Math.max(0, Math.min(1, confidence))
-    : 0;
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value?.payment_date || ""))
-    ? value.payment_date
-    : null;
+  const safeConfidence = Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value?.payment_date || "")) ? value.payment_date : null;
   const amount = Number(value?.amount);
   const safeAmount = Number.isFinite(amount) && amount >= 0 ? Math.round(amount) : null;
   const provider = String(value?.provider || "").trim().slice(0, 120) || null;
@@ -187,11 +181,9 @@ function parseJsonText(text) {
 function runtimeGatewayToken(req) {
   const explicitKey = process.env.AI_GATEWAY_API_KEY;
   if (explicitKey) return explicitKey;
-
   const headerValue = req.headers["x-vercel-oidc-token"];
   if (Array.isArray(headerValue)) return headerValue[0] || "";
   if (typeof headerValue === "string" && headerValue) return headerValue;
-
   return process.env.VERCEL_OIDC_TOKEN || "";
 }
 
@@ -201,9 +193,7 @@ export default async function handler(req, res) {
   try {
     const authorization = req.headers.authorization || "";
     const anonKey = req.headers["x-supabase-anon-key"] || "";
-    if (!authorization.startsWith("Bearer ") || !anonKey) {
-      return json(res, 401, { error: "Sesión requerida." });
-    }
+    if (!authorization.startsWith("Bearer ") || !anonKey) return json(res, 401, { error: "Sesión requerida." });
 
     const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { Authorization: authorization, apikey: String(anonKey) },
@@ -228,9 +218,7 @@ export default async function handler(req, res) {
     const fileResponse = await fetch(signedUrl, { cache: "no-store" });
     if (!fileResponse.ok) return json(res, 400, { error: "No se pudo leer el comprobante temporal." });
     const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
-    if (!fileBuffer.length || fileBuffer.length > MAX_FILE_SIZE) {
-      return json(res, 400, { error: "El archivo está vacío o supera los 10 MB." });
-    }
+    if (!fileBuffer.length || fileBuffer.length > MAX_FILE_SIZE) return json(res, 400, { error: "El archivo está vacío o supera los 10 MB." });
 
     const base64 = fileBuffer.toString("base64");
     const instruction = `Analizá este archivo como comprobante de una cuota deportiva del período ${period}.
@@ -246,11 +234,11 @@ Reglas obligatorias y conservadoras:
 2. La FECHA DE LA OPERACIÓN debe pertenecer exactamente al período ${period}.
 3. La transferencia debe estar dirigida a la cuenta oficial indicada arriba. Extraé literalmente, si aparecen, nombre del destinatario, alias y CVU. No los inventes ni los infieras.
 4. Si el comprobante muestra otro destinatario, otro alias o otro CVU, REJECTED.
-5. Si no se puede confirmar en el archivo al menos uno de estos identificadores exactos de destino (alias, CVU o titular), REJECTED. No uses manual_review.
-6. Si el archivo no es un comprobante de pago (turno médico, receta, certificado, factura de servicio, documento personal, foto cualquiera, etc.), REJECTED.
+5. Si no se puede confirmar en el archivo al menos uno de estos identificadores exactos de destino (alias, CVU o titular), REJECTED.
+6. Si el archivo no es un comprobante de pago, REJECTED.
 7. El pagador puede ser cualquier persona. NO compares el nombre del pagador con el jugador.
 8. El importe puede ser distinto de la cuota. NO rechaces por importe.
-9. Ante cualquier duda, dato ilegible o error de lectura, REJECTED. No uses manual_review.
+9. Ante cualquier duda o dato ilegible, REJECTED.
 10. Toda explicación debe estar en español.
 
 Respondé EXCLUSIVAMENTE JSON válido con esta forma exacta:
@@ -266,32 +254,34 @@ Respondé EXCLUSIVAMENTE JSON válido con esta forma exacta:
     const gatewayToken = runtimeGatewayToken(req);
     if (!gatewayToken) {
       console.error("No se recibió credencial OIDC de Vercel para el analizador de comprobantes.");
-      return json(res, 503, { error: "El analizador de comprobantes no está disponible en este momento." });
+      return json(res, 503, {
+        code: "validator_unavailable",
+        error: "No se pudo verificar el comprobante en este momento. El archivo no fue aceptado. Intentá nuevamente más tarde.",
+      });
     }
 
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${gatewayToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        input: [{ role: "user", content }],
-        max_output_tokens: 800,
-      }),
+      headers: { Authorization: `Bearer ${gatewayToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: AI_MODEL, input: [{ role: "user", content }], max_output_tokens: 800 }),
     });
 
     const aiPayload = await aiResponse.json().catch(() => null);
     if (!aiResponse.ok) {
       console.error("Error del analizador de comprobantes", aiResponse.status, aiPayload);
-      return json(res, 502, { error: "No se pudo verificar el comprobante. Intentá nuevamente." });
+      const unavailable = aiResponse.status === 403 || aiResponse.status === 429 || aiResponse.status >= 500;
+      return json(res, unavailable ? 503 : 502, {
+        code: "validator_unavailable",
+        error: "No se pudo verificar el comprobante en este momento. El archivo no fue aceptado. Intentá nuevamente más tarde.",
+      });
     }
 
-    const result = normalizeResult(parseJsonText(extractOutputText(aiPayload)), period);
-    return json(res, 200, result);
+    return json(res, 200, normalizeResult(parseJsonText(extractOutputText(aiPayload)), period));
   } catch (error) {
     console.error("Error al validar comprobante", error);
-    return json(res, 500, { error: "No se pudo verificar el comprobante. Intentá nuevamente." });
+    return json(res, 503, {
+      code: "validator_unavailable",
+      error: "No se pudo verificar el comprobante en este momento. El archivo no fue aceptado. Intentá nuevamente más tarde.",
+    });
   }
 }
