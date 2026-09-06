@@ -49,6 +49,18 @@ function safeName(name) {
     .slice(-90);
 }
 
+function isValidated(payment) {
+  return payment?.validation_status === "validated";
+}
+
+function paymentState(payment) {
+  if (!payment) return { cls: "pending", label: "Pendiente" };
+  if (payment.validation_status === "validated") return { cls: "paid", label: "✓ Comprobante válido" };
+  if (payment.validation_status === "manual_review") return { cls: "review", label: "⚠ Revisión manual" };
+  if (payment.validation_status === "rejected") return { cls: "rejected", label: "✕ Rechazado" };
+  return { cls: "review", label: "⏳ Analizando" };
+}
+
 async function openReceipt(path, setMessage) {
   if (!path) return;
   const popup = window.open("", "_blank");
@@ -72,10 +84,10 @@ function PlayerPayments({ playerId }) {
   const [message, setMessage] = useState("");
   const period = currentPeriod();
 
-  const load = async () => {
+  const load = async (clearMessage = true) => {
     if (!playerId) return;
     setLoading(true);
-    setMessage("");
+    if (clearMessage) setMessage("");
     try {
       const [p, pay] = await Promise.all([
         supabase
@@ -85,7 +97,7 @@ function PlayerPayments({ playerId }) {
           .single(),
         supabase
           .from("monthly_payments")
-          .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at")
+          .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason,validation_confidence,detected_payment_date,detected_amount,detected_provider,validated_at")
           .eq("player_id", playerId)
           .order("period_month", { ascending: false }),
       ]);
@@ -105,6 +117,7 @@ function PlayerPayments({ playerId }) {
   }, [playerId]);
 
   const current = payments.find((row) => row.period_month === period);
+  const currentState = paymentState(current);
 
   async function upload(file) {
     if (!file || !player?.monthly_fee) return;
@@ -118,7 +131,7 @@ function PlayerPayments({ playerId }) {
     }
 
     setUploading(true);
-    setMessage("");
+    setMessage("⏳ Subiendo y analizando el comprobante...");
     const folder = period.slice(0, 7);
     const path = `${player.id}/${folder}/${Date.now()}-${safeName(file.name)}`;
 
@@ -129,37 +142,38 @@ function PlayerPayments({ playerId }) {
       });
       if (up.error) throw up.error;
 
-      const save = await supabase
-        .from("monthly_payments")
-        .upsert(
-          {
-            player_id: player.id,
-            period_month: period,
-            amount_due: Number(player.monthly_fee),
-            receipt_path: path,
-            receipt_name: file.name,
-            receipt_type: file.type,
-            uploaded_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "player_id,period_month" },
-        )
-        .select("id")
-        .single();
+      const { data, error } = await supabase.functions.invoke("validate-payment-receipt", {
+        body: {
+          receipt_path: path,
+          receipt_name: file.name,
+          receipt_type: file.type,
+          period_month: period,
+        },
+      });
 
-      if (save.error) {
-        await supabase.storage.from(BUCKET).remove([path]);
-        throw save.error;
+      if (error) {
+        await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+        throw error;
       }
 
-      if (current?.receipt_path && current.receipt_path !== path) {
-        await supabase.storage.from(BUCKET).remove([current.receipt_path]);
+      if (data?.status === "rejected") {
+        setMessage(`✕ Archivo rechazado. ${data.reason || "No parece ser un comprobante de pago válido del mes en curso."}`);
+        return;
       }
 
-      setMessage("✓ Comprobante cargado correctamente.");
-      await load();
+      if (data?.status === "manual_review") {
+        setMessage(`⚠ El archivo parece un comprobante, pero necesita revisión del Super Administrador. ${data.reason || ""}`.trim());
+      } else if (data?.status === "validated") {
+        const provider = data.detected_provider ? ` · ${data.detected_provider}` : "";
+        const detectedDate = data.detected_payment_date ? ` · ${new Date(`${data.detected_payment_date}T12:00:00`).toLocaleDateString("es-AR")}` : "";
+        setMessage(`✓ Comprobante validado correctamente${provider}${detectedDate}.`);
+      } else {
+        setMessage("⚠ El comprobante quedó pendiente de revisión.");
+      }
+
+      await load(false);
     } catch (error) {
-      setMessage(error?.message || "No se pudo cargar el comprobante.");
+      setMessage(error?.message || "No se pudo analizar el comprobante. Intentá nuevamente.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -172,15 +186,13 @@ function PlayerPayments({ playerId }) {
 
   return (
     <section className="payment-player-section">
-      <div className={`payment-player-card card ${current ? "paid" : "pending"}`}>
+      <div className={`payment-player-card card ${currentState.cls}`}>
         <div className="payment-player-head">
           <div>
             <span className="eyebrow">Mi cuota · {periodLabel(period)}</span>
             <h2>{player?.monthly_fee ? money(player.monthly_fee) : "Cuota sin configurar"}</h2>
           </div>
-          <span className={`payment-state ${current ? "paid" : "pending"}`}>
-            {current ? "✓ Comprobante cargado" : "Pendiente"}
-          </span>
+          <span className={`payment-state ${currentState.cls}`}>{currentState.label}</span>
         </div>
 
         {!player?.monthly_fee ? (
@@ -188,8 +200,11 @@ function PlayerPayments({ playerId }) {
         ) : (
           <>
             <p className="payment-help">
-              El estado cambia automáticamente al adjuntar un comprobante. No existe un tilde manual.
+              El archivo se analiza automáticamente antes de contar como pago. Debe ser un comprobante bancario o de billetera virtual del mes en curso. El titular de la cuenta puede ser otra persona.
             </p>
+            {current?.validation_reason && !isValidated(current) && (
+              <div className="payment-validation-note">{current.validation_reason}</div>
+            )}
             <div className="payment-player-actions">
               <input
                 ref={inputRef}
@@ -204,9 +219,9 @@ function PlayerPayments({ playerId }) {
                 disabled={uploading}
                 onClick={() => inputRef.current?.click()}
               >
-                {uploading ? "Subiendo..." : current ? "📎 Reemplazar comprobante" : "📎 Adjuntar comprobante"}
+                {uploading ? "⏳ Analizando..." : current ? "📎 Reemplazar comprobante" : "📎 Adjuntar comprobante"}
               </button>
-              {current && (
+              {current?.receipt_path && (
                 <button type="button" className="payment-secondary" onClick={() => openReceipt(current.receipt_path, setMessage)}>
                   👁 Ver comprobante
                 </button>
@@ -222,18 +237,21 @@ function PlayerPayments({ playerId }) {
         <div className="card-head"><h2>Mi historial de pagos</h2></div>
         {payments.length ? (
           <div className="payment-history-list">
-            {payments.map((row) => (
-              <div className="payment-history-row" key={row.id}>
-                <div>
-                  <b>{periodLabel(row.period_month)}</b>
-                  <span>{money(row.amount_due)}</span>
+            {payments.map((row) => {
+              const state = paymentState(row);
+              return (
+                <div className="payment-history-row" key={row.id}>
+                  <div>
+                    <b>{periodLabel(row.period_month)}</b>
+                    <span>{money(row.amount_due)}</span>
+                  </div>
+                  <span className={`payment-state ${state.cls}`}>{state.label}</span>
+                  <button type="button" className="payment-view-small" onClick={() => openReceipt(row.receipt_path, setMessage)}>
+                    Ver
+                  </button>
                 </div>
-                <span className="payment-state paid">✓ Cargado</span>
-                <button type="button" className="payment-view-small" onClick={() => openReceipt(row.receipt_path, setMessage)}>
-                  Ver
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="empty">Todavía no hay comprobantes cargados.</div>
@@ -254,11 +272,12 @@ function AdminPayments({ role }) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
+  const [reviewingId, setReviewingId] = useState("");
   const [message, setMessage] = useState("");
 
-  const load = async () => {
+  const load = async (clearMessage = true) => {
     setLoading(true);
-    setMessage("");
+    if (clearMessage) setMessage("");
     try {
       const [p, c, pay] = await Promise.all([
         supabase
@@ -269,7 +288,7 @@ function AdminPayments({ role }) {
         supabase.from("categories").select("id,name,gender,active").eq("active", true).order("name"),
         supabase
           .from("monthly_payments")
-          .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,uploaded_at")
+          .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason,validation_confidence,detected_payment_date,detected_amount,detected_provider,validated_at")
           .eq("period_month", period),
       ]);
       if (p.error) throw p.error;
@@ -307,11 +326,14 @@ function AdminPayments({ role }) {
     const q = search.trim().toLowerCase();
     return players.filter((p) => {
       const cat = categories.find((c) => c.id === p.category_id);
-      const paid = !!paymentByPlayer[p.id];
+      const pay = paymentByPlayer[p.id];
+      const paid = isValidated(pay);
       if (branch && cat?.gender !== branch) return false;
       if (categoryId && p.category_id !== categoryId) return false;
       if (status === "paid" && !paid) return false;
-      if (status === "pending" && paid) return false;
+      if (status === "pending" && (paid || pay?.validation_status === "manual_review")) return false;
+      if (status === "review" && pay?.validation_status !== "manual_review") return false;
+      if (status === "rejected" && pay?.validation_status !== "rejected") return false;
       if (q && !p.full_name.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -319,8 +341,12 @@ function AdminPayments({ role }) {
 
   const configured = rows.filter((p) => p.monthly_fee);
   const expected = configured.reduce((sum, p) => sum + Number(p.monthly_fee || 0), 0);
-  const received = rows.reduce((sum, p) => sum + Number(paymentByPlayer[p.id]?.amount_due || 0), 0);
-  const paidCount = rows.filter((p) => paymentByPlayer[p.id]).length;
+  const received = rows.reduce((sum, p) => {
+    const pay = paymentByPlayer[p.id];
+    return sum + (isValidated(pay) ? Number(pay.amount_due || 0) : 0);
+  }, 0);
+  const paidCount = rows.filter((p) => isValidated(paymentByPlayer[p.id])).length;
+  const reviewCount = rows.filter((p) => paymentByPlayer[p.id]?.validation_status === "manual_review").length;
 
   async function updateFee(playerId, value) {
     if (role !== "super_admin") return;
@@ -338,26 +364,45 @@ function AdminPayments({ role }) {
     }
   }
 
+  async function reviewPayment(paymentId, decision) {
+    if (role !== "super_admin" || !paymentId) return;
+    setReviewingId(paymentId);
+    setMessage("");
+    try {
+      const { data, error } = await supabase.functions.invoke("review-payment-receipt", {
+        body: { payment_id: paymentId, decision },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "No se pudo resolver el comprobante.");
+      setMessage(decision === "validated" ? "✓ Comprobante aprobado manualmente." : "✓ Comprobante rechazado manualmente.");
+      await load(false);
+    } catch (error) {
+      setMessage(error?.message || "No se pudo resolver el comprobante.");
+    } finally {
+      setReviewingId("");
+    }
+  }
+
   return (
     <section className="payment-admin-section">
       <div className="page-title">
         <div>
           <h1>Pagos</h1>
-          <p>Cuotas mensuales y comprobantes. Los Profes ven únicamente sus categorías; el Super Administrador ve el total.</p>
+          <p>Cuotas mensuales y comprobantes validados. Los Profes ven únicamente sus categorías; el Super Administrador ve el total.</p>
         </div>
       </div>
 
       <div className="payment-summary-grid">
         <div className="card payment-summary-card"><span>Esperado</span><b>{money(expected)}</b><small>{configured.length} cuotas configuradas</small></div>
-        <div className="card payment-summary-card"><span>Comprobantes</span><b>{paidCount} / {rows.length}</b><small>{rows.length - paidCount} pendientes</small></div>
-        <div className="card payment-summary-card"><span>Importe cargado</span><b>{money(received)}</b><small>Según comprobantes adjuntos</small></div>
+        <div className="card payment-summary-card"><span>Validados</span><b>{paidCount} / {rows.length}</b><small>{reviewCount ? `${reviewCount} en revisión` : `${rows.length - paidCount} pendientes`}</small></div>
+        <div className="card payment-summary-card"><span>Importe validado</span><b>{money(received)}</b><small>Sólo comprobantes aprobados</small></div>
       </div>
 
       <div className="card payment-filter-card">
         <label>Mes<input type="month" value={period.slice(0, 7)} onChange={(e) => setPeriod(`${e.target.value}-01`)} /></label>
         <label>Rama<select value={branch} onChange={(e) => setBranch(e.target.value)}><option value="">Todas</option><option value="female">Femenino</option><option value="male">Masculino</option></select></label>
         <label>Categoría<select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Todas</option>{visibleCategories.map((c) => <option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></label>
-        <label>Estado<select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">Todos</option><option value="paid">Con comprobante</option><option value="pending">Pendientes</option></select></label>
+        <label>Estado<select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">Todos</option><option value="paid">Validados</option><option value="review">Revisión manual</option><option value="pending">Pendientes</option><option value="rejected">Rechazados</option></select></label>
         <label className="payment-search">Buscar Jugador@<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nombre y apellido" /></label>
       </div>
 
@@ -376,11 +421,14 @@ function AdminPayments({ role }) {
             {rows.map((player) => {
               const cat = categories.find((c) => c.id === player.category_id);
               const pay = paymentByPlayer[player.id];
+              const state = paymentState(pay);
               return (
                 <div className="payment-admin-row" key={player.id}>
                   <div className="payment-player-info">
                     <b>{player.full_name}</b>
                     <span>{cat ? `${genderText(cat.gender)} · ${cat.name}` : "Sin categoría"}{player.team ? ` · Equipo ${player.team}` : ""}</span>
+                    {pay?.validation_reason && <small className="payment-validation-reason">{pay.validation_reason}</small>}
+                    {pay?.detected_provider && <small>Detectado: {pay.detected_provider}{pay.detected_payment_date ? ` · ${new Date(`${pay.detected_payment_date}T12:00:00`).toLocaleDateString("es-AR")}` : ""}{pay.detected_amount != null ? ` · ${money(pay.detected_amount)}` : ""}</small>}
                   </div>
 
                   <div className="payment-fee-cell">
@@ -395,13 +443,19 @@ function AdminPayments({ role }) {
                     )}
                   </div>
 
-                  <span className={`payment-state ${pay ? "paid" : "pending"}`}>
-                    {pay ? "✓ Cargado" : "Pendiente"}
-                  </span>
+                  <span className={`payment-state ${state.cls}`}>{state.label}</span>
 
                   <div className="payment-row-actions">
-                    {pay ? (
-                      <button type="button" className="payment-secondary" onClick={() => openReceipt(pay.receipt_path, setMessage)}>👁 Ver comprobante</button>
+                    {pay?.receipt_path ? (
+                      <>
+                        <button type="button" className="payment-secondary" onClick={() => openReceipt(pay.receipt_path, setMessage)}>👁 Ver comprobante</button>
+                        {role === "super_admin" && pay.validation_status === "manual_review" && (
+                          <div className="payment-review-actions">
+                            <button type="button" className="payment-review-approve" disabled={reviewingId === pay.id} onClick={() => reviewPayment(pay.id, "validated")}>✓ Aprobar</button>
+                            <button type="button" className="payment-review-reject" disabled={reviewingId === pay.id} onClick={() => reviewPayment(pay.id, "rejected")}>✕ Rechazar</button>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <span className="payment-no-file">Sin archivo</span>
                     )}
