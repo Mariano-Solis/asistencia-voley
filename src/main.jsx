@@ -11,9 +11,7 @@ import WorkflowDOMPolish from './WorkflowDOMPolish'
 import AdminCollapsibles from './AdminCollapsibles'
 import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
-import PaymentHub from './PaymentHub'
 import MasterCategoryManager from './MasterCategoryManager'
-import PlayerPaymentDestination from './PlayerPaymentDestination'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
@@ -53,9 +51,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AdminCollapsibles />
     <SafePlayerAttendanceFilter />
     <ProfessorTrainingHub />
-    <PaymentHub />
     <MasterCategoryManager />
-    <PlayerPaymentDestination />
     <AdminDualTopbarAction />
   </React.StrictMode>
 )
