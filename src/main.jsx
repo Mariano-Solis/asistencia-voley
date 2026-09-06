@@ -5,6 +5,7 @@ import PhotoSourcePicker from './PhotoSourcePicker'
 import ProfessorDeleteManager from './ProfessorDeleteManager'
 import WorkflowCore from './WorkflowCore'
 import PermissionsEnhancement from './PermissionsEnhancement'
+import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
 import MasterCategoryManager from './MasterCategoryManager'
 import PaymentHubStable from './PaymentHubStable'
@@ -43,6 +44,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ProfessorDeleteManager />
     <WorkflowCore />
     <PermissionsEnhancement />
+    <SafePlayerAttendanceFilter />
     <ProfessorTrainingHub />
     <MasterCategoryManager />
     <PaymentHubStable />
