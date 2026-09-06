@@ -91,27 +91,34 @@ function OfficialAccount({ onCopy }) {
 
 function PlayerPaymentPanel({ player, onClose }) {
   const inputRef = useRef(null);
+  const refreshInFlightRef = useRef(false);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const period = currentPeriod();
 
-  async function load(clearMessage = false) {
-    if (!player?.id) return;
-    setLoading(true);
+  async function load(clearMessage = false, showLoading = false) {
+    if (!player?.id || refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (showLoading) setLoading(true);
     if (clearMessage) setMessage("");
-    const { data, error } = await supabase
-      .from("monthly_payments")
-      .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason,detected_provider,validated_at")
-      .eq("player_id", player.id)
-      .order("period_month", { ascending: false });
-    if (error) setMessage("No se pudieron cargar tus pagos.");
-    else setPayments(data || []);
-    setLoading(false);
+
+    try {
+      const { data, error } = await supabase
+        .from("monthly_payments")
+        .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason,detected_provider,validated_at")
+        .eq("player_id", player.id)
+        .order("period_month", { ascending: false });
+      if (error) setMessage("No se pudieron cargar tus pagos.");
+      else setPayments(data || []);
+    } finally {
+      if (showLoading) setLoading(false);
+      refreshInFlightRef.current = false;
+    }
   }
 
-  useEffect(() => { load(); }, [player?.id]);
+  useEffect(() => { load(false, true); }, [player?.id]);
 
   const current = payments.find((row) => row.period_month === period);
   const currentState = stateOf(current);
@@ -119,7 +126,7 @@ function PlayerPaymentPanel({ player, onClose }) {
 
   useEffect(() => {
     if (!verifying) return undefined;
-    const timer = window.setInterval(() => load(false), 4500);
+    const timer = window.setInterval(() => load(false, false), 4500);
     return () => window.clearInterval(timer);
   }, [verifying, player?.id]);
 
@@ -163,25 +170,25 @@ function PlayerPaymentPanel({ player, onClose }) {
 
       if (data?.status === "pending_validation") {
         setMessage("✓ Comprobante cargado. Se verificará en segundo plano. Podés cerrar esta ventana y seguir usando la aplicación.");
-        await load(false);
+        await load(false, false);
         return;
       }
 
       if (data?.status === "validated") {
         setMessage("✓ Comprobante validado automáticamente.");
-        await load(false);
+        await load(false, false);
         return;
       }
 
       if (data?.status === "manual_review") {
         setMessage("⚠ Comprobante cargado. No pudo verificarse automáticamente y será revisado por el Super Administrador.");
-        await load(false);
+        await load(false, false);
         return;
       }
 
       if (data?.status === "rejected") {
         setMessage(`✕ ${data.reason || "Comprobante no válido."}`);
-        await load(false);
+        await load(false, false);
         return;
       }
 
@@ -249,6 +256,7 @@ function PlayerPaymentPanel({ player, onClose }) {
 
 function AdminPaymentPanel({ role, onClose }) {
   const period = currentPeriod();
+  const refreshInFlightRef = useRef(false);
   const [players, setPlayers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -257,26 +265,35 @@ function AdminPaymentPanel({ role, onClose }) {
   const [message, setMessage] = useState("");
   const [reviewing, setReviewing] = useState("");
 
-  async function load(clearMessage = false) {
-    setLoading(true);
+  async function load(clearMessage = false, showLoading = false) {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (showLoading) setLoading(true);
     if (clearMessage) setMessage("");
-    const [p, pay] = await Promise.all([
-      supabase.from("players").select("id,full_name,monthly_fee,category_id,team,active").eq("active", true).order("full_name"),
-      supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_provider").eq("period_month", period),
-    ]);
-    if (p.error || pay.error) setMessage("No se pudieron cargar los pagos.");
-    setPlayers(p.data || []);
-    setPayments(pay.data || []);
-    setLoading(false);
+
+    try {
+      const [p, pay] = await Promise.all([
+        supabase.from("players").select("id,full_name,monthly_fee,category_id,team,active").eq("active", true).order("full_name"),
+        supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_provider").eq("period_month", period),
+      ]);
+      if (p.error || pay.error) setMessage("No se pudieron cargar los pagos.");
+      if (!p.error) setPlayers(p.data || []);
+      if (!pay.error) setPayments(pay.data || []);
+    } finally {
+      if (showLoading) setLoading(false);
+      refreshInFlightRef.current = false;
+    }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(false, true); }, []);
+
+  const hasPendingValidation = payments.some((p) => p.validation_status === "pending_validation");
 
   useEffect(() => {
-    if (!payments.some((p) => p.validation_status === "pending_validation")) return undefined;
-    const timer = window.setInterval(() => load(false), 5000);
+    if (!hasPendingValidation) return undefined;
+    const timer = window.setInterval(() => load(false, false), 5000);
     return () => window.clearInterval(timer);
-  }, [payments]);
+  }, [hasPendingValidation]);
 
   const paymentByPlayer = useMemo(() => Object.fromEntries(payments.map((p) => [p.player_id, p])), [payments]);
   const rows = useMemo(() => players.filter((player) => {
@@ -317,7 +334,7 @@ function AdminPaymentPanel({ role, onClose }) {
     if (error || !data?.ok) setMessage("No se pudo resolver el comprobante.");
     else {
       setMessage(decision === "validated" ? "✓ Comprobante aprobado." : "✓ Comprobante rechazado.");
-      await load(false);
+      await load(false, false);
     }
     setReviewing("");
   }
