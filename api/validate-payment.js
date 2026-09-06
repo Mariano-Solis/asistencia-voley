@@ -4,31 +4,74 @@ const AI_MODEL = "google/gemini-2.5-flash";
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "application/pdf"]);
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+const OFFICIAL_DESTINATION = {
+  alias: "comision.voley.mgsm",
+  cvu: "0000003100057442515764",
+  name: "Pablo Javier Iglesias",
+};
+
 function json(res, status, body) {
   res.status(status).setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   return res.end(JSON.stringify(body));
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeAlias(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function normalizeDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function destinationEvidence(value) {
+  const recipientName = String(value?.recipient_name || "").trim().slice(0, 160) || null;
+  const recipientAlias = String(value?.recipient_alias || "").trim().slice(0, 120) || null;
+  const recipientCvu = String(value?.recipient_cvu || "").trim().slice(0, 80) || null;
+
+  const aliasMatch = recipientAlias && normalizeAlias(recipientAlias) === normalizeAlias(OFFICIAL_DESTINATION.alias);
+  const cvuMatch = recipientCvu && normalizeDigits(recipientCvu) === OFFICIAL_DESTINATION.cvu;
+  const nameMatch = recipientName && normalizeText(recipientName) === normalizeText(OFFICIAL_DESTINATION.name);
+
+  const explicitMismatch =
+    (recipientAlias && !aliasMatch) ||
+    (recipientCvu && normalizeDigits(recipientCvu).length >= 10 && !cvuMatch) ||
+    (recipientName && !nameMatch);
+
+  const exactEvidence = Boolean(aliasMatch || cvuMatch || nameMatch);
+
+  return {
+    recipientName,
+    recipientAlias,
+    recipientCvu,
+    exactEvidence,
+    explicitMismatch,
+  };
+}
+
 function normalizeResult(value, period) {
-  const status = ["validated", "manual_review", "rejected"].includes(value?.status)
-    ? value.status
-    : "manual_review";
   const confidence = Number(value?.confidence);
   const safeConfidence = Number.isFinite(confidence)
     ? Math.max(0, Math.min(1, confidence))
-    : 0.5;
+    : 0;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value?.payment_date || ""))
     ? value.payment_date
     : null;
   const amount = Number(value?.amount);
   const safeAmount = Number.isFinite(amount) && amount >= 0 ? Math.round(amount) : null;
   const provider = String(value?.provider || "").trim().slice(0, 120) || null;
-  const reason = String(value?.reason || "No se pudo determinar con certeza el comprobante.")
-    .trim()
-    .slice(0, 700);
+  const reason = String(value?.reason || "No se pudo verificar el comprobante.").trim().slice(0, 700);
+  const evidence = destinationEvidence(value);
 
-  // Defensa adicional: una fecha inequívoca fuera del período nunca puede quedar validada.
   if (date && date.slice(0, 7) !== period) {
     return {
       status: "rejected",
@@ -36,11 +79,86 @@ function normalizeResult(value, period) {
       payment_date: date,
       amount: safeAmount,
       provider,
-      reason: `El comprobante corresponde a ${date.slice(0, 7)} y no al período ${period}.`,
+      reason: "Comprobante no válido: la fecha de la operación no corresponde al mes en curso.",
+      destination_verified: false,
+      recipient_name: evidence.recipientName,
+      recipient_alias: evidence.recipientAlias,
+      recipient_cvu: evidence.recipientCvu,
     };
   }
 
-  return { status, confidence: safeConfidence, payment_date: date, amount: safeAmount, provider, reason };
+  if (!date) {
+    return {
+      status: "rejected",
+      confidence: safeConfidence,
+      payment_date: null,
+      amount: safeAmount,
+      provider,
+      reason: "Comprobante no válido: no se pudo verificar la fecha de la operación.",
+      destination_verified: false,
+      recipient_name: evidence.recipientName,
+      recipient_alias: evidence.recipientAlias,
+      recipient_cvu: evidence.recipientCvu,
+    };
+  }
+
+  if (evidence.explicitMismatch) {
+    return {
+      status: "rejected",
+      confidence: Math.max(safeConfidence, 0.98),
+      payment_date: date,
+      amount: safeAmount,
+      provider,
+      reason: "Comprobante no válido: la transferencia no fue enviada a la cuenta oficial de VOLEY.",
+      destination_verified: false,
+      recipient_name: evidence.recipientName,
+      recipient_alias: evidence.recipientAlias,
+      recipient_cvu: evidence.recipientCvu,
+    };
+  }
+
+  if (!evidence.exactEvidence) {
+    return {
+      status: "rejected",
+      confidence: safeConfidence,
+      payment_date: date,
+      amount: safeAmount,
+      provider,
+      reason: "Comprobante no válido: no se pudo comprobar que el dinero haya sido enviado a la cuenta oficial de VOLEY.",
+      destination_verified: false,
+      recipient_name: evidence.recipientName,
+      recipient_alias: evidence.recipientAlias,
+      recipient_cvu: evidence.recipientCvu,
+    };
+  }
+
+  if (String(value?.status || "").toLowerCase() !== "validated") {
+    return {
+      status: "rejected",
+      confidence: safeConfidence,
+      payment_date: date,
+      amount: safeAmount,
+      provider,
+      reason: reason.startsWith("Comprobante") ? reason : `Comprobante no válido: ${reason}`,
+      destination_verified: false,
+      recipient_name: evidence.recipientName,
+      recipient_alias: evidence.recipientAlias,
+      recipient_cvu: evidence.recipientCvu,
+    };
+  }
+
+  return {
+    status: "validated",
+    confidence: safeConfidence,
+    payment_date: date,
+    amount: safeAmount,
+    provider,
+    reason: "Comprobante válido: transferencia del mes en curso enviada a la cuenta oficial de VOLEY.",
+    destination_verified: true,
+    recipient_name: evidence.recipientName,
+    recipient_alias: evidence.recipientAlias,
+    recipient_cvu: evidence.recipientCvu,
+  };
 }
 
 function extractOutputText(payload) {
@@ -76,7 +194,6 @@ export default async function handler(req, res) {
       return json(res, 401, { error: "Sesión requerida." });
     }
 
-    // Verifica que el JWT pertenezca a un usuario real del proyecto Supabase.
     const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { Authorization: authorization, apikey: String(anonKey) },
     });
@@ -105,7 +222,28 @@ export default async function handler(req, res) {
     }
 
     const base64 = fileBuffer.toString("base64");
-    const instruction = `Analizá este archivo como comprobante de una cuota deportiva del período ${period}.\n\nTu trabajo es clasificarlo con criterio conservador:\n1. VALIDATED sólo si el archivo es claramente un comprobante real de pago/transferencia de un banco o billetera virtual y la FECHA DE LA OPERACIÓN pertenece a ${period}. Puede estar a nombre de cualquier persona: NO compares ni exijas el nombre del pagador con el jugador.\n2. REJECTED si claramente NO es un comprobante de pago (por ejemplo turno médico, receta, certificado, factura de un servicio, documento personal, foto cualquiera) o si es un comprobante de pago cuya fecha inequívoca corresponde a otro mes.\n3. MANUAL_REVIEW si parece comprobante pero la fecha no se puede leer, hay varias fechas ambiguas, está borroso, recortado, o existe cualquier duda razonable. Ante duda, no inventes datos y elegí manual_review.\n4. El importe puede ser distinto de la cuota: NO rechaces por importe.\n5. Detectá, si es posible, fecha de operación, importe y banco/billetera.\n\nRespondé EXCLUSIVAMENTE JSON válido con esta forma exacta:\n{"status":"validated|manual_review|rejected","confidence":0.0,"payment_date":"YYYY-MM-DD o null","amount":12345,"provider":"nombre o null","reason":"explicación breve en español"}`;
+    const instruction = `Analizá este archivo como comprobante de una cuota deportiva del período ${period}.
+
+CUENTA OFICIAL DE DESTINO OBLIGATORIA:
+- Plataforma: Mercado Pago
+- Alias: ${OFFICIAL_DESTINATION.alias}
+- CVU: ${OFFICIAL_DESTINATION.cvu}
+- Titular: ${OFFICIAL_DESTINATION.name}
+
+Reglas obligatorias y conservadoras:
+1. VALIDATED sólo si el archivo es claramente un comprobante real de pago o transferencia de un banco o billetera virtual.
+2. La FECHA DE LA OPERACIÓN debe pertenecer exactamente al período ${period}.
+3. La transferencia debe estar dirigida a la cuenta oficial indicada arriba. Extraé literalmente, si aparecen, nombre del destinatario, alias y CVU. No los inventes ni los infieras.
+4. Si el comprobante muestra otro destinatario, otro alias o otro CVU, REJECTED.
+5. Si no se puede confirmar en el archivo al menos uno de estos identificadores exactos de destino (alias, CVU o titular), REJECTED. No uses manual_review.
+6. Si el archivo no es un comprobante de pago (turno médico, receta, certificado, factura de servicio, documento personal, foto cualquiera, etc.), REJECTED.
+7. El pagador puede ser cualquier persona. NO compares el nombre del pagador con el jugador.
+8. El importe puede ser distinto de la cuota. NO rechaces por importe.
+9. Ante cualquier duda, dato ilegible o error de lectura, REJECTED. No uses manual_review.
+10. Toda explicación debe estar en español.
+
+Respondé EXCLUSIVAMENTE JSON válido con esta forma exacta:
+{"status":"validated|rejected","confidence":0.0,"payment_date":"YYYY-MM-DD o null","amount":12345,"provider":"banco o billetera o null","recipient_name":"nombre exacto o null","recipient_alias":"alias exacto o null","recipient_cvu":"CVU exacto o null","reason":"explicación breve en español"}`;
 
     const content = [
       { type: "input_text", text: instruction },
@@ -115,7 +253,7 @@ export default async function handler(req, res) {
     ];
 
     const oidcToken = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
-    if (!oidcToken) return json(res, 503, { error: "El analizador inteligente no está disponible en este entorno." });
+    if (!oidcToken) return json(res, 503, { error: "El analizador inteligente no está disponible en este momento." });
 
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
@@ -126,20 +264,20 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: AI_MODEL,
         input: [{ role: "user", content }],
-        max_output_tokens: 700,
+        max_output_tokens: 800,
       }),
     });
 
     const aiPayload = await aiResponse.json().catch(() => null);
     if (!aiResponse.ok) {
-      console.error("AI Gateway validation error", aiResponse.status, aiPayload);
-      return json(res, 502, { error: "No se pudo analizar el comprobante en este momento." });
+      console.error("Error del analizador de comprobantes", aiResponse.status, aiPayload);
+      return json(res, 502, { error: "No se pudo verificar el comprobante. Intentá nuevamente." });
     }
 
     const result = normalizeResult(parseJsonText(extractOutputText(aiPayload)), period);
     return json(res, 200, result);
   } catch (error) {
-    console.error("validate-payment error", error);
-    return json(res, 500, { error: "No se pudo validar el comprobante." });
+    console.error("Error al validar comprobante", error);
+    return json(res, 500, { error: "No se pudo verificar el comprobante. Intentá nuevamente." });
   }
 }
