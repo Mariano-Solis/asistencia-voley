@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 
 const BUCKET = "payment-receipts";
@@ -126,7 +127,7 @@ function PlayerPaymentPanel({ player, onClose }) {
     }
 
     setUploading(true);
-    setMessage("⏳ Procesando comprobante...");
+    setMessage(file.type === "application/pdf" ? "⏳ Verificando comprobante..." : "⏳ Leyendo y verificando comprobante...");
     const folder = period.slice(0, 7);
     const path = `${player.id}/${folder}/${Date.now()}-${safeName(file.name)}`;
 
@@ -153,7 +154,7 @@ function PlayerPaymentPanel({ player, onClose }) {
       }
 
       if (data?.status === "validated") {
-        setMessage("✓ Comprobante validado correctamente.");
+        setMessage("✓ Comprobante validado automáticamente.");
         await load(false);
         return;
       }
@@ -204,7 +205,7 @@ function PlayerPaymentPanel({ player, onClose }) {
           <b className={`stable-pay-state ${currentState.cls}`}>{currentState.label}</b>
         </section>
 
-        <p className="stable-pay-help">Intentamos verificar el comprobante automáticamente con controles gratuitos. Si no puede confirmarse con seguridad, queda pendiente de revisión manual. El pagador puede ser otra persona.</p>
+        <p className="stable-pay-help">Los comprobantes descargados de Mercado Pago se leen automáticamente de forma gratuita buscando la fecha del mes en curso y el CVU oficial. Si el archivo no puede leerse con seguridad, queda pendiente de revisión manual. El pagador puede ser otra persona.</p>
 
         {current?.validation_reason && current.validation_status !== "validated" && (
           <div className="stable-pay-note">{current.validation_reason}</div>
@@ -213,7 +214,7 @@ function PlayerPaymentPanel({ player, onClose }) {
         <div className="stable-pay-actions">
           <input ref={inputRef} hidden type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => upload(e.target.files?.[0])} />
           <button type="button" className="primary" disabled={uploading} onClick={() => inputRef.current?.click()}>
-            {uploading ? "⏳ Procesando..." : current ? "📎 Reemplazar comprobante" : "📎 Adjuntar comprobante"}
+            {uploading ? "⏳ Verificando..." : current ? "📎 Reemplazar comprobante" : "📎 Adjuntar comprobante"}
           </button>
           {current?.receipt_path && <button type="button" onClick={() => openReceipt(current.receipt_path, setMessage)}>👁 Ver comprobante</button>}
         </div>
@@ -361,6 +362,7 @@ export default function PaymentHubStable() {
   const [mode, setMode] = useState(() => localStorage.getItem("voley_access_mode") || "");
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [playerHost, setPlayerHost] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -397,6 +399,39 @@ export default function PaymentHubStable() {
   const playerMode = !!identity.player && (isPlayerRole || isDualPlayerMode);
   const adminMode = isAdmin && !isDualPlayerMode;
 
+  useEffect(() => {
+    if (!playerMode) {
+      setPlayerHost(null);
+      return undefined;
+    }
+
+    let createdNode = null;
+    const attach = () => {
+      const hero = document.querySelector("main.player-app .hero-profile");
+      if (!hero?.parentElement) {
+        setPlayerHost((prev) => prev?.isConnected ? prev : null);
+        return;
+      }
+
+      let host = hero.parentElement.querySelector("[data-stable-payment-anchor]");
+      if (!host) {
+        host = document.createElement("div");
+        host.setAttribute("data-stable-payment-anchor", "true");
+        hero.insertAdjacentElement("afterend", host);
+        createdNode = host;
+      }
+      setPlayerHost((prev) => prev === host ? prev : host);
+    };
+
+    attach();
+    const timer = window.setInterval(attach, 800);
+    return () => {
+      window.clearInterval(timer);
+      setPlayerHost(null);
+      if (createdNode?.isConnected) createdNode.remove();
+    };
+  }, [playerMode]);
+
   async function copyAlias() {
     try {
       await navigator.clipboard.writeText(OFFICIAL_PAYMENT.alias);
@@ -409,15 +444,17 @@ export default function PaymentHubStable() {
 
   if (!playerMode && !adminMode) return null;
 
+  const playerBanner = playerMode && !open ? (
+    <aside className="stable-pay-player-banner">
+      <div><span>💳 CUOTA · {periodLabel(currentPeriod())}</span><strong>{OFFICIAL_PAYMENT.alias}</strong></div>
+      <button type="button" onClick={copyAlias}>{copied ? "✓ Copiado" : "📋 Copiar alias"}</button>
+      <button type="button" className="primary" onClick={() => setOpen(true)}>Ver pagos</button>
+    </aside>
+  ) : null;
+
   return (
     <>
-      {playerMode && !open && (
-        <aside className="stable-pay-player-banner">
-          <div><span>💳 CUOTA · {periodLabel(currentPeriod())}</span><strong>{OFFICIAL_PAYMENT.alias}</strong></div>
-          <button type="button" onClick={copyAlias}>{copied ? "✓ Copiado" : "📋 Copiar alias"}</button>
-          <button type="button" className="primary" onClick={() => setOpen(true)}>Ver pagos</button>
-        </aside>
-      )}
+      {playerHost && playerBanner && createPortal(playerBanner, playerHost)}
 
       {adminMode && !open && (
         <button type="button" className="stable-pay-admin-launcher" onClick={() => setOpen(true)}>💳 <span>Pagos</span></button>
