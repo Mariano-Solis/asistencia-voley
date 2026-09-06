@@ -53,9 +53,10 @@ function safeName(name) {
 function stateOf(payment) {
   if (!payment) return { cls: "pending", label: "Pendiente" };
   if (payment.validation_status === "validated") return { cls: "paid", label: "✓ Comprobante válido" };
+  if (payment.validation_status === "pending_validation") return { cls: "review", label: "⏳ Verificando comprobante" };
   if (payment.validation_status === "manual_review") return { cls: "review", label: "⚠ Pendiente de revisión" };
   if (payment.validation_status === "rejected") return { cls: "rejected", label: "✕ Rechazado" };
-  return { cls: "review", label: "⏳ Procesando" };
+  return { cls: "review", label: "⏳ Verificando comprobante" };
 }
 
 async function openReceipt(path, setMessage) {
@@ -114,9 +115,16 @@ function PlayerPaymentPanel({ player, onClose }) {
 
   const current = payments.find((row) => row.period_month === period);
   const currentState = stateOf(current);
+  const verifying = current?.validation_status === "pending_validation";
+
+  useEffect(() => {
+    if (!verifying) return undefined;
+    const timer = window.setInterval(() => load(false), 4500);
+    return () => window.clearInterval(timer);
+  }, [verifying, player?.id]);
 
   async function upload(file) {
-    if (!file || !player?.monthly_fee) return;
+    if (!file || !player?.monthly_fee || verifying) return;
     if (!ALLOWED_TYPES.has(file.type)) {
       setMessage("El comprobante debe ser JPG, PNG o PDF.");
       return;
@@ -127,7 +135,7 @@ function PlayerPaymentPanel({ player, onClose }) {
     }
 
     setUploading(true);
-    setMessage(file.type === "application/pdf" ? "⏳ Verificando comprobante..." : "⏳ Leyendo y verificando comprobante...");
+    setMessage("⏳ Cargando comprobante...");
     const folder = period.slice(0, 7);
     const path = `${player.id}/${folder}/${Date.now()}-${safeName(file.name)}`;
 
@@ -149,7 +157,13 @@ function PlayerPaymentPanel({ player, onClose }) {
 
       if (error) {
         await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-        setMessage("⚠ No se pudo procesar el comprobante. El archivo no fue aceptado. Intentá nuevamente.");
+        setMessage("⚠ No se pudo cargar el comprobante. Intentá nuevamente.");
+        return;
+      }
+
+      if (data?.status === "pending_validation") {
+        setMessage("✓ Comprobante cargado. Se verificará en segundo plano. Podés cerrar esta ventana y seguir usando la aplicación.");
+        await load(false);
         return;
       }
 
@@ -160,7 +174,7 @@ function PlayerPaymentPanel({ player, onClose }) {
       }
 
       if (data?.status === "manual_review") {
-        setMessage("⚠ Comprobante recibido. No pudo verificarse automáticamente y será revisado por el Super Administrador.");
+        setMessage("⚠ Comprobante cargado. No pudo verificarse automáticamente y será revisado por el Super Administrador.");
         await load(false);
         return;
       }
@@ -174,7 +188,7 @@ function PlayerPaymentPanel({ player, onClose }) {
       setMessage("⚠ No se pudo determinar el estado del comprobante. Intentá nuevamente.");
     } catch {
       await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-      setMessage("⚠ No se pudo procesar el comprobante. El archivo no fue aceptado. Intentá nuevamente.");
+      setMessage("⚠ No se pudo cargar el comprobante. Intentá nuevamente.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -205,7 +219,7 @@ function PlayerPaymentPanel({ player, onClose }) {
           <b className={`stable-pay-state ${currentState.cls}`}>{currentState.label}</b>
         </section>
 
-        <p className="stable-pay-help">Los comprobantes descargados de Mercado Pago se leen automáticamente de forma gratuita buscando la fecha del mes en curso y el CVU oficial. Si el archivo no puede leerse con seguridad, queda pendiente de revisión manual. El pagador puede ser otra persona.</p>
+        <p className="stable-pay-help">Los comprobantes descargados de Mercado Pago se leen automáticamente buscando la fecha del mes en curso y el CVU oficial. Si el archivo no puede leerse con seguridad, queda pendiente de revisión manual. El pagador puede ser otra persona.</p>
 
         {current?.validation_reason && current.validation_status !== "validated" && (
           <div className="stable-pay-note">{current.validation_reason}</div>
@@ -213,8 +227,8 @@ function PlayerPaymentPanel({ player, onClose }) {
 
         <div className="stable-pay-actions">
           <input ref={inputRef} hidden type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => upload(e.target.files?.[0])} />
-          <button type="button" className="primary" disabled={uploading} onClick={() => inputRef.current?.click()}>
-            {uploading ? "⏳ Verificando..." : current ? "📎 Reemplazar comprobante" : "📎 Adjuntar comprobante"}
+          <button type="button" className="primary" disabled={uploading || verifying} onClick={() => inputRef.current?.click()}>
+            {uploading ? "⏳ Cargando..." : verifying ? "⏳ Verificación en curso" : current ? "📎 Reemplazar comprobante" : "📎 Adjuntar comprobante"}
           </button>
           {current?.receipt_path && <button type="button" onClick={() => openReceipt(current.receipt_path, setMessage)}>👁 Ver comprobante</button>}
         </div>
@@ -258,12 +272,19 @@ function AdminPaymentPanel({ role, onClose }) {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!payments.some((p) => p.validation_status === "pending_validation")) return undefined;
+    const timer = window.setInterval(() => load(false), 5000);
+    return () => window.clearInterval(timer);
+  }, [payments]);
+
   const paymentByPlayer = useMemo(() => Object.fromEntries(payments.map((p) => [p.player_id, p])), [payments]);
   const rows = useMemo(() => players.filter((player) => {
     const payment = paymentByPlayer[player.id];
     const q = search.trim().toLowerCase();
     if (q && !player.full_name.toLowerCase().includes(q)) return false;
     if (status === "validated" && payment?.validation_status !== "validated") return false;
+    if (status === "pending_validation" && payment?.validation_status !== "pending_validation") return false;
     if (status === "manual_review" && payment?.validation_status !== "manual_review") return false;
     if (status === "pending" && payment) return false;
     if (status === "rejected" && payment?.validation_status !== "rejected") return false;
@@ -321,6 +342,7 @@ function AdminPaymentPanel({ role, onClose }) {
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">Todos</option>
             <option value="validated">Validados</option>
+            <option value="pending_validation">Verificando</option>
             <option value="manual_review">Pendientes de revisión</option>
             <option value="pending">Sin comprobante</option>
             <option value="rejected">Rechazados</option>
