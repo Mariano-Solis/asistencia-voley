@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { supabase } from "./supabase";
 
 const OFFICIAL_PAYMENT = {
   alias: "comision.voley.mgsm",
@@ -9,53 +8,20 @@ const OFFICIAL_PAYMENT = {
   provider: "Mercado Pago",
 };
 
-function currentPeriod() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Argentina/Mendoza",
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(new Date());
-  const year = parts.find((p) => p.type === "year")?.value;
-  const month = parts.find((p) => p.type === "month")?.value;
-  return `${year}-${month}-01`;
-}
-
-function translateTechnicalMessage(text) {
-  const value = String(text || "").trim();
-  if (!value) return value;
-
-  const technicalPatterns = [
-    /edge function/i,
-    /non-2xx/i,
-    /failed to fetch/i,
-    /networkerror/i,
-    /network request failed/i,
-    /fetch failed/i,
-    /jwt/i,
-    /unauthorized/i,
-    /forbidden/i,
-    /internal server error/i,
-  ];
-
-  if (technicalPatterns.some((pattern) => pattern.test(value))) {
-    return "⚠ No se pudo procesar el comprobante en este momento. El archivo no fue aceptado. Intentá nuevamente.";
-  }
-
-  return value;
-}
-
 export default function PlayerPaymentDestination() {
   const [host, setHost] = useState(null);
   const [copied, setCopied] = useState("");
 
   useEffect(() => {
-    let checkingReview = false;
-    let alive = true;
+    let lastHost = null;
 
     const sync = () => {
       const wrap = document.querySelector("main.player-app .player-wrap");
       if (!wrap) {
-        setHost(null);
+        if (lastHost !== null) {
+          lastHost = null;
+          setHost(null);
+        }
         return;
       }
 
@@ -67,87 +33,18 @@ export default function PlayerPaymentDestination() {
         if (accessBox) wrap.insertBefore(node, accessBox);
         else wrap.prepend(node);
       }
-      setHost(node);
 
-      const help = wrap.querySelector(".payment-player-card .payment-help");
-      if (help) {
-        help.textContent = "Intentamos verificar el comprobante automáticamente con controles gratuitos. Si no puede confirmarse con seguridad, quedará pendiente de revisión del Super Administrador. El pagador puede ser otra persona.";
+      if (node !== lastHost) {
+        lastHost = node;
+        setHost(node);
       }
     };
 
-    const sanitizeMessages = () => {
-      document.querySelectorAll(".payment-message, .payment-admin-section .message").forEach((node) => {
-        const translated = translateTechnicalMessage(node.textContent);
-        if (translated && translated !== node.textContent) node.textContent = translated;
-      });
-    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    const checkManualReview = async () => {
-      if (!alive || checkingReview) return;
-      const message = document.querySelector("main.player-app .payment-message");
-      const value = String(message?.textContent || "");
-      const looksLikeFallback = /no se pudo verificar el comprobante|archivo no fue aceptado/i.test(value);
-      if (!looksLikeFallback) return;
-
-      checkingReview = true;
-      try {
-        const { data: authData } = await supabase.auth.getUser();
-        const user = authData?.user;
-        if (!user) return;
-
-        const { data: player } = await supabase
-          .from("players")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("active", true)
-          .maybeSingle();
-        if (!player?.id) return;
-
-        const { data: payment } = await supabase
-          .from("monthly_payments")
-          .select("id,validation_status,validation_reason")
-          .eq("player_id", player.id)
-          .eq("period_month", currentPeriod())
-          .maybeSingle();
-
-        if (payment?.validation_status === "manual_review") {
-          sessionStorage.setItem("voley_payment_manual_review", payment.validation_reason || "Comprobante recibido y pendiente de revisión manual.");
-          window.location.reload();
-        }
-      } finally {
-        checkingReview = false;
-      }
-    };
-
-    const showReloadNotice = () => {
-      const notice = sessionStorage.getItem("voley_payment_manual_review");
-      if (!notice) return;
-      const card = document.querySelector("main.player-app .payment-player-card");
-      if (!card) return;
-      if (!card.querySelector("[data-payment-review-notice]")) {
-        const box = document.createElement("div");
-        box.className = "message payment-message";
-        box.setAttribute("data-payment-review-notice", "true");
-        box.textContent = `⚠ ${notice}`;
-        card.appendChild(box);
-      }
-      sessionStorage.removeItem("voley_payment_manual_review");
-    };
-
-    const run = () => {
-      sync();
-      sanitizeMessages();
-      showReloadNotice();
-      void checkManualReview();
-    };
-
-    run();
-    const observer = new MutationObserver(run);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    return () => {
-      alive = false;
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, []);
 
   async function copyValue(value, label) {
