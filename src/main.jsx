@@ -1,15 +1,10 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
 import PhotoSourcePicker from './PhotoSourcePicker'
 import ProfessorDeleteManager from './ProfessorDeleteManager'
-import UXEnhancements from './UXEnhancements'
 import WorkflowCore from './WorkflowCore'
 import PermissionsEnhancement from './PermissionsEnhancement'
-import WorkflowDOMPolish from './WorkflowDOMPolish'
-import AdminCollapsibles from './AdminCollapsibles'
-import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
 import MasterCategoryManager from './MasterCategoryManager'
 import PaymentHubStable from './PaymentHubStable'
@@ -41,20 +36,16 @@ import './mgsm-payments-stable.css'
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  <>
     <App />
     <DualRoleSelfEnrollment />
     <PhotoSourcePicker />
     <ProfessorDeleteManager />
-    <UXEnhancements />
     <WorkflowCore />
     <PermissionsEnhancement />
-    <WorkflowDOMPolish />
-    <AdminCollapsibles />
-    <SafePlayerAttendanceFilter />
     <ProfessorTrainingHub />
     <MasterCategoryManager />
     <PaymentHubStable />
     <AdminDualTopbarAction />
-  </React.StrictMode>
+  </>
 )
