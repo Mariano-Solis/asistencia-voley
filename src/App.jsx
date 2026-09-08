@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import AppNew from "./AppNew";
 import ProfessorSelfSignup from "./ProfessorSelfSignup";
+import TrainingSchedule from "./TrainingSchedule";
 import { supabase } from "./supabase";
 
 const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
@@ -248,6 +249,7 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
   const [rows, setRows] = useState([]);
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState("");
+  const [view, setView] = useState("profile");
 
   useEffect(() => {
     let mounted = true;
@@ -290,40 +292,51 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
       </header>
 
       <div className="player-wrap">
-        <section className="hero-profile card">
-          {player.selfie_path ? <img className="avatar photo" src={photoData?.publicUrl} alt=""/> : <div className="avatar">{player.full_name?.charAt(0)?.toUpperCase() || "J"}</div>}
-          <div className="grow">
-            <span className="eyebrow">Mi perfil · Jugador@</span>
-            <h1>{player.full_name}</h1>
-            <p>{player.team ? `Equipo ${player.team}` : "Sin asignar"}</p>
-          </div>
-          <button className="profile-edit-btn" onClick={() => setEditing(true)}>✏️ Editar mis datos</button>
-        </section>
-
-        <div className="stats">
-          <div className="card"><b>{counts.present}</b><span>Presentes</span></div>
-          <div className="card"><b>{counts.late}</b><span>Tardanzas</span></div>
-          <div className="card"><b>{counts.absent}</b><span>Ausencias</span></div>
+        <div className="player-section-nav">
+          <button type="button" className={view === "profile" ? "active" : ""} onClick={() => setView("profile")}>👤 Mi perfil</button>
+          <button type="button" className={view === "schedule" ? "active" : ""} onClick={() => setView("schedule")}>🕐 Horarios</button>
         </div>
 
-        <div className="card access-box">
-          <span>Tu código personal</span>
-          <strong>{player.access_code || "—"}</strong>
-          <button type="button" onClick={() => navigator.clipboard?.writeText(player.access_code || "").then(() => setMessage("✓ Código copiado."))}>📋 Copiar código</button>
-        </div>
-
-        <div className="card">
-          <div className="card-head"><h2>Mi asistencia</h2></div>
-          <div className="simple-list">
-            {rows.length ? rows.map((r, i) => (
-              <div className="history-row" key={r.session_id || i}>
-                <div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type] || "Actividad"}</span></div>
-                <span className={`badge ${r.status}`}>{STATUS[r.status] || r.status}</span>
+        {view === "schedule" ? (
+          <div className="player-schedule-wrap"><TrainingSchedule playerMode /></div>
+        ) : (
+          <>
+            <section className="hero-profile card">
+              {player.selfie_path ? <img className="avatar photo" src={photoData?.publicUrl} alt=""/> : <div className="avatar">{player.full_name?.charAt(0)?.toUpperCase() || "J"}</div>}
+              <div className="grow">
+                <span className="eyebrow">Mi perfil · Jugador@</span>
+                <h1>{player.full_name}</h1>
+                <p>{player.team ? `Equipo ${player.team}` : "Sin asignar"}</p>
               </div>
-            )) : <div className="empty">Todavía no tenés asistencias registradas.</div>}
-          </div>
-        </div>
-        {message && <div className="message">{message}</div>}
+              <button className="profile-edit-btn" onClick={() => setEditing(true)}>✏️ Editar mis datos</button>
+            </section>
+
+            <div className="stats">
+              <div className="card"><b>{counts.present}</b><span>Presentes</span></div>
+              <div className="card"><b>{counts.late}</b><span>Tardanzas</span></div>
+              <div className="card"><b>{counts.absent}</b><span>Ausencias</span></div>
+            </div>
+
+            <div className="card access-box">
+              <span>Tu código personal</span>
+              <strong>{player.access_code || "—"}</strong>
+              <button type="button" onClick={() => navigator.clipboard?.writeText(player.access_code || "").then(() => setMessage("✓ Código copiado."))}>📋 Copiar código</button>
+            </div>
+
+            <div className="card">
+              <div className="card-head"><h2>Mi asistencia</h2></div>
+              <div className="simple-list">
+                {rows.length ? rows.map((r, i) => (
+                  <div className="history-row" key={r.session_id || i}>
+                    <div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type] || "Actividad"}</span></div>
+                    <span className={`badge ${r.status}`}>{STATUS[r.status] || r.status}</span>
+                  </div>
+                )) : <div className="empty">Todavía no tenés asistencias registradas.</div>}
+              </div>
+            </div>
+            {message && <div className="message">{message}</div>}
+          </>
+        )}
       </div>
 
       {editing && <DualPlayerEdit player={player} onClose={() => setEditing(false)} onSaved={(updated) => { setPlayer(updated); setEditing(false); setMessage("✓ Perfil actualizado correctamente."); }} />}
