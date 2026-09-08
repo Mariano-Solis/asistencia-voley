@@ -5,6 +5,20 @@ import { supabase } from "./supabase";
 const dateText=v=>v?new Date(`${v}T12:00:00`).toLocaleDateString("es-AR"):"—";
 const typeText={training:"Entrenamiento",match:"Partido",tournament:"Torneo"};
 const statusText={present:"Presente",late:"Tarde",absent:"Ausente"};
+const branchText={female:"Femenino",male:"Masculino"};
+
+async function copyText(text){
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return;}
+  const el=document.createElement("textarea");
+  el.value=text;
+  el.style.position="fixed";
+  el.style.opacity="0";
+  document.body.appendChild(el);
+  el.select();
+  const ok=document.execCommand("copy");
+  document.body.removeChild(el);
+  if(!ok)throw new Error("No se pudo copiar la tabla.");
+}
 
 function useHost(title,attr,hideSelector){
   const [host,setHost]=useState(null);
@@ -47,19 +61,64 @@ function AttendancePrompt(){
 function RosterShare(){
   const host=useHost("Jugador@s","data-roster-share-v2");const [categoryId,setCategoryId]=useState(""),[label,setLabel]=useState(""),[msg,setMsg]=useState("");
   useEffect(()=>{if(!host)return;const section=host.closest("section");const select=Array.from(section.querySelectorAll("select")).find(s=>Array.from(s.options).some(o=>o.value==="all"));const sync=()=>{if(!select||!select.value||select.value==="all"){setCategoryId("");setLabel("");return}setCategoryId(select.value);setLabel(select.options[select.selectedIndex]?.textContent?.trim()||"Categoría")};sync();select?.addEventListener("change",sync);return()=>select?.removeEventListener("change",sync)},[host]);
-  async function share(){const r=await supabase.from("players").select("full_name,team").eq("active",true).eq("category_id",categoryId).order("full_name");if(r.error)return setMsg(r.error.message);const text=["Municipalidad de San Martín - VOLEY","#VamosElPoli","",`Plantilla · ${label}`,"",...(r.data||[]).map((p,i)=>`${i+1}. ${p.full_name}${p.team?` · Equipo ${p.team}`:""}`),"",`Total: ${(r.data||[]).length} Jugador@s`].join("\n");try{if(navigator.share)await navigator.share({title:`Plantilla · ${label}`,text});else{await navigator.clipboard.writeText(text);setMsg("✓ Plantilla copiada al portapapeles.")}}catch(_){}}
+  async function share(){const r=await supabase.from("players").select("full_name,team").eq("active",true).eq("category_id",categoryId).order("full_name");if(r.error)return setMsg(r.error.message);const text=["Municipalidad de San Martín - VOLEY","#VamosElPoli","",`Plantilla · ${label}`,"",...(r.data||[]).map((p,i)=>`${i+1}. ${p.full_name}${p.team?` · Equipo ${p.team}`:""}`),"",`Total: ${(r.data||[]).length} Jugador@s`].join("\n");try{if(navigator.share)await navigator.share({title:`Plantilla · ${label}`,text});else{await copyText(text);setMsg("✓ Plantilla copiada al portapapeles.")}}catch(_){}}
   if(!host)return null;return createPortal(<div className="workflow-share-bar"><button className="primary" disabled={!categoryId} onClick={share}>📤 Compartir plantilla del equipo</button>{!categoryId&&<span>Filtrá primero una categoría.</span>}{msg&&<span className="workflow-ok">{msg}</span>}</div>,host)
 }
 
 function HistoryTool(){
   const host=useHost("Historial","data-history-tool-v2",".toolbar");
-  const [categories,setCategories]=useState([]),[branch,setBranch]=useState(""),[players,setPlayers]=useState([]),[category,setCategory]=useState(""),[player,setPlayer]=useState(""),[from,setFrom]=useState("2026-01-01"),[to,setTo]=useState(new Date().toLocaleDateString("en-CA",{timeZone:"America/Argentina/Mendoza"})),[rows,setRows]=useState([]),[detail,setDetail]=useState([]),[loading,setLoading]=useState(false);
+  const [categories,setCategories]=useState([]),[branch,setBranch]=useState(""),[players,setPlayers]=useState([]),[category,setCategory]=useState(""),[player,setPlayer]=useState(""),[from,setFrom]=useState("2026-01-01"),[to,setTo]=useState(new Date().toLocaleDateString("en-CA",{timeZone:"America/Argentina/Mendoza"})),[rows,setRows]=useState([]),[detail,setDetail]=useState([]),[loading,setLoading]=useState(false),[shareMsg,setShareMsg]=useState("");
   const branchCategories=useMemo(()=>categories.filter(c=>c.gender===branch),[categories,branch]);
   useEffect(()=>{if(host)supabase.from("categories").select("id,name,gender").eq("active",true).order("name").then(({data})=>setCategories(data||[]))},[host]);
-  useEffect(()=>{setCategory("");setPlayer("");setPlayers([]);setRows([]);setDetail([])},[branch]);
-  useEffect(()=>{setPlayer("");setRows([]);setDetail([]);if(!category)return setPlayers([]);supabase.from("players").select("id,full_name").eq("active",true).eq("category_id",category).order("full_name").then(({data})=>setPlayers(data||[]));const section=host?.closest("section");const oldSelect=Array.from(section?.querySelectorAll("select")||[]).find(s=>Array.from(s.options).some(o=>o.value==="all"));if(oldSelect){oldSelect.value=category||"all";oldSelect.dispatchEvent(new Event("change",{bubbles:true}))}},[category,host]);
-  async function build(){if(!category)return;setLoading(true);try{const s=await supabase.from("training_sessions").select("id,session_date,activity_type").eq("category_id",category).gte("session_date",from).lte("session_date",to).order("session_date");if(s.error)throw s.error;const ids=(s.data||[]).map(x=>x.id),people=player?players.filter(p=>p.id===player):players;if(!ids.length){setRows(people.map(p=>({...p,present:0,late:0,absent:0,total:0})));setDetail([]);return}let q=supabase.from("attendance").select("player_id,session_id,status").in("session_id",ids);if(player)q=q.eq("player_id",player);const a=await q;if(a.error)throw a.error;const map=Object.fromEntries((s.data||[]).map(x=>[x.id,x]));setRows(people.map(p=>{const mine=(a.data||[]).filter(x=>x.player_id===p.id);return{...p,present:mine.filter(x=>x.status==="present").length,late:mine.filter(x=>x.status==="late").length,absent:mine.filter(x=>x.status==="absent").length,total:mine.length}}));setDetail(player?(a.data||[]).map(x=>({...x,...map[x.session_id]})).sort((x,y)=>String(x.session_date).localeCompare(String(y.session_date))):[])}finally{setLoading(false)}}
-  if(!host)return null;return createPortal(<div className="card workflow-card"><div className="workflow-head"><div><h2>Tabla de asistencias</h2><p>Elegí primero la rama y después la categoría. Luego podés consultar todo el equipo o un Jugador@ específico.</p></div></div><div className="workflow-grid"><label>Rama<select value={branch} onChange={e=>setBranch(e.target.value)}><option value="">- Seleccione Rama -</option><option value="female">Femenino</option><option value="male">Masculino</option></select></label><label>Categoría<select value={category} onChange={e=>setCategory(e.target.value)} disabled={!branch}><option value="">- Seleccione Categoría -</option>{branchCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Jugador@<select value={player} onChange={e=>setPlayer(e.target.value)} disabled={!category}><option value="">Todos los Jugador@s</option>{players.map(p=><option key={p.id} value={p.id}>{p.full_name}</option>)}</select></label><label>Desde<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Hasta<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><button className="primary" disabled={!category||loading} onClick={build}>{loading?"Generando...":"📊 Generar tabla"}</button>{!!rows.length&&<div className="workflow-table-wrap"><table className="workflow-table"><thead><tr><th>Jugador@</th><th>Presente</th><th>Tarde</th><th>Ausente</th><th>Total</th><th>% Presencia</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.full_name}</td><td>{r.present}</td><td>{r.late}</td><td>{r.absent}</td><td>{r.total}</td><td>{r.total?Math.round(r.present/r.total*100):0}%</td></tr>)}</tbody></table></div>}{!!detail.length&&<div className="workflow-table-wrap"><table className="workflow-table compact"><thead><tr><th>Fecha</th><th>Actividad</th><th>Estado</th></tr></thead><tbody>{detail.map((r,i)=><tr key={`${r.session_id}-${i}`}><td>{dateText(r.session_date)}</td><td>{typeText[r.activity_type]||r.activity_type}</td><td>{statusText[r.status]||r.status}</td></tr>)}</tbody></table></div>}</div>,host)
+  useEffect(()=>{setCategory("");setPlayer("");setPlayers([]);setRows([]);setDetail([]);setShareMsg("")},[branch]);
+  useEffect(()=>{setPlayer("");setRows([]);setDetail([]);setShareMsg("");if(!category)return setPlayers([]);supabase.from("players").select("id,full_name").eq("active",true).eq("category_id",category).order("full_name").then(({data})=>setPlayers(data||[]));const section=host?.closest("section");const oldSelect=Array.from(section?.querySelectorAll("select")||[]).find(s=>Array.from(s.options).some(o=>o.value==="all"));if(oldSelect){oldSelect.value=category||"all";oldSelect.dispatchEvent(new Event("change",{bubbles:true}))}},[category,host]);
+  useEffect(()=>{setRows([]);setDetail([]);setShareMsg("")},[player,from,to]);
+  async function build(){if(!category)return;setLoading(true);setShareMsg("");try{const s=await supabase.from("training_sessions").select("id,session_date,activity_type").eq("category_id",category).gte("session_date",from).lte("session_date",to).order("session_date");if(s.error)throw s.error;const ids=(s.data||[]).map(x=>x.id),people=player?players.filter(p=>p.id===player):players;if(!ids.length){setRows(people.map(p=>({...p,present:0,late:0,absent:0,total:0})));setDetail([]);return}let q=supabase.from("attendance").select("player_id,session_id,status").in("session_id",ids);if(player)q=q.eq("player_id",player);const a=await q;if(a.error)throw a.error;const map=Object.fromEntries((s.data||[]).map(x=>[x.id,x]));setRows(people.map(p=>{const mine=(a.data||[]).filter(x=>x.player_id===p.id);return{...p,present:mine.filter(x=>x.status==="present").length,late:mine.filter(x=>x.status==="late").length,absent:mine.filter(x=>x.status==="absent").length,total:mine.length}}));setDetail(player?(a.data||[]).map(x=>({...x,...map[x.session_id]})).sort((x,y)=>String(x.session_date).localeCompare(String(y.session_date))):[])}finally{setLoading(false)}}
+  async function shareTable(){
+    if(!rows.length)return;
+    const categoryLabel=categories.find(c=>c.id===category)?.name||"Categoría";
+    const selectedPlayer=players.find(p=>p.id===player)?.full_name||"";
+    const lines=[
+      "🏐 *Municipalidad de San Martín - VOLEY*",
+      "#VamosElPoli",
+      "",
+      "📊 *Tabla de asistencias*",
+      `Rama: ${branchText[branch]||"—"}`,
+      `Categoría: ${categoryLabel}`,
+      selectedPlayer?`Jugador@: ${selectedPlayer}`:"Jugador@s: Equipo completo",
+      `Período: ${dateText(from)} al ${dateText(to)}`,
+      "",
+      ...rows.flatMap((r,i)=>{
+        const percentage=r.total?Math.round(r.present/r.total*100):0;
+        return [
+          `*${i+1}. ${r.full_name}*`,
+          `✅ Presente: ${r.present} · ⏱ Tarde: ${r.late} · ❌ Ausente: ${r.absent}`,
+          `Total: ${r.total} · Presencia: ${percentage}%`,
+          "",
+        ];
+      }),
+    ];
+    if(detail.length){
+      lines.push("📅 *Detalle por fecha*","");
+      detail.forEach(r=>lines.push(`${dateText(r.session_date)} · ${typeText[r.activity_type]||r.activity_type} · ${statusText[r.status]||r.status}`));
+      lines.push("");
+    }
+    const text=lines.join("\n").trim();
+    const title=`Asistencias · ${categoryLabel}${selectedPlayer?` · ${selectedPlayer}`:""}`;
+    try{
+      if(navigator.share){
+        await navigator.share({title,text});
+        setShareMsg("");
+      }else{
+        await copyText(text);
+        setShareMsg("✓ Tabla copiada al portapapeles. Ya podés pegarla en WhatsApp.");
+      }
+    }catch(error){
+      if(error?.name==="AbortError")return;
+      try{await copyText(text);setShareMsg("✓ Tabla copiada al portapapeles. Ya podés pegarla en WhatsApp.");}catch(_){setShareMsg("No se pudo compartir la tabla desde este navegador.");}
+    }
+  }
+  if(!host)return null;return createPortal(<div className="card workflow-card"><div className="workflow-head"><div><h2>Tabla de asistencias</h2><p>Elegí primero la rama y después la categoría. Luego podés consultar todo el equipo o un Jugador@ específico.</p></div></div><div className="workflow-grid"><label>Rama<select value={branch} onChange={e=>setBranch(e.target.value)}><option value="">- Seleccione Rama -</option><option value="female">Femenino</option><option value="male">Masculino</option></select></label><label>Categoría<select value={category} onChange={e=>setCategory(e.target.value)} disabled={!branch}><option value="">- Seleccione Categoría -</option>{branchCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Jugador@<select value={player} onChange={e=>setPlayer(e.target.value)} disabled={!category}><option value="">Todos los Jugador@s</option>{players.map(p=><option key={p.id} value={p.id}>{p.full_name}</option>)}</select></label><label>Desde<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Hasta<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><button className="primary" disabled={!category||loading} onClick={build}>{loading?"Generando...":"📊 Generar tabla"}</button>{!!rows.length&&<><div className="workflow-table-wrap"><table className="workflow-table"><thead><tr><th>Jugador@</th><th>Presente</th><th>Tarde</th><th>Ausente</th><th>Total</th><th>% Presencia</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.full_name}</td><td>{r.present}</td><td>{r.late}</td><td>{r.absent}</td><td>{r.total}</td><td>{r.total?Math.round(r.present/r.total*100):0}%</td></tr>)}</tbody></table></div><div className="workflow-share-bar"><button type="button" className="primary" onClick={shareTable}>📤 Compartir tabla</button>{shareMsg&&<span className="workflow-ok">{shareMsg}</span>}</div></>}{!!detail.length&&<div className="workflow-table-wrap"><table className="workflow-table compact"><thead><tr><th>Fecha</th><th>Actividad</th><th>Estado</th></tr></thead><tbody>{detail.map((r,i)=><tr key={`${r.session_id}-${i}`}><td>{dateText(r.session_date)}</td><td>{typeText[r.activity_type]||r.activity_type}</td><td>{statusText[r.status]||r.status}</td></tr>)}</tbody></table></div>}</div>,host)
 }
 
 function CategoryExplorer(){
