@@ -20,9 +20,9 @@ async function copyText(text){
   if(!ok)throw new Error("No se pudo copiar la tabla.");
 }
 
-function useHost(title,attr,hideSelector){
+function useHost(title,attr,hideSelector,position="end"){
   const [host,setHost]=useState(null);
-  useEffect(()=>{const sync=()=>{const section=Array.from(document.querySelectorAll("section")).find(s=>s.querySelector(".page-title h1")?.textContent?.trim()===title);if(!section)return setHost(null);if(hideSelector)section.querySelectorAll(hideSelector).forEach(el=>el.style.display="none");let node=section.querySelector(`[${attr}]`);if(!node){node=document.createElement("div");node.setAttribute(attr,"true");section.appendChild(node)}setHost(node)};sync();const o=new MutationObserver(sync);o.observe(document.body,{childList:true,subtree:true});return()=>o.disconnect()},[title,attr,hideSelector]);
+  useEffect(()=>{const sync=()=>{const section=Array.from(document.querySelectorAll("section")).find(s=>s.querySelector(".page-title h1")?.textContent?.trim()===title);if(!section)return setHost(null);if(hideSelector)section.querySelectorAll(hideSelector).forEach(el=>el.style.display="none");let node=section.querySelector(`[${attr}]`);if(!node){node=document.createElement("div");node.setAttribute(attr,"true")};if(position==="start"){const anchor=section.querySelector(".page-title");if(anchor&&node.previousElementSibling!==anchor)anchor.insertAdjacentElement("afterend",node);else if(!anchor&&!node.parentElement)section.prepend(node)}else if(!node.parentElement)section.appendChild(node);setHost(node)};sync();const o=new MutationObserver(sync);o.observe(document.body,{childList:true,subtree:true});return()=>o.disconnect()},[title,attr,hideSelector,position]);
   return host;
 }
 
@@ -66,7 +66,7 @@ function RosterShare(){
 }
 
 function HistoryTool(){
-  const host=useHost("Historial","data-history-tool-v2",".toolbar");
+  const host=useHost("Historial","data-history-tool-v2",".toolbar","start");
   const [categories,setCategories]=useState([]),[branch,setBranch]=useState(""),[players,setPlayers]=useState([]),[category,setCategory]=useState(""),[player,setPlayer]=useState(""),[from,setFrom]=useState("2026-01-01"),[to,setTo]=useState(new Date().toLocaleDateString("en-CA",{timeZone:"America/Argentina/Mendoza"})),[rows,setRows]=useState([]),[detail,setDetail]=useState([]),[loading,setLoading]=useState(false),[shareMsg,setShareMsg]=useState("");
   const branchCategories=useMemo(()=>categories.filter(c=>c.gender===branch),[categories,branch]);
   useEffect(()=>{if(host)supabase.from("categories").select("id,name,gender").eq("active",true).order("name").then(({data})=>setCategories(data||[]))},[host]);
