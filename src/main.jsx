@@ -2,6 +2,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
 import PhotoSourcePicker from './PhotoSourcePicker'
+import StorageSafetyEnhancer from './StorageSafetyEnhancer'
 import ProfessorDeleteManager from './ProfessorDeleteManager'
 import WorkflowCore from './WorkflowCore'
 import PermissionsEnhancement from './PermissionsEnhancement'
@@ -41,6 +42,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
     <DualRoleSelfEnrollment />
     <PhotoSourcePicker />
+    <StorageSafetyEnhancer />
     <ProfessorDeleteManager />
     <WorkflowCore />
     <PermissionsEnhancement />
