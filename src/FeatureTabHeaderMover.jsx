@@ -10,6 +10,8 @@ function findOriginalButton() {
 export default function FeatureTabHeaderMover() {
   useEffect(() => {
     let disposed = false
+    let frameId = 0
+    let observer = null
 
     const sync = () => {
       if (disposed) return
@@ -20,13 +22,11 @@ export default function FeatureTabHeaderMover() {
       const brandText = topbar?.querySelector('.brand > div')
 
       if (!original || !topUser || !brandText) {
-        document.querySelector('[data-solapas-header-button="true"]')?.remove()
-        document.querySelector('[data-admin-name-brand="true"]')?.remove()
         return
       }
 
-      original.style.display = 'none'
-      original.setAttribute('aria-hidden', 'true')
+      if (original.style.display !== 'none') original.style.display = 'none'
+      if (original.getAttribute('aria-hidden') !== 'true') original.setAttribute('aria-hidden', 'true')
 
       const nameSpan = Array.from(topUser.children).find((el) => {
         return el.tagName === 'SPAN' && !el.classList.contains('role')
@@ -34,8 +34,8 @@ export default function FeatureTabHeaderMover() {
       const adminName = String(nameSpan?.textContent || '').replace(/\s+/g, ' ').trim()
 
       if (nameSpan) {
-        nameSpan.style.display = 'none'
-        nameSpan.setAttribute('aria-hidden', 'true')
+        if (nameSpan.style.display !== 'none') nameSpan.style.display = 'none'
+        if (nameSpan.getAttribute('aria-hidden') !== 'true') nameSpan.setAttribute('aria-hidden', 'true')
       }
 
       let brandName = brandText.querySelector('[data-admin-name-brand="true"]')
@@ -45,7 +45,9 @@ export default function FeatureTabHeaderMover() {
         brandName.className = 'mgsm-admin-name-brand'
         brandText.appendChild(brandName)
       }
-      if (adminName) brandName.textContent = adminName
+      if (adminName && brandName.textContent !== adminName) {
+        brandName.textContent = adminName
+      }
 
       let headerButton = topUser.querySelector('[data-solapas-header-button="true"]')
       if (!headerButton) {
@@ -73,15 +75,24 @@ export default function FeatureTabHeaderMover() {
       }
     }
 
+    const scheduleSync = () => {
+      if (disposed || frameId) return
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0
+        sync()
+      })
+    }
+
     sync()
-    const observer = new MutationObserver(sync)
+    observer = new MutationObserver(scheduleSync)
     observer.observe(document.body, { childList: true, subtree: true })
-    window.addEventListener('resize', sync)
+    window.addEventListener('resize', scheduleSync)
 
     return () => {
       disposed = true
-      observer.disconnect()
-      window.removeEventListener('resize', sync)
+      if (frameId) window.cancelAnimationFrame(frameId)
+      observer?.disconnect()
+      window.removeEventListener('resize', scheduleSync)
       document.querySelector('[data-solapas-header-button="true"]')?.remove()
       document.querySelector('[data-admin-name-brand="true"]')?.remove()
 
