@@ -99,9 +99,18 @@ if (client) {
       redirect_to: options?.emailRedirectTo || getAuthRedirectUrl(),
     })
 
-    return error
-      ? { data: null, error }
-      : { data: { messageId: data?.email_id || null, alreadyConfirmed: !!data?.already_confirmed }, error: null }
+    if (error) return { data: null, error }
+    if (data?.already_confirmed) {
+      return {
+        data: null,
+        error: { message: 'already confirmed', status: 409 },
+      }
+    }
+
+    return {
+      data: { messageId: data?.email_id || null, alreadyConfirmed: false },
+      error: null,
+    }
   }
 
   client.auth.resetPasswordForEmail = async (email, options = {}) => {
