@@ -149,10 +149,22 @@ export default function FeatureTabManager() {
         const label = canonicalLabel(button.textContent)
         if (!label) return
         found.add(label)
-        const hidden = disabledTabs.includes(label)
+
+        // La configuración guardada controla lo que ven los PROFES.
+        // El Super Admin siempre conserva acceso visual a todas las solapas.
+        const hidden = !isSuperAdmin && disabledTabs.includes(label)
+
         button.hidden = hidden
         button.setAttribute('aria-hidden', hidden ? 'true' : 'false')
         button.dataset.featureTab = label
+
+        // Algunos estilos de navegación pueden sobreescribir el atributo hidden.
+        // Forzamos display:none para que una solapa deshabilitada no quede visible ni clickeable.
+        if (hidden) {
+          button.style.setProperty('display', 'none', 'important')
+        } else {
+          button.style.removeProperty('display')
+        }
       })
 
       const values = [...found]
@@ -163,8 +175,10 @@ export default function FeatureTabManager() {
 
       document.querySelectorAll('main.app > nav, main.app nav, .player-section-nav').forEach((nav) => {
         const active = nav.querySelector('button.active')
-        if (active?.hidden) {
-          const firstEnabled = Array.from(nav.querySelectorAll('button')).find((button) => !button.hidden)
+        if (active?.hidden || active?.style?.display === 'none') {
+          const firstEnabled = Array.from(nav.querySelectorAll('button')).find(
+            (button) => !button.hidden && button.style.display !== 'none'
+          )
           if (firstEnabled) firstEnabled.click()
         }
       })
@@ -184,7 +198,7 @@ export default function FeatureTabManager() {
       if (scheduledApply.current) cancelAnimationFrame(scheduledApply.current)
       scheduledApply.current = 0
     }
-  }, [disabledTabs])
+  }, [disabledTabs, isSuperAdmin])
 
   const tabs = useMemo(() => {
     const set = new Set([...BASE_TABS, ...discovered])
@@ -216,7 +230,7 @@ export default function FeatureTabManager() {
 
       if (error) throw error
       setDisabledTabs(draft)
-      setMessage('✓ Solapas actualizadas.')
+      setMessage('✓ Solapas actualizadas para los profes.')
       setTimeout(() => window.location.reload(), 500)
     } catch (error) {
       setMessage(error?.message || 'No se pudieron guardar las solapas.')
@@ -370,7 +384,7 @@ export default function FeatureTabManager() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div>
                 <div style={{ color: '#1769e0', fontWeight: 800, fontSize: 13 }}>SUPER ADMIN</div>
-                <h2 style={{ margin: '4px 0 0', color: '#17253a' }}>Mostrar u ocultar solapas</h2>
+                <h2 style={{ margin: '4px 0 0', color: '#17253a' }}>Solapas visibles para los profes</h2>
               </div>
               <button
                 type="button"
@@ -383,7 +397,7 @@ export default function FeatureTabManager() {
             </div>
 
             <p style={{ color: '#64748b', lineHeight: 1.5 }}>
-              Tildada = visible. Destildada = oculta para los usuarios. Podés volver a habilitarla cuando quieras.
+              Tildada = aparece para los profes. Destildada = no aparece para los profes. Como Super Admin, vos siempre ves todas las solapas.
             </p>
 
             <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
@@ -412,7 +426,7 @@ export default function FeatureTabManager() {
                     />
                     <span>{label}</span>
                     <span style={{ marginLeft: 'auto', color: enabled ? '#178a5b' : '#b42318', fontSize: 13 }}>
-                      {enabled ? 'VISIBLE' : 'OCULTA'}
+                      {enabled ? 'PROFES: VISIBLE' : 'PROFES: OCULTA'}
                     </span>
                   </label>
                 )
