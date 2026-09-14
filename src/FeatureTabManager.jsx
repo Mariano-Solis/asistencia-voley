@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from './supabase'
 
 const BASE_TABS = [
@@ -50,10 +51,14 @@ export default function FeatureTabManager() {
   const [disabledTabs, setDisabledTabs] = useState([])
   const [draft, setDraft] = useState([])
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [adminName, setAdminName] = useState('')
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [discovered, setDiscovered] = useState([])
+  const [headerTarget, setHeaderTarget] = useState(null)
+  const [brandTarget, setBrandTarget] = useState(null)
+  const scheduledApply = useRef(0)
 
   useEffect(() => {
     let mounted = true
@@ -72,16 +77,19 @@ export default function FeatureTabManager() {
       const userId = sessionData?.session?.user?.id
       if (!userId) {
         setIsSuperAdmin(false)
+        setAdminName('')
         return
       }
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role,full_name')
         .eq('id', userId)
         .maybeSingle()
 
-      if (mounted) setIsSuperAdmin(profile?.role === 'super_admin')
+      if (!mounted) return
+      setIsSuperAdmin(profile?.role === 'super_admin')
+      setAdminName(profile?.full_name || '')
     }
 
     load()
@@ -96,7 +104,24 @@ export default function FeatureTabManager() {
   }, [])
 
   useEffect(() => {
+    if (!isSuperAdmin) {
+      setHeaderTarget(null)
+      setBrandTarget(null)
+      return
+    }
+
+    const findTargets = () => {
+      setHeaderTarget(document.querySelector('main.app .topbar .top-user'))
+      setBrandTarget(document.querySelector('main.app .topbar .brand > div'))
+    }
+
+    const frame = requestAnimationFrame(findTargets)
+    return () => cancelAnimationFrame(frame)
+  }, [isSuperAdmin])
+
+  useEffect(() => {
     const apply = () => {
+      scheduledApply.current = 0
       const buttons = getNavigationButtons()
       const found = new Set()
 
@@ -125,10 +150,20 @@ export default function FeatureTabManager() {
       })
     }
 
+    const scheduleApply = () => {
+      if (scheduledApply.current) return
+      scheduledApply.current = requestAnimationFrame(apply)
+    }
+
     apply()
-    const observer = new MutationObserver(apply)
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
-    return () => observer.disconnect()
+    const observer = new MutationObserver(scheduleApply)
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => {
+      observer.disconnect()
+      if (scheduledApply.current) cancelAnimationFrame(scheduledApply.current)
+      scheduledApply.current = 0
+    }
   }, [disabledTabs])
 
   const tabs = useMemo(() => {
@@ -172,32 +207,119 @@ export default function FeatureTabManager() {
 
   if (!isSuperAdmin) return null
 
+  const openButton = (
+    <button
+      type="button"
+      className="mgsm-solapas-header-button"
+      onClick={() => {
+        setDraft(disabledTabs)
+        setMessage('')
+        setOpen(true)
+      }}
+      aria-label="Configurar solapas"
+      title="Configurar solapas"
+    >
+      <span aria-hidden="true">⚙️</span>
+      <span>Solapas</span>
+    </button>
+  )
+
+  const adminNameNode = adminName ? (
+    <span className="mgsm-admin-name-brand">{adminName}</span>
+  ) : null
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setDraft(disabledTabs)
-          setMessage('')
-          setOpen(true)
-        }}
-        style={{
-          position: 'fixed',
-          right: 18,
-          bottom: 76,
-          zIndex: 9997,
-          border: 0,
-          borderRadius: 999,
-          padding: '12px 16px',
-          background: '#123a68',
-          color: '#fff',
-          fontWeight: 800,
-          boxShadow: '0 8px 24px rgba(0,0,0,.22)',
-          cursor: 'pointer',
-        }}
-      >
-        ⚙️ Solapas
-      </button>
+      <style>{`
+        main.app .topbar .top-user > span:not(.role) {
+          display: none !important;
+        }
+
+        .mgsm-admin-name-brand {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255,255,255,.96);
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.15;
+          white-space: nowrap;
+        }
+
+        .mgsm-solapas-header-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          min-height: 40px;
+          padding: 8px 11px;
+          border: 1px solid rgba(255,255,255,.72);
+          border-radius: 12px;
+          background: rgba(255,255,255,.16);
+          color: #fff;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1;
+          white-space: nowrap;
+          box-shadow: none;
+          cursor: pointer;
+          flex: 0 0 auto;
+          order: 20;
+        }
+
+        main.app .topbar .top-user > .role {
+          order: 10;
+        }
+
+        main.app .topbar .top-user > button:not(.mgsm-solapas-header-button) {
+          order: 30;
+        }
+
+        .mgsm-solapas-header-button:hover,
+        .mgsm-solapas-header-button:focus-visible {
+          background: rgba(255,255,255,.28);
+          outline: 2px solid rgba(255,255,255,.85);
+          outline-offset: 2px;
+        }
+
+        @media (max-width: 760px) {
+          main.app .topbar {
+            gap: 8px !important;
+          }
+
+          main.app .topbar .brand {
+            min-width: 0;
+            flex: 1 1 auto;
+          }
+
+          .mgsm-admin-name-brand {
+            font-size: 10px;
+            max-width: 205px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          main.app .topbar .top-user {
+            gap: 6px !important;
+            flex: 0 0 auto;
+          }
+
+          main.app .topbar .top-user .role {
+            display: none !important;
+          }
+
+          .mgsm-solapas-header-button {
+            min-height: 38px;
+            padding: 7px 9px;
+            border-radius: 10px;
+            font-size: 11px;
+            gap: 3px;
+          }
+        }
+      `}</style>
+
+      {headerTarget ? createPortal(openButton, headerTarget) : null}
+      {brandTarget && adminNameNode ? createPortal(adminNameNode, brandTarget) : null}
 
       {open && (
         <div
