@@ -18,13 +18,46 @@ if (typeof window !== 'undefined') {
 }
 
 const getAuthRedirectUrl = () => {
-  if (typeof window === 'undefined') {
-    return OFFICIAL_APP_URL
-  }
-
+  if (typeof window === 'undefined') return OFFICIAL_APP_URL
   return window.location.hostname === 'localhost'
     ? window.location.origin
     : OFFICIAL_APP_URL
+}
+
+const edgeBaseUrl = url ? url.replace(/\/$/, '') : ''
+
+async function callAuthEmail(payload) {
+  try {
+    const response = await fetch(`${edgeBaseUrl}/functions/v1/auth-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      return {
+        data: null,
+        error: {
+          message: body?.error || 'No se pudo enviar el correo. Revisá la dirección e intentá nuevamente.',
+          status: response.status,
+          suggestion: body?.suggestion || null,
+        },
+      }
+    }
+    return { data: body, error: null }
+  } catch (_) {
+    return {
+      data: null,
+      error: {
+        message: 'No pudimos comunicarnos con el servicio de correo. Revisá tu conexión e intentá nuevamente.',
+      },
+    }
+  }
 }
 
 const client = url && key
@@ -32,17 +65,53 @@ const client = url && key
   : null
 
 if (client) {
-  const originalSignUp = client.auth.signUp.bind(client.auth)
+  const originalResend = client.auth.resend.bind(client.auth)
 
-  client.auth.signUp = ({ email, password, options = {} }) => {
-    return originalSignUp({
-      email,
+  client.auth.signUp = async ({ email, password, options = {} }) => {
+    const cleanEmail = String(email || '').trim().toLowerCase()
+    const { data, error } = await callAuthEmail({
+      action: 'signup',
+      email: cleanEmail,
       password,
-      options: {
-        ...options,
-        emailRedirectTo: getAuthRedirectUrl(),
-      },
+      data: options?.data || {},
+      redirect_to: options?.emailRedirectTo || getAuthRedirectUrl(),
     })
+
+    if (error) {
+      return { data: { user: null, session: null }, error }
+    }
+
+    return {
+      data: {
+        user: data?.user ? { ...data.user, email: cleanEmail } : null,
+        session: null,
+      },
+      error: null,
+    }
+  }
+
+  client.auth.resend = async ({ type, email, options = {} }) => {
+    if (type !== 'signup') return originalResend({ type, email, options })
+
+    const { data, error } = await callAuthEmail({
+      action: 'resend',
+      email: String(email || '').trim().toLowerCase(),
+      redirect_to: options?.emailRedirectTo || getAuthRedirectUrl(),
+    })
+
+    return error
+      ? { data: null, error }
+      : { data: { messageId: data?.email_id || null, alreadyConfirmed: !!data?.already_confirmed }, error: null }
+  }
+
+  client.auth.resetPasswordForEmail = async (email, options = {}) => {
+    const { data, error } = await callAuthEmail({
+      action: 'recovery',
+      email: String(email || '').trim().toLowerCase(),
+      redirect_to: options?.redirectTo || getAuthRedirectUrl(),
+    })
+
+    return error ? { data: null, error } : { data: data || {}, error: null }
   }
 
   const originalStorageFrom = client.storage.from.bind(client.storage)
