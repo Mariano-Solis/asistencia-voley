@@ -7,6 +7,7 @@ const SELFIE_TARGET_BYTES = 320 * 1024;
 const RECEIPT_MAX_DIMENSION = 1800;
 const RECEIPT_TARGET_BYTES = 650 * 1024;
 const SIGNED_URL_SECONDS = 15 * 60;
+const SIGNED_URL_CACHE_MS = (SIGNED_URL_SECONDS - 60) * 1000;
 
 const signedUrlCache = new Map();
 
@@ -146,7 +147,11 @@ function extractPublicSelfiePath(src) {
 
 async function signedSelfieUrl(path) {
   if (!path) return null;
-  if (signedUrlCache.has(path)) return signedUrlCache.get(path);
+
+  const now = Date.now();
+  const cached = signedUrlCache.get(path);
+  if (cached?.expiresAt > now) return cached.promise;
+  if (cached) signedUrlCache.delete(path);
 
   const pending = (async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -179,7 +184,11 @@ async function signedSelfieUrl(path) {
     return null;
   })();
 
-  signedUrlCache.set(path, pending);
+  signedUrlCache.set(path, {
+    promise: pending,
+    expiresAt: now + SIGNED_URL_CACHE_MS,
+  });
+
   const value = await pending;
   if (!value) signedUrlCache.delete(path);
   return value;
@@ -266,10 +275,19 @@ export default function StorageSafetyEnhancer() {
       scanSelfies();
     });
 
+    const cacheTimer = window.setInterval(() => {
+      const cutoff = Date.now();
+      for (const [path, entry] of signedUrlCache.entries()) {
+        if (!entry?.expiresAt || entry.expiresAt <= cutoff) signedUrlCache.delete(path);
+      }
+    }, 60 * 1000);
+
     return () => {
       document.removeEventListener("change", onFileChangeCapture, true);
       observer.disconnect();
       authListener?.subscription?.unsubscribe();
+      window.clearInterval(cacheTimer);
+      signedUrlCache.clear();
     };
   }, []);
 
