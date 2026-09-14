@@ -13,6 +13,7 @@ import PaymentHubStable from './PaymentHubStable'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
 import FeatureTabManager from './FeatureTabManager'
 import PasswordVisibilityEnhancer from './PasswordVisibilityEnhancer'
+import FeatureTabHeaderMover from './FeatureTabHeaderMover'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -55,5 +56,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AdminDualTopbarAction />
     <FeatureTabManager />
     <PasswordVisibilityEnhancer />
+    <FeatureTabHeaderMover />
   </>
 )
