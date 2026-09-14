@@ -11,6 +11,8 @@ import ProfessorTrainingHub from './ProfessorTrainingHub'
 import MasterCategoryManager from './MasterCategoryManager'
 import PaymentHubStable from './PaymentHubStable'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
+import FeatureTabManager from './FeatureTabManager'
+import PasswordVisibilityEnhancer from './PasswordVisibilityEnhancer'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -51,5 +53,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <MasterCategoryManager />
     <PaymentHubStable />
     <AdminDualTopbarAction />
+    <FeatureTabManager />
+    <PasswordVisibilityEnhancer />
   </>
 )
