@@ -38,7 +38,19 @@ export default function AdminDualTopbarAction() {
   }, []);
 
   useEffect(() => {
-    const sync = () => {
+    if (!canSwitch) {
+      setHost(null);
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    let timer = 0;
+
+    const findHeader = () => {
+      if (cancelled) return;
+      attempts += 1;
+
       const topUser = document.querySelector("main.app .topbar .top-user");
 
       document.querySelectorAll("button").forEach((button) => {
@@ -47,24 +59,22 @@ export default function AdminDualTopbarAction() {
         }
       });
 
-      if (!topUser || !canSwitch) {
-        setHost(null);
+      if (topUser) {
+        setHost(topUser);
         return;
       }
 
-      let node = topUser.querySelector("[data-admin-player-switch-host]");
-      if (!node) {
-        node = document.createElement("span");
-        node.setAttribute("data-admin-player-switch-host", "true");
-        topUser.prepend(node);
+      if (attempts < 40) {
+        timer = window.setTimeout(findHeader, 200);
       }
-      setHost(node);
     };
 
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    findHeader();
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
   }, [canSwitch]);
 
   function switchToPlayer() {
