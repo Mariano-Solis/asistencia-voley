@@ -110,13 +110,33 @@ export default function FeatureTabManager() {
       return
     }
 
+    let cancelled = false
+    let attempts = 0
+    let timer = 0
+
     const findTargets = () => {
-      setHeaderTarget(document.querySelector('main.app .topbar .top-user'))
-      setBrandTarget(document.querySelector('main.app .topbar .brand > div'))
+      if (cancelled) return
+      attempts += 1
+
+      const header = document.querySelector('main.app .topbar .top-user')
+      const brand = document.querySelector('main.app .topbar .brand > div')
+
+      if (header) setHeaderTarget(header)
+      if (brand) setBrandTarget(brand)
+
+      if (header && brand) return
+
+      if (attempts < 40) {
+        timer = window.setTimeout(findTargets, 200)
+      }
     }
 
-    const frame = requestAnimationFrame(findTargets)
-    return () => cancelAnimationFrame(frame)
+    findTargets()
+
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
   }, [isSuperAdmin])
 
   useEffect(() => {
@@ -231,9 +251,9 @@ export default function FeatureTabManager() {
   return (
     <>
       <style>{`
-        main.app .topbar .top-user > span:not(.role) {
+        ${brandTarget ? `main.app .topbar .top-user > span:not(.role):not([data-admin-player-switch-host]) {
           display: none !important;
-        }
+        }` : ''}
 
         .mgsm-admin-name-brand {
           display: block;
