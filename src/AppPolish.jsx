@@ -18,6 +18,10 @@ function extractSelfiePath(src = '') {
   }
 }
 
+function isSignedSelfieUrl(src = '') {
+  return src.includes('/storage/v1/object/sign/player-selfies/')
+}
+
 async function getSignedSelfieUrl(path) {
   const cached = selfieCache.get(path)
   if (cached && cached.expiresAt > Date.now()) return cached.url
@@ -51,8 +55,9 @@ function SecureSelfiePolish() {
       )
 
       for (const image of images) {
-        if (cancelled || image.dataset.privateSelfieReady === 'true') continue
-        const path = extractSelfiePath(image.currentSrc || image.src)
+        const currentSrc = image.currentSrc || image.src || ''
+        if (cancelled || isSignedSelfieUrl(currentSrc)) continue
+        const path = extractSelfiePath(currentSrc)
         if (!path || processing.current.has(path)) continue
 
         processing.current.add(path)
@@ -60,7 +65,6 @@ function SecureSelfiePolish() {
           const signedUrl = await getSignedSelfieUrl(path)
           if (!cancelled && signedUrl && image.isConnected) {
             image.src = signedUrl
-            image.dataset.privateSelfieReady = 'true'
             image.referrerPolicy = 'no-referrer'
           }
         } finally {
@@ -76,7 +80,12 @@ function SecureSelfiePolish() {
 
     schedule()
     const observer = new MutationObserver(schedule)
-    observer.observe(document.body, { childList: true, subtree: true })
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['src'],
+    })
 
     return () => {
       cancelled = true
@@ -170,7 +179,10 @@ function CoachAttendancePolish() {
     setSection(currentSection)
     setHost(controlsHost)
     setSaveButton(originalSave || null)
-    setCounts({ present, late, absent, pending, total: rows.length })
+    setCounts((previous) => {
+      const next = { present, late, absent, pending, total: rows.length }
+      return Object.keys(next).every((key) => next[key] === previous[key]) ? previous : next
+    })
   }, [])
 
   useEffect(() => {
@@ -194,24 +206,64 @@ function CoachAttendancePolish() {
       rafRef.current = window.requestAnimationFrame(sync)
     }
 
+    const onFocusIn = (event) => {
+      const control = event.target.closest(
+        'main.app section .filter-card select, main.app section .page-title input[type="date"]'
+      )
+      if (control) control.dataset.mgsmPreviousValue = control.value
+    }
+
+    const onChange = (event) => {
+      const control = event.target.closest(
+        'main.app section .filter-card select, main.app section .page-title input[type="date"]'
+      )
+      if (!control || !dirty) return
+
+      const discard = window.confirm('Tenés cambios de asistencia sin guardar. ¿Querés descartarlos y continuar?')
+      if (!discard) {
+        event.preventDefault()
+        event.stopPropagation()
+        control.value = control.dataset.mgsmPreviousValue ?? control.value
+        return
+      }
+      setDirty(false)
+    }
+
     const onClick = (event) => {
-      if (event.target.closest('main.app .attendance-card .status')) {
+      const status = event.target.closest('main.app .attendance-card .status')
+      if (status) {
         setDirty(true)
         window.setTimeout(schedule, 0)
+        return
+      }
+
+      const activity = event.target.closest('main.app section .filter-card .activity-picker button')
+      if (activity && dirty) {
+        const discard = window.confirm('Tenés cambios de asistencia sin guardar. ¿Querés descartarlos y cambiar la actividad?')
+        if (!discard) {
+          event.preventDefault()
+          event.stopPropagation()
+          return
+        }
+        setDirty(false)
       }
     }
 
     schedule()
+    document.addEventListener('focusin', onFocusIn, true)
+    document.addEventListener('change', onChange, true)
     document.addEventListener('click', onClick, true)
     const observer = new MutationObserver(schedule)
     observer.observe(document.body, { childList: true, subtree: true })
 
     return () => {
+      document.removeEventListener('focusin', onFocusIn, true)
+      document.removeEventListener('change', onChange, true)
       document.removeEventListener('click', onClick, true)
       observer.disconnect()
       if (rafRef.current) window.cancelAnimationFrame(rafRef.current)
     }
-  }, [sync])
+  }, [dirty, sync])
 
   useEffect(() => {
     if (!dirty) return undefined
