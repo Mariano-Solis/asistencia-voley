@@ -150,8 +150,8 @@ export default function FeatureTabManager() {
         if (!label) return
         found.add(label)
 
-        // La configuración guardada controla lo que ven los PROFES.
-        // El Super Admin siempre conserva acceso visual a todas las solapas.
+        // La configuración guardada controla lo que ven TODOS LOS USUARIOS COMUNES.
+        // Profes y jugadores comparten la misma visibilidad. El Super Admin siempre conserva acceso visual a todas las solapas.
         const hidden = !isSuperAdmin && disabledTabs.includes(label)
 
         button.hidden = hidden
@@ -230,7 +230,7 @@ export default function FeatureTabManager() {
 
       if (error) throw error
       setDisabledTabs(draft)
-      setMessage('✓ Solapas actualizadas para los profes.')
+      setMessage('✓ Solapas actualizadas para profes y jugadores.')
       setTimeout(() => window.location.reload(), 500)
     } catch (error) {
       setMessage(error?.message || 'No se pudieron guardar las solapas.')
@@ -384,7 +384,7 @@ export default function FeatureTabManager() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div>
                 <div style={{ color: '#1769e0', fontWeight: 800, fontSize: 13 }}>SUPER ADMIN</div>
-                <h2 style={{ margin: '4px 0 0', color: '#17253a' }}>Solapas visibles para los profes</h2>
+                <h2 style={{ margin: '4px 0 0', color: '#17253a' }}>Solapas visibles para usuarios</h2>
               </div>
               <button
                 type="button"
@@ -397,7 +397,7 @@ export default function FeatureTabManager() {
             </div>
 
             <p style={{ color: '#64748b', lineHeight: 1.5 }}>
-              Tildada = aparece para los profes. Destildada = no aparece para los profes. Como Super Admin, vos siempre ves todas las solapas.
+              Tildada = aparece para profes y jugadores. Destildada = desaparece para profes y jugadores. Como Super Admin, vos siempre ves todas las solapas.
             </p>
 
             <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
@@ -426,7 +426,7 @@ export default function FeatureTabManager() {
                     />
                     <span>{label}</span>
                     <span style={{ marginLeft: 'auto', color: enabled ? '#178a5b' : '#b42318', fontSize: 13 }}>
-                      {enabled ? 'PROFES: VISIBLE' : 'PROFES: OCULTA'}
+                      {enabled ? 'USUARIOS: VISIBLE' : 'USUARIOS: OCULTA'}
                     </span>
                   </label>
                 )
