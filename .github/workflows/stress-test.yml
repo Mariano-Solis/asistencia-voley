@@ -1,0 +1,52 @@
+name: Voley stress test
+
+on:
+  push:
+    branches: [stress-test]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  public-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Concurrent GET load against production shell
+        env:
+          BASE_URL: https://www.voleysanmartin.com.ar/
+          TOTAL_REQUESTS: 600
+          CONCURRENCY: 40
+          REQUEST_TIMEOUT_MS: 12000
+        run: node tests/stress/public-load.mjs
+
+  browser-chaos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save @playwright/test@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Browser chaos against production UI
+        env:
+          BASE_URL: https://www.voleysanmartin.com.ar/
+        run: npx playwright test tests/stress/browser-chaos.spec.js --reporter=line --workers=1
