@@ -12,6 +12,7 @@ import MasterCategoryManager from './MasterCategoryManager'
 import PaymentHubStable from './PaymentHubStable'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
 import FeatureTabManager from './FeatureTabManager'
+import PlayerTabVisibilityGuard from './PlayerTabVisibilityGuard'
 import PasswordVisibilityEnhancer from './PasswordVisibilityEnhancer'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
@@ -54,6 +55,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PaymentHubStable />
     <AdminDualTopbarAction />
     <FeatureTabManager />
+    <PlayerTabVisibilityGuard />
     <PasswordVisibilityEnhancer />
   </>
 )
