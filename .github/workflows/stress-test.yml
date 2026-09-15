@@ -44,6 +44,19 @@ jobs:
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm run build
 
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
   public-load:
     runs-on: ubuntu-latest
     timeout-minutes: 10
