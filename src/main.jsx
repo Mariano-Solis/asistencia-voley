@@ -14,6 +14,7 @@ import AdminDualTopbarAction from './AdminDualTopbarAction'
 import FeatureTabManager from './FeatureTabManager'
 import PlayerTabVisibilityGuard from './PlayerTabVisibilityGuard'
 import PasswordVisibilityEnhancer from './PasswordVisibilityEnhancer'
+import AppPolish from './AppPolish'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -37,6 +38,7 @@ import './mgsm-payments.css'
 import './mgsm-master-category.css'
 import './mgsm-payment-destination.css'
 import './mgsm-payments-stable.css'
+import './mgsm-app-polish.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
@@ -57,5 +59,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <FeatureTabManager />
     <PlayerTabVisibilityGuard />
     <PasswordVisibilityEnhancer />
+    <AppPolish />
   </>
 )
