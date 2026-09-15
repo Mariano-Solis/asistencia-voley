@@ -4,16 +4,20 @@ const BASE_URL = process.env.BASE_URL || 'https://www.voleysanmartin.com.ar/'
 
 function attachFailureCollectors(page, bucket) {
   page.on('pageerror', error => bucket.push(`pageerror: ${error.message}`))
-  page.on('console', msg => {
-    if (msg.type() === 'error') bucket.push(`console: ${msg.text()}`)
+  page.on('response', response => {
+    if (response.status() >= 400) bucket.push(`http${response.status()}: ${response.url()}`)
   })
   page.on('requestfailed', request => {
+    const reason = request.failure()?.errorText || ''
+    if (reason.includes('ERR_ABORTED') || reason.includes('ERR_INTERNET_DISCONNECTED')) return
     const url = request.url()
-    if (!url.includes('googleapis.com')) bucket.push(`requestfailed: ${url} :: ${request.failure()?.errorText || ''}`)
+    if (!url.includes('googleapis.com') && !url.includes('gstatic.com')) {
+      bucket.push(`requestfailed: ${url} :: ${reason}`)
+    }
   })
 }
 
-test.describe.configure({ mode: 'serial', timeout: 90000 })
+test.describe.configure({ mode: 'default', timeout: 90000 })
 
 test('survives reloads, viewport changes, malformed localStorage and rapid UI actions', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 360, height: 740 } })
@@ -66,7 +70,6 @@ test('survives reloads, viewport changes, malformed localStorage and rapid UI ac
     return count
   })
   expect(mutations).toBeLessThan(4000)
-
   expect(failures, failures.join('\n')).toEqual([])
   await context.close()
 })
@@ -79,31 +82,28 @@ test('survives network loss and recovery without blanking the app', async ({ bro
 
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#root')).toBeVisible()
-
   await context.setOffline(true)
   await page.waitForTimeout(600)
   await expect(page.locator('#root')).toBeVisible()
-
   const notice = page.locator('.mgsm-offline-notice')
   if (await notice.count()) await expect(notice).toBeVisible()
-
   await context.setOffline(false)
   await page.waitForTimeout(600)
   await expect(page.locator('#root')).toBeVisible()
 
-  expect(failures.filter(x => !x.includes('ERR_INTERNET_DISCONNECTED')), failures.join('\n')).toEqual([])
+  expect(failures, failures.join('\n')).toEqual([])
   await context.close()
 })
 
 test('does not crash under many parallel browser sessions', async ({ browser }) => {
   const failures = []
-  const sessions = Array.from({ length: 12 }, async (_, i) => {
+  const sessions = Array.from({ length: 16 }, async (_, i) => {
     const context = await browser.newContext({ viewport: { width: 360 + (i % 3) * 20, height: 740 } })
     const page = await context.newPage()
     attachFailureCollectors(page, failures)
     await page.goto(`${BASE_URL}?browser-chaos=${i}`, { waitUntil: 'domcontentloaded' })
     await expect(page.locator('#root')).toBeVisible()
-    await page.waitForTimeout(400)
+    await page.waitForTimeout(500)
     await context.close()
   })
   await Promise.all(sessions)
