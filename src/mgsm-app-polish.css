@@ -1,0 +1,298 @@
+/* =========================================================
+   APP POLISH · DAILY COACH WORKFLOW
+   Small, explicit improvements layered on top of the existing UI.
+========================================================= */
+
+:focus-visible{
+  outline:3px solid rgba(197,31,40,.28);
+  outline-offset:2px;
+}
+
+button,
+input,
+select{
+  -webkit-tap-highlight-color:transparent;
+}
+
+.card{
+  box-shadow:0 3px 14px rgba(0,0,0,.045);
+}
+
+.content-inner{
+  padding-bottom:72px;
+}
+
+/* Attendance: quick summary + safe bulk completion */
+.mgsm-attendance-tools{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:12px 0 10px;
+  border-bottom:1px solid #eee;
+  margin-bottom:2px;
+}
+
+.mgsm-attendance-summary{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.mgsm-attendance-summary span{
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  padding:5px 9px;
+  border-radius:999px;
+  border:1px solid #e6e6e6;
+  background:#fafafa;
+  color:#555;
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.mgsm-attendance-summary .present{background:#eefaf2;border-color:#ccebd7;color:#166534}
+.mgsm-attendance-summary .late{background:#fff9e8;border-color:#f5df9d;color:#854d0e}
+.mgsm-attendance-summary .absent{background:#fff1f1;border-color:#fecaca;color:#991b1b}
+.mgsm-attendance-summary .pending{background:#f5f5f5;color:#525252}
+.mgsm-attendance-summary .pending.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+
+.mgsm-mark-pending{
+  min-height:40px;
+  padding:9px 13px;
+  border:1px solid #d7d7d7;
+  border-radius:9px;
+  background:#fff;
+  color:#222;
+  font-size:11px;
+  font-weight:800;
+}
+
+.mgsm-mark-pending:hover:not(:disabled){
+  border-color:var(--mgsm-red);
+  color:var(--mgsm-red);
+  background:#fff8f8;
+}
+
+.mgsm-unsaved{
+  flex-basis:100%;
+  color:#9a3412;
+  font-size:10px;
+  font-weight:800;
+}
+
+/* Mobile save bar: the original button remains available at the end of the list. */
+.mgsm-attendance-savebar{
+  display:none;
+}
+
+/* Connection safety */
+.mgsm-offline-notice{
+  position:fixed;
+  left:50%;
+  top:10px;
+  transform:translateX(-50%);
+  z-index:120000;
+  width:min(520px,calc(100% - 24px));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  padding:10px 13px;
+  border:1px solid #fdba74;
+  border-radius:11px;
+  background:#fff7ed;
+  color:#9a3412;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+  font-size:11px;
+}
+
+.mgsm-offline-notice strong{font-size:11px}
+
+/* General day-to-day ergonomics */
+.app>nav button,
+.player-section-nav button,
+.player-actions button,
+.status,
+.primary,
+.topbar button{
+  touch-action:manipulation;
+}
+
+.attendance-row .grow b,
+.player-card h3,
+.history-row .grow b{
+  overflow-wrap:anywhere;
+}
+
+.message{
+  line-height:1.4;
+}
+
+@media(max-width:760px){
+  .app>nav{
+    position:sticky;
+    top:0;
+    z-index:80;
+    background:rgba(255,255,255,.98);
+    backdrop-filter:blur(8px);
+  }
+
+  .content-inner{
+    padding-bottom:112px;
+  }
+
+  .page-title{
+    margin-bottom:13px;
+  }
+
+  .card{
+    border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.035);
+  }
+
+  .attendance-card{
+    margin-top:12px;
+  }
+
+  .attendance-row{
+    padding:11px 0;
+  }
+
+  .attendance-row .status-picker{
+    padding-left:0;
+  }
+
+  .status{
+    min-height:42px;
+    padding:8px 7px;
+  }
+
+  .status b{
+    font-size:14px;
+  }
+
+  .mgsm-attendance-tools{
+    align-items:stretch;
+    gap:9px;
+    padding-top:10px;
+  }
+
+  .mgsm-attendance-summary{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+  }
+
+  .mgsm-attendance-summary span{
+    justify-content:center;
+    min-height:34px;
+    white-space:normal;
+    text-align:center;
+  }
+
+  .mgsm-mark-pending{
+    width:100%;
+    min-height:44px;
+  }
+
+  .mgsm-attendance-savebar{
+    position:fixed;
+    left:10px;
+    right:10px;
+    bottom:10px;
+    z-index:9000;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:9px 10px 9px 13px;
+    border:1px solid #ddd;
+    border-radius:14px;
+    background:rgba(255,255,255,.97);
+    box-shadow:0 10px 32px rgba(0,0,0,.18);
+    backdrop-filter:blur(10px);
+  }
+
+  .mgsm-attendance-savebar.is-dirty{
+    border-color:#f0b4b8;
+    box-shadow:0 10px 32px rgba(197,31,40,.18);
+  }
+
+  .mgsm-attendance-savebar>div{
+    min-width:0;
+  }
+
+  .mgsm-attendance-savebar strong,
+  .mgsm-attendance-savebar span{
+    display:block;
+  }
+
+  .mgsm-attendance-savebar strong{
+    font-size:11px;
+    color:#222;
+  }
+
+  .mgsm-attendance-savebar span{
+    margin-top:2px;
+    color:#777;
+    font-size:9px;
+  }
+
+  .mgsm-attendance-savebar button{
+    flex:0 0 auto;
+    min-height:42px;
+    padding:9px 13px;
+    border-radius:10px;
+    background:var(--mgsm-red);
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+  }
+
+  .mgsm-attendance-savebar button:disabled{
+    background:#d7d7d7;
+    color:#777;
+  }
+
+  .toolbar input,
+  .toolbar select,
+  .filter-card input,
+  .filter-card select{
+    min-height:44px;
+  }
+
+  .player-actions button,
+  .form-actions button,
+  .back-btn{
+    min-height:40px;
+  }
+
+  .mgsm-offline-notice{
+    top:8px;
+    justify-content:flex-start;
+    line-height:1.3;
+  }
+}
+
+@media(max-width:380px){
+  .mgsm-attendance-summary{
+    grid-template-columns:1fr;
+  }
+
+  .mgsm-attendance-savebar{
+    left:7px;
+    right:7px;
+    bottom:7px;
+  }
+
+  .mgsm-attendance-savebar button{
+    padding-left:10px;
+    padding-right:10px;
+  }
+}
