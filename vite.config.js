@@ -1,8 +1,18 @@
+import { copyFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+function stableLogoAsset() {
+  return {
+    name: 'stable-logo-asset',
+    closeBundle() {
+      copyFileSync('Logo.jpg', 'dist/Logo.jpg')
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), stableLogoAsset()],
   build: {
     rollupOptions: {
       output: {
