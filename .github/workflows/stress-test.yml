@@ -5,7 +5,33 @@ on:
     branches: [stress-test]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
+  lock-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Refresh lockfile if package manifest changed
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit refreshed lockfile on stress branch
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Refresh package lock for reproducible installs [skip ci]"
+          git push
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -13,9 +39,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm run build
 
   public-load:
@@ -25,12 +51,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Concurrent GET load against production shell
         env:
           BASE_URL: https://www.voleysanmartin.com.ar/
-          TOTAL_REQUESTS: 600
-          CONCURRENCY: 40
+          TOTAL_REQUESTS: 1200
+          CONCURRENCY: 80
           REQUEST_TIMEOUT_MS: 12000
         run: node tests/stress/public-load.mjs
 
@@ -41,10 +67,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm install --no-save @playwright/test@1.55.0
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm install --no-save --ignore-scripts @playwright/test@1.55.0
       - run: npx playwright install --with-deps chromium
       - name: Browser chaos against production UI
         env:
