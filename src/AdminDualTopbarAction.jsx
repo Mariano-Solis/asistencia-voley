@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 
 export default function AdminDualTopbarAction() {
   const [host, setHost] = useState(null);
   const [canSwitch, setCanSwitch] = useState(false);
+  const hostRef = useRef(null);
 
   useEffect(() => {
     const normalizeBranding = () => {
@@ -33,7 +34,9 @@ export default function AdminDualTopbarAction() {
     let mounted = true;
 
     const evaluate = async (session) => {
-      if (!mounted || !session?.user) {
+      if (!mounted) return;
+
+      if (!session?.user) {
         setCanSwitch(false);
         return;
       }
@@ -44,6 +47,11 @@ export default function AdminDualTopbarAction() {
       ]);
 
       if (!mounted) return;
+
+      // A transient read failure must not make a valid control disappear.
+      // Keep the previous state and let the next auth/DOM cycle retry.
+      if (profileResult.error || playerResult.error) return;
+
       const isProfessor = ["admin", "super_admin"].includes(profileResult.data?.role);
       setCanSwitch(isProfessor && !!playerResult.data?.id);
     };
@@ -61,14 +69,13 @@ export default function AdminDualTopbarAction() {
 
   useEffect(() => {
     if (!canSwitch) {
+      hostRef.current = null;
       setHost(null);
       return;
     }
 
     let cancelled = false;
-    let attempts = 0;
-    let timer = 0;
-    let observer = null;
+    let scheduled = 0;
 
     const hideLegacySwitch = () => {
       document.querySelectorAll("button").forEach((button) => {
@@ -81,31 +88,33 @@ export default function AdminDualTopbarAction() {
       });
     };
 
-    const findHeader = () => {
+    const syncHost = () => {
+      scheduled = 0;
       if (cancelled) return;
-      attempts += 1;
+
       hideLegacySwitch();
+      const currentHost = document.querySelector("main.app .topbar .top-user");
 
-      const topUser = document.querySelector("main.app .topbar .top-user");
-      if (topUser) {
-        setHost(topUser);
-        return;
-      }
-
-      if (attempts < 40) {
-        timer = window.setTimeout(findHeader, 200);
+      if (currentHost !== hostRef.current) {
+        hostRef.current = currentHost || null;
+        setHost(currentHost || null);
       }
     };
 
-    hideLegacySwitch();
-    observer = new MutationObserver(hideLegacySwitch);
+    const scheduleSync = () => {
+      if (scheduled) return;
+      scheduled = requestAnimationFrame(syncHost);
+    };
+
+    syncHost();
+    const observer = new MutationObserver(scheduleSync);
     observer.observe(document.body, { childList: true, subtree: true });
-    findHeader();
 
     return () => {
       cancelled = true;
-      observer?.disconnect();
-      if (timer) window.clearTimeout(timer);
+      observer.disconnect();
+      if (scheduled) cancelAnimationFrame(scheduled);
+      hostRef.current = null;
     };
   }, [canSwitch]);
 
