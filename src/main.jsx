@@ -13,6 +13,7 @@ import PaymentHubStable from './PaymentHubStable'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
 import FeatureTabManager from './FeatureTabManager'
 import PlayerTabVisibilityGuard from './PlayerTabVisibilityGuard'
+import PlayerInstitutionalFooter from './PlayerInstitutionalFooter'
 import PasswordVisibilityEnhancer from './PasswordVisibilityEnhancer'
 import AppPolish from './AppPolish'
 import officialLogo from '../Logo.jpg'
@@ -59,6 +60,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AdminDualTopbarAction />
     <FeatureTabManager />
     <PlayerTabVisibilityGuard />
+    <PlayerInstitutionalFooter />
     <PasswordVisibilityEnhancer />
     <AppPolish />
   </>
