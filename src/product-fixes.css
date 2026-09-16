@@ -25,6 +25,41 @@ main.app > footer {
   flex:0 0 auto;
 }
 
+/* Player view has its own shell, so it needs its own institutional footer. */
+main.player-app {
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+}
+main.player-app > .player-wrap {
+  flex:1 0 auto;
+}
+.player-institutional-footer {
+  flex:0 0 auto;
+  width:100%;
+  min-height:72px;
+  margin-top:24px;
+  padding:12px 18px;
+  border-top:4px solid #b5121b;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  box-sizing:border-box;
+  color:#555;
+  font-size:12px;
+  font-weight:600;
+  text-align:center;
+}
+.player-institutional-footer img {
+  width:46px;
+  height:46px;
+  flex:0 0 46px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
 @media(max-width:768px) {
   /* The desktop shell gives .content almost a full viewport of minimum height.
      On mobile the topbar and nav already consume vertical space, so that rule
@@ -75,4 +110,17 @@ main.app > footer {
   main.app > .topbar .brand { min-width:0 !important; max-width:100%; }
   main.app > .topbar .brand strong { white-space:normal !important; }
   .player-app .access-box { width:100%; min-width:0; }
+
+  .player-institutional-footer {
+    min-height:64px;
+    margin-top:18px;
+    padding:10px 12px;
+    gap:8px;
+    font-size:11px;
+  }
+  .player-institutional-footer img {
+    width:40px;
+    height:40px;
+    flex-basis:40px;
+  }
 }
