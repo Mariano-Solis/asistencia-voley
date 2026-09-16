@@ -46,6 +46,36 @@ main.app nav button.active[data-feature-tab]::before {
   background:rgba(255,255,255,.20) !important;
 }
 
+/* While the external Training hub is open, React keeps its real active tab
+   internally so it can be restored when Training closes. Visually, however,
+   every non-Training tab must look completely neutral: no fill, border,
+   outline, shadow, focus ring, transform or red icon background. This file is
+   loaded last, so these rules are the final visual authority for the nav. */
+main.app > nav[data-training-open="true"] button:not([data-training-hub-button]) {
+  background:transparent !important;
+  color:#333 !important;
+  border:0 !important;
+  border-color:transparent !important;
+  outline:0 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  filter:none !important;
+}
+
+main.app > nav[data-training-open="true"] button:not([data-training-hub-button])::before {
+  background:#f3f4f6 !important;
+  box-shadow:none !important;
+  outline:0 !important;
+}
+
+main.app > nav[data-training-open="true"] button[data-training-hub-button] {
+  background:var(--mgsm-red) !important;
+  color:#fff !important;
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:0 4px 12px rgba(197,31,40,.18) !important;
+}
+
 @media(max-width:560px) {
   main.app > nav button[data-feature-tab]::before,
   main.app nav button[data-feature-tab]::before {
