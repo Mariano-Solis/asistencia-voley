@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { supabase } from './supabase'
 
 function cleanLabel(value = '') {
@@ -18,14 +18,35 @@ function canonicalLabel(value = '') {
 }
 
 export default function PlayerTabVisibilityGuard() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     let cancelled = false
     let disabledTabs = []
     let scheduledApply = 0
+    let settingsReady = false
+
+    // Prevent a disabled player tab from flashing before app_ui_settings arrives.
+    // useLayoutEffect runs before paint, and this temporary style also covers
+    // player navigation that is mounted a moment later by async auth routing.
+    const pendingStyle = document.createElement('style')
+    pendingStyle.dataset.playerTabsPendingStyle = 'true'
+    pendingStyle.textContent = `
+      .player-section-nav {
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+    `
+    document.head.appendChild(pendingStyle)
 
     const isPlayerView = () =>
       localStorage.getItem('voley_access_mode') === 'player' ||
       Boolean(document.querySelector('main.player-app'))
+
+    const revealNavigation = () => {
+      if (pendingStyle.isConnected) pendingStyle.remove()
+      document.querySelectorAll('.player-section-nav').forEach((nav) => {
+        nav.dataset.playerTabsReady = 'true'
+      })
+    }
 
     const apply = () => {
       scheduledApply = 0
@@ -60,6 +81,8 @@ export default function PlayerTabVisibilityGuard() {
           if (firstEnabled) firstEnabled.click()
         }
       })
+
+      if (settingsReady) revealNavigation()
     }
 
     const scheduleApply = () => {
@@ -82,6 +105,9 @@ export default function PlayerTabVisibilityGuard() {
           : []
       }
 
+      // Even on a read error we must not leave navigation permanently hidden.
+      // In that case the safe fallback is the app's normal visible-tab behavior.
+      settingsReady = true
       apply()
     }
 
@@ -94,6 +120,7 @@ export default function PlayerTabVisibilityGuard() {
       cancelled = true
       observer.disconnect()
       if (scheduledApply) cancelAnimationFrame(scheduledApply)
+      if (pendingStyle.isConnected) pendingStyle.remove()
     }
   }, [])
 
