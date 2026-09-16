@@ -54,6 +54,21 @@ main.app > nav button[data-training-hub-button]::before{
   content:"🏐"!important;
 }
 
+/* Entrenamiento is an external/native tab layered over the React navigation.
+   Keep React's real active tab intact, but hide its active/hover appearance
+   temporarily while the Training hub is open. This avoids stale pink states
+   when returning to the same tab on touch devices. */
+main.app > nav[data-training-open="true"] button.active:not([data-training-hub-button]),
+main.app > nav[data-training-open="true"] button:not([data-training-hub-button]):hover{
+  background:transparent!important;
+  color:#333!important;
+  box-shadow:none!important;
+}
+
+main.app > nav[data-training-open="true"] button.active:not([data-training-hub-button])::before{
+  background:transparent!important;
+}
+
 .training-hub-section{
   display:grid;
   gap:18px;
