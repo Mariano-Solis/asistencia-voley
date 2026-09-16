@@ -1,0 +1,103 @@
+/* =========================================================
+   MGSM VOLEY · PAGOS COMO SOLAPA / PÁGINA NORMAL
+========================================================= */
+
+main.app .content-inner > [data-admin-payments-page-host] {
+  display: none;
+}
+
+main.app .content-inner[data-payments-page-open="true"] > :not([data-admin-payments-page-host]) {
+  display: none !important;
+}
+
+main.app .content-inner[data-payments-page-open="true"] > [data-admin-payments-page-host] {
+  display: block !important;
+}
+
+/* Mientras Pagos está abierto, React conserva internamente la última solapa
+   nativa seleccionada, pero visualmente sólo Pagos debe aparecer activa. */
+main.app > nav[data-payments-open="true"] button.active:not(.mgsm-payment-nav-tab),
+main.app nav[data-payments-open="true"] button.active:not(.mgsm-payment-nav-tab),
+main.app > nav[data-payments-open="true"] button:not(.mgsm-payment-nav-tab):hover,
+main.app nav[data-payments-open="true"] button:not(.mgsm-payment-nav-tab):hover,
+main.app > nav[data-payments-open="true"] button:not(.mgsm-payment-nav-tab):focus,
+main.app nav[data-payments-open="true"] button:not(.mgsm-payment-nav-tab):focus,
+main.app > nav[data-payments-open="true"] button:not(.mgsm-payment-nav-tab):focus-visible,
+main.app nav[data-payments-open="true"] button:not(.mgsm-payment-nav-tab):focus-visible {
+  background: transparent !important;
+  color: #333 !important;
+  border-color: transparent !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+main.app > nav[data-payments-open="true"] button.active:not(.mgsm-payment-nav-tab)::before,
+main.app nav[data-payments-open="true"] button.active:not(.mgsm-payment-nav-tab)::before {
+  background: #f3f4f6 !important;
+}
+
+.payments-inline-page {
+  width: 100%;
+  min-width: 0;
+}
+
+.payments-inline-title {
+  margin-bottom: 16px !important;
+}
+
+.payments-inline-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: #f7f7f7;
+  border: 1px solid #e4e4e4;
+  border-radius: 20px;
+  box-shadow: 0 8px 26px rgba(0,0,0,.06);
+}
+
+.payments-inline-page button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  padding: 9px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.payments-inline-page .stable-pay-summary {
+  padding-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .payments-inline-card {
+    border-radius: 16px;
+  }
+
+  .payments-inline-page .stable-pay-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .payments-inline-page .stable-pay-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .payments-inline-page .stable-pay-bulk-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .payments-inline-page .stable-pay-bulk-actions .approve-all {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .payments-inline-page .stable-pay-admin-row {
+    grid-template-columns: 1fr;
+  }
+
+  .payments-inline-page .stable-pay-row-actions {
+    justify-content: flex-start;
+  }
+}
