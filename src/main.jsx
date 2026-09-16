@@ -10,6 +10,7 @@ import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
 import MasterCategoryManager from './MasterCategoryManager'
 import PaymentHubStable from './PaymentHubStable'
+import AdminPaymentsPage from './AdminPaymentsPage'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
 import FeatureTabManager from './FeatureTabManager'
 import PlayerTabVisibilityGuard from './PlayerTabVisibilityGuard'
@@ -44,6 +45,7 @@ import './mgsm-payments-stable.css'
 import './mgsm-app-polish.css'
 import './product-fixes.css'
 import './mgsm-nav-icons-semantic.css'
+import './mgsm-payments-page.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
@@ -60,6 +62,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ProfessorTrainingHub />
     <MasterCategoryManager />
     <PaymentHubStable />
+    <AdminPaymentsPage />
     <AdminDualTopbarAction />
     <FeatureTabManager />
     <PlayerTabVisibilityGuard />
