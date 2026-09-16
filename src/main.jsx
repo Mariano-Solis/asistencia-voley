@@ -16,6 +16,7 @@ import PlayerTabVisibilityGuard from './PlayerTabVisibilityGuard'
 import PlayerInstitutionalFooter from './PlayerInstitutionalFooter'
 import PasswordVisibilityEnhancer from './PasswordVisibilityEnhancer'
 import AdminHeaderPaymentPolish from './AdminHeaderPaymentPolish'
+import CategoryAdminManager from './CategoryAdminManager'
 import AppPolish from './AppPolish'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
@@ -65,6 +66,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PlayerInstitutionalFooter />
     <PasswordVisibilityEnhancer />
     <AdminHeaderPaymentPolish />
+    <CategoryAdminManager />
     <AppPolish />
   </>
 )
