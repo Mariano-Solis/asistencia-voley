@@ -1,1 +1,61 @@
-test
+/* =========================================================
+   MGSM VOLEY · ICONOS SEMÁNTICOS DE NAVEGACIÓN
+   Los iconos se asignan por solapa, nunca por posición.
+========================================================= */
+
+main.app > nav button[data-feature-tab]::before,
+main.app nav button[data-feature-tab]::before {
+  display:grid !important;
+  place-items:center !important;
+  width:30px !important;
+  height:30px !important;
+  min-width:30px !important;
+  min-height:30px !important;
+  flex:0 0 30px !important;
+  margin:0 !important;
+  border-radius:10px !important;
+  background:#f3f4f6 !important;
+  line-height:1 !important;
+  font-size:15px !important;
+  text-align:center !important;
+}
+
+main.app > nav button[data-feature-tab="Asistencia"]::before,
+main.app nav button[data-feature-tab="Asistencia"]::before { content:"🏐" !important; }
+main.app > nav button[data-feature-tab="Jugador@s"]::before,
+main.app nav button[data-feature-tab="Jugador@s"]::before { content:"👥" !important; }
+main.app > nav button[data-feature-tab="Historial"]::before,
+main.app nav button[data-feature-tab="Historial"]::before { content:"🕘" !important; }
+main.app > nav button[data-feature-tab="Horarios"]::before,
+main.app nav button[data-feature-tab="Horarios"]::before { content:"🕐" !important; }
+main.app > nav button[data-feature-tab="Profes"]::before,
+main.app nav button[data-feature-tab="Profes"]::before { content:"👨‍🏫" !important; }
+main.app > nav button[data-feature-tab="Categorías"]::before,
+main.app nav button[data-feature-tab="Categorías"]::before { content:"🏷️" !important; }
+main.app > nav button[data-feature-tab="Permisos"]::before,
+main.app nav button[data-feature-tab="Permisos"]::before { content:"🔒" !important; }
+main.app > nav button[data-training-hub-button]::before,
+main.app nav button[data-training-hub-button]::before,
+main.app > nav button[data-feature-tab="Entrenamientos"]::before,
+main.app nav button[data-feature-tab="Entrenamientos"]::before { content:"📚" !important; }
+main.app > nav button[data-feature-tab="Pagos"]::before,
+main.app nav button[data-feature-tab="Pagos"]::before { content:"💳" !important; }
+
+main.app > nav button.active[data-feature-tab]::before,
+main.app nav button.active[data-feature-tab]::before {
+  background:rgba(255,255,255,.20) !important;
+}
+
+@media(max-width:560px) {
+  main.app > nav button[data-feature-tab]::before,
+  main.app nav button[data-feature-tab]::before {
+    width:34px !important;
+    height:34px !important;
+    min-width:34px !important;
+    min-height:34px !important;
+    flex-basis:34px !important;
+    margin-inline:auto !important;
+    font-size:16px !important;
+    border-radius:11px !important;
+  }
+}
