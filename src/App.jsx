@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isAuthSession } from "./sessionSafety";
 import AppNew from "./AppNew";
 import ProfessorSelfSignup from "./ProfessorSelfSignup";
 import TrainingSchedule from "./TrainingSchedule";
@@ -254,6 +255,7 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
   useEffect(() => {
     let mounted = true;
     async function load() {
+      if (!isAuthSession(session)) return;
       const p = await supabase.from("players").select("*").eq("user_id", session.user.id).eq("active", true).maybeSingle();
       if (!mounted) return;
       if (p.data) setPlayer(p.data);
@@ -270,7 +272,7 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
     }
     load();
     return () => { mounted = false; };
-  }, [session.user.id, initialPlayer?.id]);
+  }, [session?.user?.id, initialPlayer?.id]);
 
   if (!player) return <main className="loading-screen">Cargando tu perfil...</main>;
 
@@ -444,7 +446,7 @@ function DualRoleRouter() {
     async function evaluate(nextSession) {
       if (!mounted) return;
       setSession(nextSession || null);
-      if (!nextSession?.user) {
+      if (!isAuthSession(nextSession)) {
         setDualPlayer(null);
         setIsDual(false);
         setAdminVisible(false);
@@ -489,7 +491,7 @@ function DualRoleRouter() {
   }
 
   async function switchPlayer() {
-    if (!session?.user) return;
+    if (!isAuthSession(session)) return;
     const p = await supabase.from("players").select("*").eq("user_id", session.user.id).eq("active", true).maybeSingle();
     if (!p.data) return;
     localStorage.setItem("voley_access_mode", "player");
@@ -517,6 +519,7 @@ function DualRoleRouter() {
       {isDual && adminVisible && (
         <button
           type="button"
+          className="product-secondary-action"
           onClick={switchPlayer}
           style={{ position: "fixed", right: 18, bottom: 18, zIndex: 9998, border: 0, borderRadius: 999, padding: "12px 16px", background: "#111", color: "#fff", fontWeight: 800, boxShadow: "0 8px 24px rgba(0,0,0,.22)", cursor: "pointer" }}
         >

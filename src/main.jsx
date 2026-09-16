@@ -39,6 +39,7 @@ import './mgsm-master-category.css'
 import './mgsm-payment-destination.css'
 import './mgsm-payments-stable.css'
 import './mgsm-app-polish.css'
+import './product-fixes.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 

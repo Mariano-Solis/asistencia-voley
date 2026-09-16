@@ -35,6 +35,8 @@ function AttendancePrompt(){
       const original=filterCard?.querySelector("select");
       const attendanceCard=section.querySelector(".attendance-card");
       if(!filterCard||!original)return;
+      // Attendance owns its controlled selector and discard confirmation.
+      if(original.hasAttribute("data-attendance-category-proxy"))return;
 
       original.style.display="none";
       let proxy=filterCard.querySelector("select[data-attendance-category-proxy]");

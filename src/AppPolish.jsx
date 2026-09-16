@@ -171,10 +171,7 @@ function CoachAttendancePolish() {
       (button) => !button.closest('[data-coach-attendance-polish]')
     )
 
-    const savedMessage = Array.from(card.querySelectorAll('.message')).some((message) =>
-      message.textContent?.includes('Registro guardado')
-    )
-    if (savedMessage) setDirty(false)
+    setDirty(currentSection.dataset.attendanceDirty === 'true')
 
     setSection(currentSection)
     setHost(controlsHost)
@@ -206,74 +203,17 @@ function CoachAttendancePolish() {
       rafRef.current = window.requestAnimationFrame(sync)
     }
 
-    const onFocusIn = (event) => {
-      const control = event.target.closest(
-        'main.app section .filter-card select, main.app section .page-title input[type="date"]'
-      )
-      if (control) control.dataset.mgsmPreviousValue = control.value
-    }
-
-    const onChange = (event) => {
-      const control = event.target.closest(
-        'main.app section .filter-card select, main.app section .page-title input[type="date"]'
-      )
-      if (!control || !dirty) return
-
-      const discard = window.confirm('Tenés cambios de asistencia sin guardar. ¿Querés descartarlos y continuar?')
-      if (!discard) {
-        event.preventDefault()
-        event.stopPropagation()
-        control.value = control.dataset.mgsmPreviousValue ?? control.value
-        return
-      }
-      setDirty(false)
-    }
-
-    const onClick = (event) => {
-      const status = event.target.closest('main.app .attendance-card .status')
-      if (status) {
-        setDirty(true)
-        window.setTimeout(schedule, 0)
-        return
-      }
-
-      const activity = event.target.closest('main.app section .filter-card .activity-picker button')
-      if (activity && dirty) {
-        const discard = window.confirm('Tenés cambios de asistencia sin guardar. ¿Querés descartarlos y cambiar la actividad?')
-        if (!discard) {
-          event.preventDefault()
-          event.stopPropagation()
-          return
-        }
-        setDirty(false)
-      }
-    }
-
     schedule()
-    document.addEventListener('focusin', onFocusIn, true)
-    document.addEventListener('change', onChange, true)
-    document.addEventListener('click', onClick, true)
+    window.addEventListener('voley:attendance-state', schedule)
     const observer = new MutationObserver(schedule)
     observer.observe(document.body, { childList: true, subtree: true })
 
     return () => {
-      document.removeEventListener('focusin', onFocusIn, true)
-      document.removeEventListener('change', onChange, true)
-      document.removeEventListener('click', onClick, true)
+      window.removeEventListener('voley:attendance-state', schedule)
       observer.disconnect()
       if (rafRef.current) window.cancelAnimationFrame(rafRef.current)
     }
-  }, [dirty, sync])
-
-  useEffect(() => {
-    if (!dirty) return undefined
-    const warn = (event) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty])
+  }, [sync])
 
   if (!isAdmin || !host || !section || !counts.total) return null
 
@@ -284,7 +224,6 @@ function CoachAttendancePolish() {
         row.querySelector('.status.present')?.click()
       }
     })
-    setDirty(true)
     window.setTimeout(sync, 0)
   }
 

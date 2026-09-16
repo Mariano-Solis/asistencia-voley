@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabase";
+import { isAuthSession, isLegacySession, readStoredPlayer, removeStoredPlayer, storeLegacyPlayer } from "./sessionSafety";
+import { CONFLICT_MESSAGE, attendanceWriteError, attendanceFingerprint, readAttendance } from "./attendanceSafety";
 import TrainingSchedule from "./TrainingSchedule";
 
 const APP_NAME = "Municipalidad de San Martín - VOLEY";
@@ -38,7 +40,7 @@ function categoryName(categories, id) { return categories.find(c => c.id === id)
 
 function Brand({ compact = false }) { return <div className={`brand ${compact ? "compact" : ""}`}><img src={LOGO} alt="MGSM VOLEY MENDOZA"/><div><strong>{APP_NAME}</strong><span>{TAGLINE}</span></div></div>; }
 
-function Login({ onAdmin, onPlayer }) {
+function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
   const [mode, setMode] = useState("player");
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const [name, setName] = useState(""); const [code, setCode] = useState("");
@@ -47,7 +49,7 @@ function Login({ onAdmin, onPlayer }) {
   const [dni, setDni] = useState(""); const [birth, setBirth] = useState(""); const [selfie, setSelfie] = useState(null);
   const fileRef = useRef(null);
   async function submit(e) {
-    e.preventDefault(); setLoading(true); setMessage("");
+    e.preventDefault(); setLoading(true); setMessage(""); onAuthStart?.(mode);
     try {
       if (mode === "player") {
         if (email && password) {
@@ -58,7 +60,7 @@ function Login({ onAdmin, onPlayer }) {
           onPlayer({ legacy: true, id: data.id, name: data.full_name, code: code.trim().toUpperCase(), category_id: data.category_id, category_name: data.category_name });
         }
       } else if (mode === "admin") {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw error; onAdmin(data.session);
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw error; await onAdmin(data.session);
       } else {
         if (!first.trim() || !last.trim() || !email.trim() || !birth || !dni.trim()) throw new Error("Completá todos los datos obligatorios.");
         if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
@@ -80,13 +82,14 @@ function Login({ onAdmin, onPlayer }) {
         });
         if (error) throw error;
         if (!data.session) { setMessage("✓ Cuenta creada. Revisá tu correo para confirmar la cuenta y luego ingresá como Jugador@."); setMode("player"); return; }
+        if (!isAuthSession(data.session)) throw new Error("La sesión no es válida. Volvé a ingresar.");
         const uid = data.session.user.id;
         const playerRow = await supabase.from("players").select("*").eq("user_id", uid).single();
         if (playerRow.error) throw playerRow.error;
         if (selfie) { const path = `${uid}/${Date.now()}-${selfie.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; const up = await supabase.storage.from("player-selfies").upload(path, selfie, { upsert: true, contentType: selfie.type || "image/jpeg" }); if (!up.error) await supabase.from("players").update({ selfie_path: path }).eq("id", playerRow.data.id); }
         setMessage(`✓ Cuenta creada. Tu código personal es ${playerRow.data.access_code}. Guardalo: también podés copiarlo desde tu perfil.`); onPlayer(data.session);
       }
-    } catch (e) { setMessage(errorText(e)); } finally { setLoading(false); }
+    } catch (e) { setMessage(errorText(e)); } finally { setLoading(false); onAuthEnd?.(); }
   }
   return <main className="auth"><div className="auth-bg-logo"/><section className="auth-card">
     <Brand/><div className="auth-tabs"><button type="button" className={mode === "player" ? "active" : ""} onClick={() => setMode("player")}>Jugador@s</button><button type="button" className={mode === "admin" ? "active" : ""} onClick={() => setMode("admin")}>Profe</button><button type="button" className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>Crear cuenta</button></div>
@@ -105,11 +108,112 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
   const editable = useMemo(() => categories.filter(c => can(profile, c, permissions, true)), [categories, profile, permissions]);
   const [date, setDate] = useState(today()); const [categoryId, setCategoryId] = useState(editable[0]?.id || ""); const [type, setType] = useState("training"); const [open, setOpen] = useState(true);
   const [att, setAtt] = useState({}); const [details, setDetails] = useState({ opponent: "", location: "", start: today(), end: today(), dates: [today()] }); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const savingRef = useRef(false);
+  const draftRef = useRef(false);
+  const baselineRef = useRef(null);
+  const [conflict,setConflict] = useState(false), [reloadCounter,setReloadCounter] = useState(0), [loadedAt,setLoadedAt] = useState(null);
+  function markDirty() { draftRef.current = true; setDirty(true); setMsg(conflict ? CONFLICT_MESSAGE : ""); }
+  function discardDraft() { draftRef.current = false; setDirty(false); setMsg(""); }
+  function allowLeave() {
+    if (savingRef.current) { window.alert("Esperá a que termine el guardado antes de salir."); return false; }
+    if (draftRef.current && !window.confirm("Tenés cambios de asistencia sin guardar. ¿Querés descartarlos y continuar?")) return false;
+    discardDraft();
+    return true;
+  }
+  useEffect(() => {
+    const navigation = event => {
+      const target = event.target.closest('main.app nav button, main.app .top-user button');
+      if (!target || target.classList.contains('active')) return;
+      if (!allowLeave()) { event.preventDefault(); event.stopImmediatePropagation(); }
+    };
+    const unload = event => { if (draftRef.current || savingRef.current) { event.preventDefault(); event.returnValue = ""; } };
+    document.addEventListener('click', navigation, true);
+    window.addEventListener('beforeunload', unload);
+    return () => { document.removeEventListener('click', navigation, true); window.removeEventListener('beforeunload', unload); };
+  }, []);
+  useEffect(() => { window.dispatchEvent(new Event('voley:attendance-state')); }, [dirty, saving, loading]);
+  function changeDate(event) {
+    if (event.target.value === date) return;
+    if (allowLeave()) setDate(event.target.value); else event.target.value = date;
+  }
+  function changeCategory(event) {
+    if (event.target.value === categoryId) return;
+    if (allowLeave()) setCategoryId(event.target.value); else event.target.value = categoryId;
+  }
+  function changeActivity(next) {
+    if (next === type) { setOpen(value => !value); return; }
+    if (allowLeave()) { setType(next); setOpen(true); }
+  }
+  function editDetails(update) { markDirty(); setDetails(update); }
   useEffect(() => { if (!editable.some(c => c.id === categoryId)) setCategoryId(editable[0]?.id || ""); }, [editable, categoryId]);
   const list = players.filter(p => p.category_id === categoryId);
-  useEffect(() => { async function load() { if (!date || !categoryId) return; const q = await supabase.from("training_sessions").select("*").eq("session_date", date).eq("category_id", categoryId).eq("activity_type", type).maybeSingle(); if (q.error) return setMsg(errorText(q.error)); if (!q.data) { setAtt({}); setDetails({ opponent: "", location: "", start: date, end: date, dates: [date] }); return; } const a = await supabase.from("attendance").select("player_id,status").eq("session_id", q.data.id); setAtt(Object.fromEntries((a.data || []).map(x => [x.player_id, x.status]))); const s = q.data; setDetails({ opponent: s.opponent || "", location: s.tournament_location || s.event_location || "", start: s.tournament_start_date || s.event_start_date || date, end: s.tournament_end_date || s.event_end_date || date, dates: Array.isArray(s.tournament_dates) && s.tournament_dates.length ? s.tournament_dates : [date] }); } load(); }, [date, categoryId, type]);
-  async function save() { if (!categoryId || !open) return; setSaving(true); setMsg(""); try { const payload = { session_date: date, created_by: profile.id, activity_type: type, category_id: categoryId, opponent: type === "match" ? clean(details.opponent) || null : null, event_location: type === "match" ? clean(details.location) || null : type === "tournament" ? clean(details.location) || null : null, event_start_date: type === "tournament" ? details.start || date : null, event_end_date: type === "tournament" ? details.end || date : null, tournament_location: type === "tournament" ? clean(details.location) || null : null, tournament_start_date: type === "tournament" ? details.start || date : null, tournament_end_date: type === "tournament" ? details.end || date : null, tournament_dates: type === "tournament" ? details.dates.filter(Boolean) : null }; let s = await supabase.from("training_sessions").select("*").eq("session_date", date).eq("category_id", categoryId).eq("activity_type", type).maybeSingle(); if (s.error) throw s.error; if (s.data) s = await supabase.from("training_sessions").update(payload).eq("id", s.data.id).select().single(); else s = await supabase.from("training_sessions").insert(payload).select().single(); if (s.error) throw s.error; const rows = list.filter(p => att[p.id]).map(p => ({ session_id: s.data.id, player_id: p.id, status: att[p.id] })); if (rows.length) { const up = await supabase.from("attendance").upsert(rows, { onConflict: "session_id,player_id" }); if (up.error) throw up.error; } const ex = await supabase.from("attendance").select("player_id").eq("session_id", s.data.id); const stale = (ex.data || []).filter(x => !rows.some(r => r.player_id === x.player_id)).map(x => x.player_id); if (stale.length) await supabase.from("attendance").delete().eq("session_id", s.data.id).in("player_id", stale); setMsg("✓ Registro guardado."); await refresh(); } catch (e) { setMsg(errorText(e)); } finally { setSaving(false); } }
-  return <section><PageTitle title="Asistencia" text="Tomá y modificá la asistencia de cada Jugador@." action={<input type="date" value={date} onChange={e => setDate(e.target.value)}/>}/><div className="card filter-card"><label>Categoría</label><select value={categoryId} onChange={e => setCategoryId(e.target.value)}>{editable.map(c => <option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><label>Actividad</label><div className="activity-picker">{Object.entries(TYPES).map(([k,v]) => <button type="button" key={k} className={type === k && open ? "active" : type === k ? "selected" : ""} onClick={() => k === type ? setOpen(o => !o) : (setType(k), setOpen(true))}>{v[0]} {v[1]}</button>)}</div>{open && type === "match" && <div className="event-grid"><label>Rival<input value={details.opponent} onChange={e => setDetails(d => ({...d, opponent: e.target.value}))}/></label><label>Lugar<input value={details.location} onChange={e => setDetails(d => ({...d, location: e.target.value}))}/></label></div>}{open && type === "tournament" && <div className="event-grid"><label>Lugar<input value={details.location} onChange={e => setDetails(d => ({...d, location: e.target.value}))}/></label><label>Desde<input type="date" value={details.start} onChange={e => setDetails(d => ({...d, start: e.target.value}))}/></label><label>Hasta<input type="date" value={details.end} onChange={e => setDetails(d => ({...d, end: e.target.value}))}/></label></div>}</div><div className="card attendance-card"><div className="card-head"><h3>{plural(categories.find(c => c.id === categoryId)?.gender)} · {categoryName(categories, categoryId)}</h3><span>{list.length} Jugador@s</span></div>{list.length ? list.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.team ? `Equipo ${p.team}` : "Sin asignar"}</small></div><StatusButtons value={att[p.id]} onChange={v => setAtt(a => ({...a, [p.id]: v}))}/></div>) : <Empty text="No hay Jugador@s en esta categoría."/>}<button className="primary wide" disabled={saving || !open || !list.length} onClick={save}>{saving ? "Guardando..." : "Guardar / modificar registro"}</button>{msg && <div className="message">{msg}</div>}</div></section>;
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setConflict(false); baselineRef.current = null;
+    async function load() {
+      try {
+        if (!date || !categoryId) return;
+        const loaded = await readAttendance(supabase,date,categoryId,type);
+        if (cancelled) return;
+        const session = loaded.session;
+        baselineRef.current = loaded; setLoadedAt(loaded.loadedAt);
+        setAtt(Object.fromEntries(loaded.rows.map(row=>[row.player_id,row.status])));
+        setDetails({opponent:session?.opponent||'',location:session?.tournament_location||session?.event_location||'',start:session?.tournament_start_date||session?.event_start_date||date,end:session?.tournament_end_date||session?.event_end_date||date,dates:Array.isArray(session?.tournament_dates)&&session.tournament_dates.length?session.tournament_dates:[date]});
+        setLoading(false);
+      } catch(error) { if(!cancelled)setMsg(errorText(error)); }
+    }
+    load();
+    return ()=>{cancelled=true;};
+  },[date,categoryId,type,reloadCounter]);
+  function reportConflict() {
+    draftRef.current=true;setDirty(true);setConflict(true);setMsg(CONFLICT_MESSAGE);
+  }
+  function reviewChanges() {
+    if (allowLeave()) { setConflict(false);setReloadCounter(value=>value+1); }
+  }
+  async function save() {
+    if(!categoryId||!open||loading||savingRef.current||conflict||!baselineRef.current)return;
+    savingRef.current=true;setSaving(true);setMsg('');
+    const payload={session_date:date,created_by:profile.id,activity_type:type,category_id:categoryId,
+      opponent:type==='match'?clean(details.opponent)||null:null,
+      event_location:type==='match'||type==='tournament'?clean(details.location)||null:null,
+      event_start_date:type==='tournament'?details.start||date:null,event_end_date:type==='tournament'?details.end||date:null,
+      tournament_location:type==='tournament'?clean(details.location)||null:null,
+      tournament_start_date:type==='tournament'?details.start||date:null,tournament_end_date:type==='tournament'?details.end||date:null,
+      tournament_dates:type==='tournament'?details.dates.filter(Boolean):null};
+    const desiredRows=list.filter(p=>att[p.id]).map(p=>({player_id:p.id,status:att[p.id]}));
+    const desired=attendanceFingerprint(payload,desiredRows);
+    try {
+      let current=await readAttendance(supabase,date,categoryId,type);
+      if(current.fingerprint!==baselineRef.current.fingerprint&&current.fingerprint!==desired){reportConflict();return;}
+      let session=current.session;
+      if(!session){
+        const created=await supabase.from('training_sessions').insert(payload).select().single();
+        if(created.error){
+          if(created.error.code!=='23505')throw created.error;
+          // Recover only when the exact unique session key now exists.
+          current=await readAttendance(supabase,date,categoryId,type);
+          if(!current.session)throw created.error;
+          if(current.fingerprint!==baselineRef.current.fingerprint&&current.fingerprint!==desired){reportConflict();return;}
+          session=current.session;
+        }else session=created.data;
+      }
+      const updated=await supabase.from('training_sessions').update(payload).eq('id',session.id);
+      if(updated.error)throw updated.error;
+      if(desiredRows.length){const result=await supabase.from('attendance').upsert(desiredRows.map(row=>({...row,session_id:session.id})),{onConflict:'session_id,player_id'});if(result.error)throw result.error;}
+      // Delete only omissions that existed in the loaded snapshot; never newly observed rows from another editor.
+      const stale=current.rows.filter(row=>!desiredRows.some(next=>next.player_id===row.player_id)).map(row=>row.player_id);
+      if(stale.length){const removed=await supabase.from('attendance').delete().eq('session_id',session.id).in('player_id',stale);if(removed.error)throw removed.error;}
+      const verified=await readAttendance(supabase,date,categoryId,type);
+      if(verified.fingerprint!==desired){reportConflict();return;}
+      baselineRef.current=verified;setLoadedAt(verified.loadedAt);discardDraft();setMsg('✓ Registro guardado.');
+      await refresh();
+    }catch(error){draftRef.current=true;setDirty(true);setMsg(attendanceWriteError(error));}
+    finally{savingRef.current=false;setSaving(false);}
+  }
+  return <section data-attendance-dirty={dirty ? "true" : "false"} data-attendance-loaded-at={loadedAt || ""}><PageTitle title="Asistencia" text="Tomá y modificá la asistencia de cada Jugador@." action={<input type="date" value={date} disabled={saving} onChange={changeDate}/>}/><div className="card filter-card"><label>Categoría</label><select data-attendance-category-proxy="true" value={categoryId} disabled={saving} onChange={changeCategory}>{editable.map(c => <option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><label>Actividad</label><div className="activity-picker">{Object.entries(TYPES).map(([k,v]) => <button type="button" key={k} className={type === k && open ? "active" : type === k ? "selected" : ""} disabled={saving} onClick={() => changeActivity(k)}>{v[0]} {v[1]}</button>)}</div>{open && type === "match" && <div className="event-grid"><label>Rival<input value={details.opponent} disabled={saving || loading} onChange={e => editDetails(d => ({...d, opponent: e.target.value}))}/></label><label>Lugar<input value={details.location} disabled={saving || loading} onChange={e => editDetails(d => ({...d, location: e.target.value}))}/></label></div>}{open && type === "tournament" && <div className="event-grid"><label>Lugar<input value={details.location} disabled={saving || loading} onChange={e => editDetails(d => ({...d, location: e.target.value}))}/></label><label>Desde<input type="date" value={details.start} disabled={saving || loading} onChange={e => editDetails(d => ({...d, start: e.target.value}))}/></label><label>Hasta<input type="date" value={details.end} disabled={saving || loading} onChange={e => editDetails(d => ({...d, end: e.target.value}))}/></label></div>}</div><div className="card attendance-card"><div className="card-head"><h3>{plural(categories.find(c => c.id === categoryId)?.gender)} · {categoryName(categories, categoryId)}</h3><span>{list.length} Jugador@s</span></div>{list.length ? list.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.team ? `Equipo ${p.team}` : "Sin asignar"}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>) : <Empty text="No hay Jugador@s en esta categoría."/>}<button className="primary wide" disabled={saving || loading || conflict || !open || !list.length} onClick={save}>{saving ? "Guardando..." : "Guardar / modificar registro"}</button>{msg && <div className="message" role="status">{msg}</div>}{conflict && <button type="button" className="attendance-review" disabled={saving} onClick={reviewChanges}>Revisar cambios guardados</button>}{loadedAt && <small className="attendance-loaded">Última lectura: {new Date(loadedAt).toLocaleTimeString()}</small>}</div></section>;
 }
 function Avatar({ player }) { if (player?.selfie_path) { const { data } = supabase.storage.from("player-selfies").getPublicUrl(player.selfie_path); return <img className="avatar photo" src={data.publicUrl} alt=""/>; } return <div className="avatar">{player?.full_name?.charAt(0)?.toUpperCase() || "J"}</div>; }
 function PageTitle({ title, text, action }) { return <div className="page-title"><div><h1>{title}</h1><p>{text}</p></div>{action}</div>; }
@@ -157,7 +261,7 @@ function Permissions({profile,categories}) { const [admins,setAdmins]=useState([
 
 function PlayerDashboard({session,onLogout}) {
   const [player,setPlayer]=useState(null),[rows,setRows]=useState([]),[editing,setEditing]=useState(false),[msg,setMsg]=useState(""),[view,setView]=useState("profile");
-  useEffect(()=>{async function load(){if(session?.legacy){setPlayer(session);const r=await supabase.rpc("player_attendance",{p_name:session.name,p_code:session.code});setRows(r.data||[]);return;} const p=await supabase.from("players").select("*").eq("user_id",session.user.id).maybeSingle();setPlayer(p.data); if(p.data){const r=await supabase.from("attendance").select("session_id,status,training_sessions(session_date,activity_type)").eq("player_id",p.data.id).order("session_id");setRows((r.data||[]).map(x=>({session_date:x.training_sessions?.session_date,activity_type:x.training_sessions?.activity_type,status:x.status,session_id:x.session_id})));}}load()},[session]);
+  useEffect(()=>{async function load(){if(!isAuthSession(session)&&!isLegacySession(session))return;if(session?.legacy){setPlayer(session);const r=await supabase.rpc("player_attendance",{p_name:session.name,p_code:session.code});setRows(r.data||[]);return;} const p=await supabase.from("players").select("*").eq("user_id",session.user.id).maybeSingle();setPlayer(p.data); if(p.data){const r=await supabase.from("attendance").select("session_id,status,training_sessions(session_date,activity_type)").eq("player_id",p.data.id).order("session_id");setRows((r.data||[]).map(x=>({session_date:x.training_sessions?.session_date,activity_type:x.training_sessions?.activity_type,status:x.status,session_id:x.session_id})));}}load()},[session]);
   if(!player)return <main className="loading-screen"><Brand/>Cargando tu perfil...</main>;
   const counts={present:rows.filter(r=>r.status==="present").length,late:rows.filter(r=>r.status==="late").length,absent:rows.filter(r=>r.status==="absent").length};
   return <main className="player-app"><header className="topbar"><Brand compact/><button onClick={onLogout}>Salir</button></header><div className="player-wrap"><div className="player-section-nav"><button type="button" className={view==="profile"?"active":""} onClick={()=>setView("profile")}>👤 Mi perfil</button><button type="button" className={view==="schedule"?"active":""} onClick={()=>setView("schedule")}>🕐 Horarios</button></div>{view==="schedule"?<div className="player-schedule-wrap"><TrainingSchedule playerMode/></div>:<><section className="hero-profile card"><Avatar player={player}/><div className="grow"><span className="eyebrow">Mi perfil</span><h1>{player.full_name || player.name}</h1><p>{player.category_name || "Categoría pendiente"} · {player.team ? `Equipo ${player.team}` : "Sin asignar"}</p></div><button className="profile-edit-btn" onClick={()=>setEditing(true)}>✏️ Editar mis datos</button></section><div className="stats"><div className="card"><b>{counts.present}</b><span>Presentes</span></div><div className="card"><b>{counts.late}</b><span>Tardanzas</span></div><div className="card"><b>{counts.absent}</b><span>Ausencias</span></div></div><div className="card access-box"><span>Tu código personal</span><strong>{player.access_code || session.code || "—"}</strong><button onClick={()=>copyText(player.access_code||session.code).then(()=>setMsg("✓ Código copiado."))}>📋 Copiar código</button></div><div className="card"><div className="card-head"><h2>Mi asistencia</h2></div><div className="simple-list">{rows.map((r,i)=><div className="history-row" key={r.session_id||i}><div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type]?.[1]}</span></div><span className={`badge ${r.status}`}>{STATUS[r.status]?.[1]}</span></div>)}</div></div>{msg&&<div className="message">{msg}</div>}</>}</div>{editing&&!session.legacy&&<PlayerSelfEdit player={player} onClose={()=>setEditing(false)} onSaved={updated=>{setPlayer(updated);setEditing(false);setMsg("✓ Perfil actualizado correctamente.")}}/>}</main>;
@@ -165,13 +269,55 @@ function PlayerDashboard({session,onLogout}) {
 function PlayerSelfEdit({player,onClose,onSaved}) { const [data,setData]=useState({first:player.first_name||"",last:player.last_name||"",dni:player.dni||"",birth:player.birth_date||"",sex:player.sex||"female",file:null}); const [saving,setSaving]=useState(false); const fileRef=useRef(null); async function save(e){e.preventDefault();setSaving(true);try{const r=await supabase.from("players").update({first_name:data.first,last_name:data.last,full_name:`${data.last.toUpperCase()} ${data.first}`,dni:data.dni,birth_date:data.birth,sex:data.sex}).eq("id",player.id).select().single();if(r.error)throw r.error;let updated=r.data;if(data.file){const path=`${player.user_id}/${Date.now()}-${data.file.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;const up=await supabase.storage.from("player-selfies").upload(path,data.file,{upsert:true,contentType:data.file.type||"image/jpeg"});if(up.error)throw up.error;const ur=await supabase.from("players").update({selfie_path:path}).eq("id",player.id).select().single();if(ur.error)throw ur.error;updated=ur.data;}onSaved(updated);}catch(e){alert(errorText(e));}finally{setSaving(false)}} return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Mi perfil</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={save}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 {data.file?"Cambiar selfie":"Subir selfie"}</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>{saving?"Guardando...":"Guardar cambios"}</button></div></form></div></div>; }
 
 function App() {
-  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[playerSession,setPlayerSession]=useState(()=>{try{return JSON.parse(localStorage.getItem("voley_player")||"null")}catch{return null}}),[players,setPlayers]=useState([]),[categories,setCategories]=useState([]),[permissions,setPermissions]=useState({}),[tab,setTab]=useState("home");
-  async function loadAdmin(user){const p=await supabase.from("profiles").select("*").eq("id",user.id).single();if(p.error||!p.data||!['admin','super_admin'].includes(p.data.role)){setProfile(p.data||null);return;}setProfile(p.data);const c=await supabase.from("categories").select("*").eq("active",true).order("gender").order("name");const all=c.data||[];let map={};if(p.data.role!=="super_admin"){const r=await supabase.from("admin_category_permissions").select("category_id,can_view,can_edit").eq("admin_id",user.id);map=Object.fromEntries((r.data||[]).map(x=>[x.category_id,x]));}setPermissions(map);setCategories(p.data.role==='super_admin'?all:all.filter(x=>can(p.data,x,map)));const ps=await supabase.from("players").select("*").eq("active",true).order("full_name");setPlayers(ps.data||[]);}
-  async function handleAuth(){const s=await supabase.auth.getSession();const current=s.data.session;if(!current)return;const p=await supabase.from("profiles").select("*").eq("id",current.user.id).maybeSingle();if(p.data?.role==='player'){setPlayerSession(current);return;}setSession(current);await loadAdmin(current.user);}
-  useEffect(()=>{handleAuth();const {data:{subscription}}=supabase.auth.onAuthStateChange(async (_e,s)=>{if(!s){setSession(null);setProfile(null);return;}const p=await supabase.from("profiles").select("*").eq("id",s.user.id).maybeSingle();if(p.data?.role==='player')setPlayerSession(s);else{setSession(s);loadAdmin(s.user);}});return()=>subscription.unsubscribe();},[]);
-  const refresh=()=>session?loadAdmin(session.user):Promise.resolve(); const logout=async()=>{localStorage.removeItem("voley_player");setPlayerSession(null);setSession(null);setProfile(null);await supabase.auth.signOut();};
-  if(playerSession&&!session)return <PlayerDashboard session={playerSession} onLogout={logout}/>;
-  if(!session||!profile)return <Login onAdmin={s=>{setSession(s);loadAdmin(s.user)}} onPlayer={s=>{if(s?.legacy){localStorage.setItem("voley_player",JSON.stringify(s));setPlayerSession(s)}else setPlayerSession(s)}}/>;
+  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[playerSession,setPlayerSession]=useState(readStoredPlayer),[players,setPlayers]=useState([]),[categories,setCategories]=useState([]),[permissions,setPermissions]=useState({}),[tab,setTab]=useState("home");
+  const authIntent = useRef(null), authEpoch = useRef(0);
+  function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); }
+  async function applySession(current) {
+    const epoch = ++authEpoch.current;
+    if (!isAuthSession(current)) { clearIdentity(); return; }
+    const p = await supabase.from('profiles').select('*').eq('id',current.user.id).maybeSingle();
+    if (epoch !== authEpoch.current) return;
+    if (p.error || !p.data) { clearIdentity(); return; }
+    if (p.data.role === 'player') { setSession(null); setProfile(null); setPlayerSession(current); return; }
+    if (!['admin','super_admin'].includes(p.data.role)) { clearIdentity(); return; }
+    const [c, pe, ps] = await Promise.all([
+      supabase.from('categories').select('*').eq('active',true).order('gender').order('name'),
+      supabase.from('admin_category_permissions').select('category_id,can_view,can_edit').eq('admin_id',current.user.id),
+      supabase.from('players').select('*').eq('active',true).order('full_name')
+    ]);
+    if (epoch !== authEpoch.current) return;
+    const map = Object.fromEntries((pe.data||[]).map(x=>[x.category_id,x]));
+    setPermissions(map); setCategories((c.data||[]).filter(x=>can(p.data,x,map))); setPlayers(ps.data||[]);
+    setPlayerSession(null); setProfile(p.data); setSession(current);
+  }
+  useEffect(()=>{
+    let mounted = true;
+    const accept = current => { if (mounted && !authIntent.current) void applySession(current); };
+    // Preserve only a validated legacy session when no Auth session exists.
+    supabase.auth.getSession().then(({data})=>{if(data.session)accept(data.session)});
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event,current)=>{
+      if (event === 'INITIAL_SESSION' && !current) return;
+      queueMicrotask(()=>accept(current));
+    });
+    return ()=>{mounted=false;authEpoch.current++;subscription.unsubscribe();};
+  },[]);
+  const refresh=()=>isAuthSession(session)?applySession(session):Promise.resolve();
+  const logout=async()=>{authEpoch.current++;removeStoredPlayer(localStorage);clearIdentity();await supabase.auth.signOut({scope:'local'});};
+  async function acceptAdmin(current) {
+    if (!isAuthSession(current)) throw new Error('La sesión no es válida. Volvé a ingresar.');
+    const p = await supabase.from('profiles').select('role').eq('id',current.user.id).maybeSingle();
+    if (p.error || !['admin','super_admin'].includes(p.data?.role)) {
+      clearIdentity(); await supabase.auth.signOut({scope:'local'});
+      throw new Error('Esta cuenta no tiene acceso como Profe. Ingresá desde Jugador@s.');
+    }
+    await applySession(current);
+  }
+  if ((isAuthSession(playerSession)||isLegacySession(playerSession))&&!session) return <PlayerDashboard session={playerSession} onLogout={logout}/>;
+  if(!isAuthSession(session)||!['admin','super_admin'].includes(profile?.role)) return <Login
+    onAuthStart={mode=>{authIntent.current=mode;authEpoch.current++;}}
+    onAuthEnd={()=>{authIntent.current=null;}}
+    onAdmin={acceptAdmin}
+    onPlayer={current=>{if(isLegacySession(current)){storeLegacyPlayer(current);setPlayerSession(current);}else if(isAuthSession(current)){setPlayerSession(current);}}}/>;
   const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios']];if(profile.role==='super_admin')nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
   return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span>{profile.full_name||"Profe"}</span><span className="role">{profile.role==='super_admin'?'Super Admin':'Profe'}</span><button onClick={logout}>Salir</button></div></header><nav>{nav.map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{l}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='admins'&&<AdminUsers profile={profile}/>} {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>}</div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
 }
