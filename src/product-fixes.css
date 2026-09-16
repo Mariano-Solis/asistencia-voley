@@ -16,7 +16,7 @@
 
 /* Keep the application footer at the natural bottom of short screens. */
 main.app { min-height:100dvh; display:flex; flex-direction:column; }
-main.app > .content { flex:1 0 auto; }
+main.app > .content { flex:1 1 auto; }
 main.app > footer {
   position:static !important;
   inset:auto !important;
@@ -26,6 +26,21 @@ main.app > footer {
 }
 
 @media(max-width:768px) {
+  /* The desktop shell gives .content almost a full viewport of minimum height.
+     On mobile the topbar and nav already consume vertical space, so that rule
+     pushes the footer below the visible screen even when the page is short. */
+  main.app > .content {
+    min-height:0 !important;
+    flex:1 1 auto !important;
+  }
+
+  /* Keep the attendance page compact enough for the real phone viewport without
+     shrinking controls or changing their touch targets. */
+  main.app > .content > .content-inner {
+    padding-top:18px !important;
+    padding-bottom:18px !important;
+  }
+
   /* One navigation row on mobile. It scrolls horizontally instead of wrapping. */
   main.app > nav {
     display:flex !important;
@@ -33,6 +48,7 @@ main.app > footer {
     overflow-x:auto !important;
     overflow-y:hidden !important;
     height:auto !important;
+    min-height:0 !important;
     max-height:none !important;
     gap:6px !important;
     padding:8px !important;
