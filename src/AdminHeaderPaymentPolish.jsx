@@ -112,7 +112,6 @@ export default function AdminHeaderPaymentPolish() {
         launcher?.click()
       }}
     >
-      <span aria-hidden="true">💳</span>
       <span>Pagos</span>
     </button>
   )
