@@ -7,6 +7,28 @@ export default function AdminDualTopbarAction() {
   const [canSwitch, setCanSwitch] = useState(false);
 
   useEffect(() => {
+    const normalizeBranding = () => {
+      document.querySelectorAll(".brand span").forEach((span) => {
+        if ((span.textContent || "").trim() === "#VamosElPoli") {
+          span.textContent = "#vamoselpoli";
+        }
+      });
+
+      document.querySelectorAll("main.app > footer span").forEach((span) => {
+        const text = span.textContent || "";
+        if (text.includes("#VamosElPoli")) {
+          span.textContent = text.replaceAll("#VamosElPoli", "#vamoselpoli");
+        }
+      });
+    };
+
+    normalizeBranding();
+    const observer = new MutationObserver(normalizeBranding);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (!supabase) return;
     let mounted = true;
 
@@ -46,19 +68,25 @@ export default function AdminDualTopbarAction() {
     let cancelled = false;
     let attempts = 0;
     let timer = 0;
+    let observer = null;
+
+    const hideLegacySwitch = () => {
+      document.querySelectorAll("button").forEach((button) => {
+        const text = (button.textContent || "").trim();
+        if (text.includes("Ir a mi perfil") && !button.classList.contains("admin-player-switch-topbar")) {
+          button.style.setProperty("display", "none", "important");
+          button.setAttribute("aria-hidden", "true");
+          button.setAttribute("tabindex", "-1");
+        }
+      });
+    };
 
     const findHeader = () => {
       if (cancelled) return;
       attempts += 1;
+      hideLegacySwitch();
 
       const topUser = document.querySelector("main.app .topbar .top-user");
-
-      document.querySelectorAll("button").forEach((button) => {
-        if ((button.textContent || "").includes("Ir a mi perfil") && button.style.position === "fixed") {
-          button.style.display = "none";
-        }
-      });
-
       if (topUser) {
         setHost(topUser);
         return;
@@ -69,10 +97,14 @@ export default function AdminDualTopbarAction() {
       }
     };
 
+    hideLegacySwitch();
+    observer = new MutationObserver(hideLegacySwitch);
+    observer.observe(document.body, { childList: true, subtree: true });
     findHeader();
 
     return () => {
       cancelled = true;
+      observer?.disconnect();
       if (timer) window.clearTimeout(timer);
     };
   }, [canSwitch]);
