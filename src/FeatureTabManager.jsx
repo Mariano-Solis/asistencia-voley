@@ -40,10 +40,11 @@ function canonicalLabel(value = '') {
 }
 
 function getNavigationButtons() {
+  // Player navigation is intentionally NOT managed here. It has its own
+  // PlayerTabVisibilityGuard so a Super Admin in player mode cannot re-enable
+  // a tab that was disabled for players.
   return Array.from(
-    document.querySelectorAll(
-      'main.app > nav button, main.app nav button, .player-section-nav button'
-    )
+    document.querySelectorAll('main.app > nav button, main.app nav button')
   )
 }
 
@@ -59,6 +60,7 @@ export default function FeatureTabManager() {
   const [headerTarget, setHeaderTarget] = useState(null)
   const [brandTarget, setBrandTarget] = useState(null)
   const scheduledApply = useRef(0)
+  const scheduledTargets = useRef(0)
 
   useEffect(() => {
     let mounted = true
@@ -111,31 +113,32 @@ export default function FeatureTabManager() {
     }
 
     let cancelled = false
-    let attempts = 0
-    let timer = 0
 
-    const findTargets = () => {
+    const syncTargets = () => {
+      scheduledTargets.current = 0
       if (cancelled) return
-      attempts += 1
 
       const header = document.querySelector('main.app .topbar .top-user')
       const brand = document.querySelector('main.app .topbar .brand > div')
 
-      if (header) setHeaderTarget(header)
-      if (brand) setBrandTarget(brand)
-
-      if (header && brand) return
-
-      if (attempts < 40) {
-        timer = window.setTimeout(findTargets, 200)
-      }
+      setHeaderTarget((current) => current === header ? current : (header || null))
+      setBrandTarget((current) => current === brand ? current : (brand || null))
     }
 
-    findTargets()
+    const scheduleSync = () => {
+      if (scheduledTargets.current) return
+      scheduledTargets.current = requestAnimationFrame(syncTargets)
+    }
+
+    syncTargets()
+    const observer = new MutationObserver(scheduleSync)
+    observer.observe(document.body, { childList: true, subtree: true })
 
     return () => {
       cancelled = true
-      if (timer) window.clearTimeout(timer)
+      observer.disconnect()
+      if (scheduledTargets.current) cancelAnimationFrame(scheduledTargets.current)
+      scheduledTargets.current = 0
     }
   }, [isSuperAdmin])
 
@@ -150,16 +153,14 @@ export default function FeatureTabManager() {
         if (!label) return
         found.add(label)
 
-        // La configuración guardada controla lo que ven TODOS LOS USUARIOS COMUNES.
-        // Profes y jugadores comparten la misma visibilidad. El Super Admin siempre conserva acceso visual a todas las solapas.
+        // The saved configuration controls professor/admin navigation. The
+        // Super Admin always keeps visual access to all professor tabs.
         const hidden = !isSuperAdmin && disabledTabs.includes(label)
 
         button.hidden = hidden
         button.setAttribute('aria-hidden', hidden ? 'true' : 'false')
         button.dataset.featureTab = label
 
-        // Algunos estilos de navegación pueden sobreescribir el atributo hidden.
-        // Forzamos display:none para que una solapa deshabilitada no quede visible ni clickeable.
         if (hidden) {
           button.style.setProperty('display', 'none', 'important')
         } else {
@@ -173,7 +174,7 @@ export default function FeatureTabManager() {
         return same ? previous : values
       })
 
-      document.querySelectorAll('main.app > nav, main.app nav, .player-section-nav').forEach((nav) => {
+      document.querySelectorAll('main.app > nav, main.app nav').forEach((nav) => {
         const active = nav.querySelector('button.active')
         if (active?.hidden || active?.style?.display === 'none') {
           const firstEnabled = Array.from(nav.querySelectorAll('button')).find(
@@ -397,7 +398,7 @@ export default function FeatureTabManager() {
             </div>
 
             <p style={{ color: '#64748b', lineHeight: 1.5 }}>
-              Tildada = aparece para profes y jugadores. Destildada = desaparece para profes y jugadores. Como Super Admin, vos siempre ves todas las solapas.
+              Tildada = aparece para profes y jugadores. Destildada = desaparece para profes y jugadores. Como Super Admin, vos siempre ves todas las solapas del panel de administración.
             </p>
 
             <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
