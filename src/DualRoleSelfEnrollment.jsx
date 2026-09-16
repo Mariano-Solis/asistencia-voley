@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 
 export default function DualRoleSelfEnrollment() {
   const [eligible, setEligible] = useState(false);
   const [open, setOpen] = useState(false);
+  const [host, setHost] = useState(null);
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const [sex, setSex] = useState("female");
@@ -13,6 +15,7 @@ export default function DualRoleSelfEnrollment() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
+  const hostRef = useRef(null);
 
   useEffect(() => {
     let mounted = true;
@@ -29,6 +32,8 @@ export default function DualRoleSelfEnrollment() {
         supabase.from("players").select("id").eq("user_id", session.user.id).eq("active", true).maybeSingle(),
       ]);
       if (!mounted) return;
+
+      if (profileResult.error || playerResult.error) return;
 
       const canAdmin = ["admin", "super_admin"].includes(profileResult.data?.role);
       setEligible(canAdmin && !playerResult.data);
@@ -50,6 +55,44 @@ export default function DualRoleSelfEnrollment() {
       data?.subscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!eligible) {
+      hostRef.current = null;
+      setHost(null);
+      return;
+    }
+
+    let cancelled = false;
+    let scheduled = 0;
+
+    const syncHost = () => {
+      scheduled = 0;
+      if (cancelled) return;
+
+      const currentHost = document.querySelector("main.app .topbar .top-user");
+      if (currentHost !== hostRef.current) {
+        hostRef.current = currentHost || null;
+        setHost(currentHost || null);
+      }
+    };
+
+    const scheduleSync = () => {
+      if (scheduled) return;
+      scheduled = requestAnimationFrame(syncHost);
+    };
+
+    syncHost();
+    const observer = new MutationObserver(scheduleSync);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      if (scheduled) cancelAnimationFrame(scheduled);
+      hostRef.current = null;
+    };
+  }, [eligible]);
 
   async function submit(e) {
     e.preventDefault();
@@ -99,16 +142,25 @@ export default function DualRoleSelfEnrollment() {
 
   if (!eligible) return null;
 
+  const launcher = host ? createPortal(
+    <button
+      type="button"
+      className="admin-player-switch-topbar"
+      onClick={() => { setMessage(""); setOpen(true); }}
+      aria-label="Crear mi perfil de Jugador@"
+    >
+      <span className="admin-player-switch-icon">🏐</span>
+      <span className="admin-player-switch-label">
+        <span>Crear perfil</span>
+        <span>de Jugador@</span>
+      </span>
+    </button>,
+    host,
+  ) : null;
+
   return (
     <>
-      <button
-        type="button"
-        className="product-secondary-action"
-        onClick={() => { setMessage(""); setOpen(true); }}
-        style={{ position: "fixed", right: 18, bottom: 18, zIndex: 9997, border: 0, borderRadius: 999, padding: "12px 16px", background: "#111", color: "#fff", fontWeight: 800, boxShadow: "0 8px 24px rgba(0,0,0,.22)", cursor: "pointer" }}
-      >
-        🏐 También soy Jugador@
-      </button>
+      {launcher}
 
       {open && (
         <div className="modal" role="dialog" aria-modal="true" aria-label="Crear acceso de Jugador@">
