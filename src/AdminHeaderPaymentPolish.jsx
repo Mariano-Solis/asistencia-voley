@@ -108,8 +108,7 @@ export default function AdminHeaderPaymentPolish() {
       aria-label="Pagos"
       title="Pagos"
       onClick={() => {
-        const launcher = document.querySelector('.stable-pay-admin-launcher')
-        launcher?.click()
+        window.dispatchEvent(new CustomEvent('mgsm:open-payments-page'))
       }}
     >
       <span>Pagos</span>
