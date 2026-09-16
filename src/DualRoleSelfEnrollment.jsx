@@ -94,6 +94,24 @@ export default function DualRoleSelfEnrollment() {
     };
   }, [eligible]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape" && !saving) setOpen(false);
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, saving]);
+
   async function submit(e) {
     e.preventDefault();
     setMessage("");
@@ -158,44 +176,55 @@ export default function DualRoleSelfEnrollment() {
     host,
   ) : null;
 
+  const modal = open ? createPortal(
+    <div
+      className="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Crear acceso de Jugador@"
+      style={{ zIndex: 100000 }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !saving) setOpen(false);
+      }}
+    >
+      <div className="modal-card" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div><span className="eyebrow">DOBLE FUNCIÓN</span><h2>También soy Jugador@</h2></div>
+          <button type="button" onClick={() => setOpen(false)} disabled={saving}>×</button>
+        </div>
+        <p>Conservás intacto tu acceso de Profe/Super Admin y agregás tu perfil deportivo a la misma cuenta.</p>
+
+        <form onSubmit={submit}>
+          <div className="two">
+            <input required placeholder="Nombre" value={first} onChange={e => setFirst(e.target.value)} />
+            <input required placeholder="Apellido" value={last} onChange={e => setLast(e.target.value)} />
+          </div>
+          <div className="two">
+            <select value={sex} onChange={e => setSex(e.target.value)}><option value="female">Femenino</option><option value="male">Masculino</option></select>
+            <input required placeholder="DNI" value={dni} onChange={e => setDni(e.target.value)} />
+          </div>
+          <label className="field-label">Fecha de nacimiento<input required type="date" value={birth} onChange={e => setBirth(e.target.value)} /></label>
+          <label className="selfie-field">
+            <span>Foto / Selfie</span>
+            <span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cámara / Galería</span>
+            <input ref={fileRef} className="hidden-file" type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} />
+            {file && <span className="file-name">✓ {file.name}</span>}
+          </label>
+          {message && <div className="message">{message}</div>}
+          <div className="form-actions">
+            <button type="button" onClick={() => setOpen(false)} disabled={saving}>Cancelar</button>
+            <button className="primary" disabled={saving}>{saving ? "Creando..." : "Crear mi acceso de Jugador@"}</button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
+
   return (
     <>
       {launcher}
-
-      {open && (
-        <div className="modal" role="dialog" aria-modal="true" aria-label="Crear acceso de Jugador@">
-          <div className="modal-card">
-            <div className="modal-head">
-              <div><span className="eyebrow">DOBLE FUNCIÓN</span><h2>También soy Jugador@</h2></div>
-              <button type="button" onClick={() => setOpen(false)}>×</button>
-            </div>
-            <p>Conservás intacto tu acceso de Profe/Super Admin y agregás tu perfil deportivo a la misma cuenta.</p>
-
-            <form onSubmit={submit}>
-              <div className="two">
-                <input required placeholder="Nombre" value={first} onChange={e => setFirst(e.target.value)} />
-                <input required placeholder="Apellido" value={last} onChange={e => setLast(e.target.value)} />
-              </div>
-              <div className="two">
-                <select value={sex} onChange={e => setSex(e.target.value)}><option value="female">Femenino</option><option value="male">Masculino</option></select>
-                <input required placeholder="DNI" value={dni} onChange={e => setDni(e.target.value)} />
-              </div>
-              <label className="field-label">Fecha de nacimiento<input required type="date" value={birth} onChange={e => setBirth(e.target.value)} /></label>
-              <label className="selfie-field">
-                <span>Foto / Selfie</span>
-                <span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cámara / Galería</span>
-                <input ref={fileRef} className="hidden-file" type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} />
-                {file && <span className="file-name">✓ {file.name}</span>}
-              </label>
-              {message && <div className="message">{message}</div>}
-              <div className="form-actions">
-                <button type="button" onClick={() => setOpen(false)}>Cancelar</button>
-                <button className="primary" disabled={saving}>{saving ? "Creando..." : "Crear mi acceso de Jugador@"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {modal}
     </>
   );
 }
