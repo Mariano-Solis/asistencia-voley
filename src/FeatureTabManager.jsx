@@ -21,6 +21,13 @@ function cleanLabel(value = '') {
     .trim()
 }
 
+function formatProperName(value = '') {
+  return String(value)
+    .trim()
+    .toLocaleLowerCase('es-AR')
+    .replace(/(^|[\s'-])\p{L}/gu, (match) => match.toLocaleUpperCase('es-AR'))
+}
+
 function canonicalLabel(value = '') {
   const text = cleanLabel(value).toLocaleLowerCase('es-AR')
   const known = BASE_TABS.find((item) => item.toLocaleLowerCase('es-AR') === text)
@@ -260,7 +267,7 @@ export default function FeatureTabManager() {
   )
 
   const adminNameNode = adminName ? (
-    <span className="mgsm-admin-name-brand">{adminName}</span>
+    <span className="mgsm-admin-name-brand">{formatProperName(adminName)}</span>
   ) : null
 
   return (
@@ -274,9 +281,9 @@ export default function FeatureTabManager() {
           display: block;
           margin-top: 2px;
           color: rgba(255,255,255,.96);
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 800;
-          line-height: 1.15;
+          line-height: 1.05;
           white-space: nowrap;
         }
 
@@ -328,7 +335,8 @@ export default function FeatureTabManager() {
           }
 
           .mgsm-admin-name-brand {
-            font-size: 10px;
+            font-size: 13px;
+            line-height: 1.05;
             max-width: 205px;
             overflow: hidden;
             text-overflow: ellipsis;
