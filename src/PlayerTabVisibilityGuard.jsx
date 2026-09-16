@@ -35,13 +35,20 @@ export default function PlayerTabVisibilityGuard() {
     let scheduledApply = 0
     let settingsReady = false
 
-    // This rule intentionally stays mounted for the lifetime of the app.
-    // Any player nav created later (for example when switching from Super Admin
-    // to Player without a full reload) starts hidden and cannot flash on screen.
+    // Player navigation is hidden until the authoritative settings are applied.
+    // Disabled buttons also receive a persistent data marker. This makes their
+    // visibility deterministic even if another component later removes inline
+    // styles or the native hidden attribute.
     const guardStyle = document.createElement('style')
     guardStyle.dataset.playerTabsGuardStyle = 'true'
     guardStyle.textContent = `
       .player-section-nav:not([data-player-tabs-ready="true"]) {
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      .player-section-nav button[data-player-tab-disabled="true"] {
+        display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
       }
@@ -57,31 +64,33 @@ export default function PlayerTabVisibilityGuard() {
       if (!isPlayerView()) return
 
       document.querySelectorAll('.player-section-nav').forEach((nav) => {
-        // Mark as not-ready before touching any newly mounted controls.
         nav.dataset.playerTabsReady = 'false'
 
         nav.querySelectorAll('button').forEach((button) => {
           const label = canonicalLabel(button.textContent)
           const hidden = disabledTabs.includes(label)
 
+          button.dataset.playerFeatureTab = label
+          button.dataset.playerTabDisabled = hidden ? 'true' : 'false'
           button.hidden = hidden
           button.setAttribute('aria-hidden', hidden ? 'true' : 'false')
-          button.dataset.playerFeatureTab = label
 
           if (hidden) {
             button.style.setProperty('display', 'none', 'important')
+            button.setAttribute('tabindex', '-1')
           } else {
             button.style.removeProperty('display')
+            button.removeAttribute('tabindex')
           }
         })
 
         const active = nav.querySelector('button.active')
         const activeIsHidden =
-          active && (active.hidden || active.style.display === 'none')
+          active && active.dataset.playerTabDisabled === 'true'
 
         if (activeIsHidden) {
           const firstEnabled = Array.from(nav.querySelectorAll('button')).find(
-            (button) => !button.hidden && button.style.display !== 'none'
+            (button) => button.dataset.playerTabDisabled !== 'true'
           )
           if (firstEnabled) firstEnabled.click()
         }
@@ -119,8 +128,6 @@ export default function PlayerTabVisibilityGuard() {
       apply()
     }
 
-    // Apply the synchronous cache before the first visible player navigation,
-    // then reconcile with the authoritative database setting.
     apply()
     loadSettings()
 
