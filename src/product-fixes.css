@@ -69,11 +69,34 @@ main.player-app > .player-wrap {
     flex:1 1 auto !important;
   }
 
-  /* Keep the attendance page compact enough for the real phone viewport without
-     shrinking controls or changing their touch targets. */
+  /* Recover only secondary vertical whitespace on small screens.
+     Touch targets, input heights, button sizes and text sizes stay unchanged. */
   main.app > .content > .content-inner {
-    padding-top:18px !important;
-    padding-bottom:18px !important;
+    padding-top:12px !important;
+    padding-bottom:12px !important;
+  }
+  main.app .page-title {
+    margin-bottom:14px !important;
+  }
+  main.app .filter-card {
+    padding-top:14px !important;
+    padding-bottom:14px !important;
+  }
+  main.app .attendance-card {
+    margin-top:10px !important;
+    padding-top:14px !important;
+    padding-bottom:14px !important;
+  }
+
+  /* Keep the institutional footer compact without changing its text size. */
+  main.app > footer {
+    padding-top:7px !important;
+    padding-bottom:7px !important;
+    min-height:0 !important;
+  }
+  main.app > footer img {
+    width:38px !important;
+    height:38px !important;
   }
 
   /* One navigation row on mobile. It scrolls horizontally instead of wrapping. */
