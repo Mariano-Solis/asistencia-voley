@@ -18,6 +18,8 @@ import PlayerInstitutionalFooter from './PlayerInstitutionalFooter'
 import PasswordVisibilityEnhancer from './PasswordVisibilityEnhancer'
 import AdminHeaderPaymentPolish from './AdminHeaderPaymentPolish'
 import CategoryAdminManager from './CategoryAdminManager'
+import RegistrationApprovalManager from './RegistrationApprovalManager'
+import PendingApprovalGate from './PendingApprovalGate'
 import AppPolish from './AppPolish'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
@@ -46,6 +48,7 @@ import './mgsm-app-polish.css'
 import './product-fixes.css'
 import './mgsm-nav-icons-semantic.css'
 import './mgsm-payments-page.css'
+import './mgsm-registration-approval.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
@@ -70,6 +73,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PasswordVisibilityEnhancer />
     <AdminHeaderPaymentPolish />
     <CategoryAdminManager />
+    <RegistrationApprovalManager />
+    <PendingApprovalGate />
     <AppPolish />
   </>
 )
