@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 const TRAINING_URL = "https://voleiboles.lovable.app/";
@@ -6,17 +6,8 @@ const TRAINING_URL = "https://voleiboles.lovable.app/";
 export default function ProfessorTrainingHub() {
   const [host, setHost] = useState(null);
   const [open, setOpen] = useState(false);
-  const openRef = useRef(open);
-  openRef.current = open;
 
   useEffect(() => {
-    const syncActiveState = (nav, trainingButton) => {
-      if (!openRef.current || !nav || !trainingButton) return;
-      nav.querySelectorAll("button").forEach((navButton) => {
-        navButton.classList.toggle("active", navButton === trainingButton);
-      });
-    };
-
     const sync = () => {
       const app = document.querySelector("main.app");
       const nav = app?.querySelector(":scope > nav");
@@ -32,17 +23,9 @@ export default function ProfessorTrainingHub() {
         button.type = "button";
         button.setAttribute("data-training-hub-button", "true");
         button.textContent = "Entrenamiento";
-        button.addEventListener("click", () => {
-          nav.querySelectorAll("button.active").forEach((navButton) => {
-            navButton.classList.remove("active");
-          });
-          button.classList.add("active");
-          setOpen(true);
-        });
+        button.addEventListener("click", () => setOpen(true));
         nav.appendChild(button);
       }
-
-      syncActiveState(nav, button);
 
       let node = content.querySelector("[data-training-hub-host]");
       if (!node) {
@@ -56,11 +39,6 @@ export default function ProfessorTrainingHub() {
     const closeFromNativeNav = (event) => {
       const button = event.target?.closest?.("main.app > nav button");
       if (!button || button.hasAttribute("data-training-hub-button")) return;
-
-      const trainingButton = document.querySelector(
-        "main.app > nav [data-training-hub-button]"
-      );
-      trainingButton?.classList.remove("active");
       setOpen(false);
     };
 
@@ -68,14 +46,21 @@ export default function ProfessorTrainingHub() {
     document.addEventListener("click", closeFromNativeNav, true);
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true });
+
     return () => {
       document.removeEventListener("click", closeFromNativeNav, true);
       observer.disconnect();
+
+      const nav = document.querySelector("main.app > nav");
+      const trainingButton = nav?.querySelector("[data-training-hub-button]");
+      if (nav) delete nav.dataset.trainingOpen;
+      trainingButton?.classList.remove("active");
     };
   }, []);
 
   useEffect(() => {
     if (!host) return;
+
     const content = host.parentElement;
     const button = document.querySelector(
       "main.app > nav [data-training-hub-button]"
@@ -91,13 +76,12 @@ export default function ProfessorTrainingHub() {
       }
     });
 
-    if (open && nav && button) {
-      nav.querySelectorAll("button").forEach((navButton) => {
-        navButton.classList.toggle("active", navButton === button);
-      });
-    } else {
-      button?.classList.remove("active");
+    if (nav) {
+      if (open) nav.dataset.trainingOpen = "true";
+      else delete nav.dataset.trainingOpen;
     }
+
+    button?.classList.toggle("active", open);
   }, [host, open]);
 
   if (!host) return null;
