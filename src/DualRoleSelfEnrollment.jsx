@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 
 export default function DualRoleSelfEnrollment() {
   const [eligible, setEligible] = useState(false);
+  const [playerRequest, setPlayerRequest] = useState(null);
   const [open, setOpen] = useState(false);
   const [host, setHost] = useState(null);
   const [first, setFirst] = useState("");
@@ -23,20 +24,25 @@ export default function DualRoleSelfEnrollment() {
     async function check(session) {
       if (!mounted || !session?.user) {
         setEligible(false);
+        setPlayerRequest(null);
         setOpen(false);
         return;
       }
 
       const [profileResult, playerResult] = await Promise.all([
         supabase.from("profiles").select("id,full_name,role").eq("id", session.user.id).maybeSingle(),
-        supabase.from("players").select("id").eq("user_id", session.user.id).eq("active", true).maybeSingle(),
+        supabase.from("players").select("id,active,approval_status").eq("user_id", session.user.id).maybeSingle(),
       ]);
       if (!mounted) return;
 
       if (profileResult.error || playerResult.error) return;
 
       const canAdmin = ["admin", "super_admin"].includes(profileResult.data?.role);
-      setEligible(canAdmin && !playerResult.data);
+      const request = playerResult.data || null;
+      const approvedPlayer = !!request?.active && request?.approval_status === "approved";
+
+      setPlayerRequest(request);
+      setEligible(canAdmin && !approvedPlayer);
 
       if (canAdmin && profileResult.data?.full_name) {
         const parts = profileResult.data.full_name.trim().split(/\s+/);
@@ -148,9 +154,13 @@ export default function DualRoleSelfEnrollment() {
         }
       }
 
-      localStorage.setItem("voley_access_mode", "player");
-      setMessage("✓ Tu acceso como Jugador@ quedó creado. Entrando a tu perfil...");
-      setTimeout(() => window.location.reload(), 700);
+      setPlayerRequest({
+        id: player?.id,
+        active: !!player?.active,
+        approval_status: player?.approval_status || "pending",
+      });
+      setFile(null);
+      setMessage("✓ Solicitud enviada. Tu perfil de Jugador@ queda pendiente hasta que lo apruebe otro Profe autorizado o el Super Administrador.");
     } catch (error) {
       setMessage(error?.message || "No se pudo crear tu perfil de Jugador@.");
     } finally {
@@ -160,17 +170,19 @@ export default function DualRoleSelfEnrollment() {
 
   if (!eligible) return null;
 
+  const pending = playerRequest?.approval_status === "pending" && !playerRequest?.active;
+  const rejected = playerRequest?.approval_status === "rejected";
+
   const launcher = host ? createPortal(
     <button
       type="button"
-      className="admin-player-switch-topbar"
+      className={`admin-player-switch-topbar${pending ? " pending" : rejected ? " rejected" : ""}`}
       onClick={() => { setMessage(""); setOpen(true); }}
-      aria-label="Crear mi perfil de Jugador@"
+      aria-label={pending ? "Perfil de Jugador@ pendiente de aprobación" : rejected ? "Reenviar solicitud de Jugador@" : "Crear mi perfil de Jugador@"}
     >
       <span className="admin-player-switch-icon">🏐</span>
       <span className="admin-player-switch-label">
-        <span>Crear perfil</span>
-        <span>de Jugador@</span>
+        {pending ? <><span>Perfil Jugador@</span><span>pendiente</span></> : rejected ? <><span>Reenviar perfil</span><span>de Jugador@</span></> : <><span>Crear perfil</span><span>de Jugador@</span></>}
       </span>
     </button>,
     host,
@@ -189,33 +201,44 @@ export default function DualRoleSelfEnrollment() {
     >
       <div className="modal-card" onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-head">
-          <div><span className="eyebrow">DOBLE FUNCIÓN</span><h2>También soy Jugador@</h2></div>
+          <div><span className="eyebrow">DOBLE FUNCIÓN</span><h2>{pending ? "Perfil de Jugador@ pendiente" : rejected ? "Reenviar solicitud de Jugador@" : "También soy Jugador@"}</h2></div>
           <button type="button" onClick={() => setOpen(false)} disabled={saving}>×</button>
         </div>
-        <p>Conservás intacto tu acceso de Profe/Super Admin y agregás tu perfil deportivo a la misma cuenta.</p>
 
-        <form onSubmit={submit}>
-          <div className="two">
-            <input required placeholder="Nombre" value={first} onChange={e => setFirst(e.target.value)} />
-            <input required placeholder="Apellido" value={last} onChange={e => setLast(e.target.value)} />
-          </div>
-          <div className="two">
-            <select value={sex} onChange={e => setSex(e.target.value)}><option value="female">Femenino</option><option value="male">Masculino</option></select>
-            <input required placeholder="DNI" value={dni} onChange={e => setDni(e.target.value)} />
-          </div>
-          <label className="field-label">Fecha de nacimiento<input required type="date" value={birth} onChange={e => setBirth(e.target.value)} /></label>
-          <label className="selfie-field">
-            <span>Foto / Selfie</span>
-            <span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cámara / Galería</span>
-            <input ref={fileRef} className="hidden-file" type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} />
-            {file && <span className="file-name">✓ {file.name}</span>}
-          </label>
-          {message && <div className="message">{message}</div>}
-          <div className="form-actions">
-            <button type="button" onClick={() => setOpen(false)} disabled={saving}>Cancelar</button>
-            <button className="primary" disabled={saving}>{saving ? "Creando..." : "Crear mi acceso de Jugador@"}</button>
-          </div>
-        </form>
+        {pending ? (
+          <>
+            <p>Tu solicitud ya fue creada correctamente. Para mantener el control de altas, todavía debe aprobarla otro Profe autorizado para tu categoría o el Super Administrador.</p>
+            <div className="message">No necesitás crear otro perfil ni volver a cargar tus datos.</div>
+            <div className="form-actions"><button className="primary" type="button" onClick={() => setOpen(false)}>Entendido</button></div>
+          </>
+        ) : (
+          <>
+            <p>{rejected ? "Podés corregir tus datos y volver a enviar la solicitud. La nueva solicitud quedará pendiente de aprobación." : "Conservás intacto tu acceso de Profe/Super Admin y solicitás un perfil deportivo en la misma cuenta. La categoría se calcula automáticamente y el acceso como Jugador@ requiere aprobación independiente."}</p>
+
+            <form onSubmit={submit}>
+              <div className="two">
+                <input required placeholder="Nombre" value={first} onChange={e => setFirst(e.target.value)} />
+                <input required placeholder="Apellido" value={last} onChange={e => setLast(e.target.value)} />
+              </div>
+              <div className="two">
+                <select value={sex} onChange={e => setSex(e.target.value)}><option value="female">Femenino</option><option value="male">Masculino</option></select>
+                <input required placeholder="DNI" value={dni} onChange={e => setDni(e.target.value)} />
+              </div>
+              <label className="field-label">Fecha de nacimiento<input required type="date" value={birth} onChange={e => setBirth(e.target.value)} /></label>
+              <label className="selfie-field">
+                <span>Foto / Selfie</span>
+                <span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cámara / Galería</span>
+                <input ref={fileRef} className="hidden-file" type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} />
+                {file && <span className="file-name">✓ {file.name}</span>}
+              </label>
+              {message && <div className="message">{message}</div>}
+              <div className="form-actions">
+                <button type="button" onClick={() => setOpen(false)} disabled={saving}>Cancelar</button>
+                <button className="primary" disabled={saving}>{saving ? "Enviando..." : rejected ? "Reenviar solicitud" : "Solicitar perfil de Jugador@"}</button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>,
     document.body,
