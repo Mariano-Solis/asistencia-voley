@@ -7,6 +7,7 @@ import ProfessorDeleteManager from './ProfessorDeleteManager'
 import WorkflowCore from './WorkflowCore'
 import PermissionsEnhancement from './PermissionsEnhancement'
 import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
+import AttendanceSaveGuard from './AttendanceSaveGuard'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
 import MasterCategoryManager from './MasterCategoryManager'
 import PaymentHubStable from './PaymentHubStable'
@@ -64,6 +65,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <WorkflowCore />
     <PermissionsEnhancement />
     <SafePlayerAttendanceFilter />
+    <AttendanceSaveGuard />
     <ProfessorTrainingHub />
     <MasterCategoryManager />
     <PaymentHubStable />
