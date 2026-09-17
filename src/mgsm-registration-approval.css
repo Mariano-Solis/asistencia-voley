@@ -1,6 +1,31 @@
 main.app nav .mgsm-approval-nav-tab{flex:0 0 auto}
 main.app nav .mgsm-approval-nav-tab::before{content:'🛡️'}
 main.app .content-inner[data-approval-page-open='true']>:not([data-registration-approval-host]){display:none!important}
+
+/* Solicitudes is an inline page just like Pagos/Entrenamiento. React keeps the
+   previously selected native tab internally, but while this page is open only
+   Solicitudes may look active. This also neutralizes sticky touch hover/focus. */
+main.app>nav[data-approval-open='true'] button.active:not(.mgsm-approval-nav-tab),
+main.app nav[data-approval-open='true'] button.active:not(.mgsm-approval-nav-tab),
+main.app>nav[data-approval-open='true'] button:not(.mgsm-approval-nav-tab):hover,
+main.app nav[data-approval-open='true'] button:not(.mgsm-approval-nav-tab):hover,
+main.app>nav[data-approval-open='true'] button:not(.mgsm-approval-nav-tab):focus,
+main.app nav[data-approval-open='true'] button:not(.mgsm-approval-nav-tab):focus,
+main.app>nav[data-approval-open='true'] button:not(.mgsm-approval-nav-tab):focus-visible,
+main.app nav[data-approval-open='true'] button:not(.mgsm-approval-nav-tab):focus-visible{
+  background:transparent!important;
+  color:#333!important;
+  border-color:transparent!important;
+  outline:0!important;
+  box-shadow:none!important;
+  transform:none!important;
+  filter:none!important;
+}
+main.app>nav[data-approval-open='true'] button.active:not(.mgsm-approval-nav-tab)::before,
+main.app nav[data-approval-open='true'] button.active:not(.mgsm-approval-nav-tab)::before{
+  background:#f3f4f6!important;
+}
+
 .registration-approval-page{padding:4px 0 24px}
 .registration-approval-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 .registration-approval-title h1{margin:0 0 4px;font-size:32px}
