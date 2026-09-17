@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { consumeTurnstileToken, notifyTurnstileConsumed } from './turnstileGuard'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -69,24 +70,42 @@ if (client) {
 
   client.auth.signUp = async ({ email, password, options = {} }) => {
     const cleanEmail = String(email || '').trim().toLowerCase()
-    const { data, error } = await callAuthEmail({
-      action: 'signup',
-      email: cleanEmail,
-      password,
-      data: options?.data || {},
-      redirect_to: options?.emailRedirectTo || getAuthRedirectUrl(),
-    })
+    const staged = consumeTurnstileToken()
+    const captchaToken = String(options?.captchaToken || staged.token || '').trim()
 
-    if (error) {
-      return { data: { user: null, session: null }, error }
+    if (!captchaToken) {
+      return {
+        data: { user: null, session: null },
+        error: {
+          message: 'Completá la verificación de seguridad antes de crear la cuenta.',
+          status: 400,
+        },
+      }
     }
 
-    return {
-      data: {
-        user: data?.user ? { ...data.user, email: cleanEmail } : null,
-        session: null,
-      },
-      error: null,
+    try {
+      const { data, error } = await callAuthEmail({
+        action: 'signup',
+        email: cleanEmail,
+        password,
+        data: options?.data || {},
+        redirect_to: options?.emailRedirectTo || getAuthRedirectUrl(),
+        captcha_token: captchaToken,
+      })
+
+      if (error) {
+        return { data: { user: null, session: null }, error }
+      }
+
+      return {
+        data: {
+          user: data?.user ? { ...data.user, email: cleanEmail } : null,
+          session: null,
+        },
+        error: null,
+      }
+    } finally {
+      notifyTurnstileConsumed(staged.form)
     }
   }
 
