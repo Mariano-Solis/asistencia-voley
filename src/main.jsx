@@ -20,6 +20,7 @@ import AdminHeaderPaymentPolish from './AdminHeaderPaymentPolish'
 import CategoryAdminManager from './CategoryAdminManager'
 import RegistrationApprovalManager from './RegistrationApprovalManager'
 import PendingApprovalGate from './PendingApprovalGate'
+import RegistrationTurnstile from './RegistrationTurnstile'
 import AppPolish from './AppPolish'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
@@ -49,6 +50,7 @@ import './product-fixes.css'
 import './mgsm-nav-icons-semantic.css'
 import './mgsm-payments-page.css'
 import './mgsm-registration-approval.css'
+import './mgsm-turnstile.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
@@ -75,6 +77,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <CategoryAdminManager />
     <RegistrationApprovalManager />
     <PendingApprovalGate />
+    <RegistrationTurnstile />
     <AppPolish />
   </>
 )
