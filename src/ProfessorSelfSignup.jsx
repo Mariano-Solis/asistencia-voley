@@ -4,6 +4,12 @@ import { supabase } from "./supabase";
 
 const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
 
+const normalizeSpaces = (value = "") => String(value).trim().replace(/\s+/g, " ");
+const normalizeFirstName = (value = "") => normalizeSpaces(value)
+  .toLocaleLowerCase("es-AR")
+  .replace(/(^|[\s'-])([\p{L}])/gu, (_, separator, letter) => `${separator}${letter.toLocaleUpperCase("es-AR")}`);
+const normalizeLastName = (value = "") => normalizeSpaces(value).toLocaleUpperCase("es-AR");
+
 export default function ProfessorSelfSignup() {
   const [portalTarget, setPortalTarget] = useState(null);
   const [open, setOpen] = useState(false);
@@ -64,7 +70,10 @@ export default function ProfessorSelfSignup() {
     e.preventDefault();
     setMessage("");
 
-    if (!first.trim() || !last.trim() || !email.trim() || password.length < 6) {
+    const normalizedFirst = normalizeFirstName(first);
+    const normalizedLast = normalizeLastName(last);
+
+    if (!normalizedFirst || !normalizedLast || !email.trim() || password.length < 6) {
       setMessage("Completá nombre, apellido, correo y una contraseña de al menos 6 caracteres.");
       return;
     }
@@ -78,13 +87,13 @@ export default function ProfessorSelfSignup() {
     try {
       const role = alsoPlayer ? "professor_player_pending" : "professor_pending";
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
         options: {
           data: {
-            full_name: `${first.trim()} ${last.trim()}`,
-            first_name: first.trim(),
-            last_name: last.trim(),
+            full_name: `${normalizedFirst} ${normalizedLast}`,
+            first_name: normalizedFirst,
+            last_name: normalizedLast,
             sex: alsoPlayer ? sex : null,
             dni: alsoPlayer ? dni.trim() : null,
             birth_date: alsoPlayer ? birth : null,
@@ -106,7 +115,7 @@ export default function ProfessorSelfSignup() {
 
       const verificationText = data.session
         ? "Tu correo ya está verificado."
-        : "Revisá tu correo y confirmá la cuenta."
+        : "Revisá tu correo y confirmá la cuenta.";
 
       setMessage(
         alsoPlayer
@@ -176,7 +185,7 @@ export default function ProfessorSelfSignup() {
 
               <input required type="email" placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} />
               <input required minLength={6} type="password" placeholder="Contraseña (mínimo 6 caracteres)" value={password} onChange={e => setPassword(e.target.value)} />
-              <small>No necesitás ningún código. Confirmar el correo no habilita por sí solo el acceso de Profe: la aprobación del Super Administrador es obligatoria.</small>
+              <small>Nombre y apellido se guardan automáticamente con el formato institucional. Confirmar el correo no habilita por sí solo el acceso de Profe: la aprobación del Super Administrador es obligatoria.</small>
               <button className="primary" disabled={saving}>{saving ? "Creando solicitud..." : alsoPlayer ? "Solicitar cuenta Profe + Jugador@" : "Solicitar cuenta de Profe"}</button>
             </form>
 
