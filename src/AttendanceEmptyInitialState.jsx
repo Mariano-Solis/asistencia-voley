@@ -38,8 +38,15 @@ function prepare(section) {
   );
   const activityPicker = filterCard.querySelector(".activity-picker");
 
-  const applySelectionState = () => {
+  const applySelectionState = (event) => {
     const waiting = !select.value || select.value === PLACEHOLDER_VALUE;
+
+    // React mantiene internamente la última categoría real. Cuando se elige
+    // "Sin categoría" detenemos este change antes de que llegue al onChange de
+    // React: así el placeholder no puede convertirse accidentalmente en un id
+    // de categoría ni disparar lecturas/guardados contra una categoría inválida.
+    if (waiting && event) event.stopPropagation();
+
     setWaitingState(filterCard, attendanceCard, activityLabel, activityPicker, waiting);
   };
 
