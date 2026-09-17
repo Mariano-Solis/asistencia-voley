@@ -23,7 +23,6 @@ import RegistrationApprovalManager from './RegistrationApprovalManager'
 import PendingApprovalGate from './PendingApprovalGate'
 import RegistrationTurnstile from './RegistrationTurnstile'
 import SuperAdminPlayerEmail from './SuperAdminPlayerEmail'
-import SuperAdminProfessorManager from './SuperAdminProfessorManager'
 import AppPolish from './AppPolish'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
@@ -86,7 +85,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PendingApprovalGate />
     <RegistrationTurnstile />
     <SuperAdminPlayerEmail />
-    <SuperAdminProfessorManager />
     <AppPolish />
   </>
 )
