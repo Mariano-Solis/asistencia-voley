@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 const PLACEHOLDER_VALUE = "__attendance_unselected__";
+const PLACEHOLDER_LABEL = "Sin Categoría";
 
 function findAttendanceSection() {
   return Array.from(document.querySelectorAll("main.app section")).find((section) =>
@@ -16,21 +17,48 @@ function setWaitingState(filterCard, attendanceCard, activityLabel, activityPick
   if (activityPicker) activityPicker.hidden = waiting;
 }
 
+function syncWaitingSelection(section) {
+  if (!section) return;
+  const select = section.querySelector('select[data-attendance-category-proxy="true"]');
+  const filterCard = select?.closest(".filter-card");
+  const attendanceCard = section.querySelector(".attendance-card");
+  if (!select || !filterCard || !attendanceCard) return;
+
+  const placeholder = Array.from(select.options).find(option => option.value === PLACEHOLDER_VALUE);
+  if (placeholder) placeholder.textContent = PLACEHOLDER_LABEL;
+
+  if (filterCard.dataset.attendanceWaitingCategory !== "true") return;
+
+  // React conserva internamente la primera categoría habilitada, pero mientras el
+  // Profe no haya elegido una categoría de forma explícita la interfaz debe seguir
+  // mostrando el estado neutro, incluso después de re-renderizados por la carga.
+  if (select.value !== PLACEHOLDER_VALUE) select.value = PLACEHOLDER_VALUE;
+
+  const activityLabel = Array.from(filterCard.querySelectorAll("label")).find(
+    (label) => label.textContent?.trim() === "Actividad"
+  );
+  const activityPicker = filterCard.querySelector(".activity-picker");
+  setWaitingState(filterCard, attendanceCard, activityLabel, activityPicker, true);
+}
+
 function prepare(section) {
-  if (!section || section.dataset.emptyInitialStateReady === "true") return;
+  if (!section) return;
 
   const select = section.querySelector('select[data-attendance-category-proxy="true"]');
   const filterCard = select?.closest(".filter-card");
   const attendanceCard = section.querySelector(".attendance-card");
   if (!select || !filterCard || !attendanceCard) return;
 
+  if (section.dataset.emptyInitialStateReady === "true") {
+    syncWaitingSelection(section);
+    return;
+  }
+
   section.dataset.emptyInitialStateReady = "true";
 
-  // "Sin categoría" es una opción real del selector visual. No representa una
-  // categoría de la base de datos ni puede generar una sesión de asistencia.
   const placeholder = document.createElement("option");
   placeholder.value = PLACEHOLDER_VALUE;
-  placeholder.textContent = "Sin categoría";
+  placeholder.textContent = PLACEHOLDER_LABEL;
   select.prepend(placeholder);
 
   const activityLabel = Array.from(filterCard.querySelectorAll("label")).find(
@@ -41,17 +69,12 @@ function prepare(section) {
   const applySelectionState = (event) => {
     const waiting = !select.value || select.value === PLACEHOLDER_VALUE;
 
-    // React mantiene internamente la última categoría real. Cuando se elige
-    // "Sin categoría" detenemos este change antes de que llegue al onChange de
-    // React: así el placeholder no puede convertirse accidentalmente en un id
-    // de categoría ni disparar lecturas/guardados contra una categoría inválida.
     if (waiting && event) event.stopPropagation();
-
     setWaitingState(filterCard, attendanceCard, activityLabel, activityPicker, waiting);
   };
 
-  // La pantalla siempre inicia en estado neutro. El Profe debe seleccionar
-  // explícitamente una categoría antes de ver Jugador@s o cargar asistencia.
+  // Estado inicial obligatorio: ninguna categoría queda preseleccionada visualmente.
+  filterCard.dataset.attendanceWaitingCategory = "true";
   select.value = PLACEHOLDER_VALUE;
   applySelectionState();
 
@@ -65,8 +88,12 @@ export default function AttendanceEmptyInitialState() {
 
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("voley:attendance-state", refresh);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("voley:attendance-state", refresh);
+    };
   }, []);
 
   return null;
