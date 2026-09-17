@@ -16,14 +16,17 @@ export default function ProfessorDeleteManager() {
   const [details, setDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
     let mounted = true;
     const evaluateSession = async (session) => {
       if (!mounted || !session?.user) return setIsSuperAdmin(false);
-      const { data } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
-      if (mounted) setIsSuperAdmin(data?.role === "super_admin");
+      const { data } = await supabase.from("profiles").select("role,active,approval_status").eq("id", session.user.id).maybeSingle();
+      if (mounted) setIsSuperAdmin(data?.role === "super_admin" && data?.active !== false && data?.approval_status === "approved");
     };
     supabase.auth.getSession().then(({ data }) => evaluateSession(data?.session));
     const { data } = supabase.auth.onAuthStateChange((_event, session) => setTimeout(() => evaluateSession(session), 0));
@@ -35,11 +38,9 @@ export default function ProfessorDeleteManager() {
     const syncMount = () => {
       const section = Array.from(document.querySelectorAll("section")).find((s) => s.querySelector(".page-title h1")?.textContent?.trim() === "Profes");
       if (!section) return setMountNode(null);
-
       section.querySelectorAll(".admin-list").forEach((list) => {
         if (!list.closest("[data-professor-delete-manager]")) list.style.display = "none";
       });
-
       let node = section.querySelector("[data-professor-delete-manager]");
       if (!node) {
         node = document.createElement("div");
@@ -58,9 +59,7 @@ export default function ProfessorDeleteManager() {
 
   useEffect(() => {
     if (!selectedProfessor) return;
-    const onKey = (event) => {
-      if (event.key === "Escape") closeDetails();
-    };
+    const onKey = (event) => { if (event.key === "Escape") closeDetails(); };
     document.addEventListener("keydown", onKey);
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -82,30 +81,26 @@ export default function ProfessorDeleteManager() {
     setDetails(null);
     setDetailsError("");
     setDetailsLoading(true);
+    setEditing(false);
+    setEditName(professor.full_name || "");
 
     try {
-      const [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult] = await Promise.all([
+      const [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult, accountsResult] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", professor.id).maybeSingle(),
         supabase.from("players").select("*, categories(name,gender)").eq("user_id", professor.id).maybeSingle(),
         supabase.from("admin_category_permissions").select("category_id,can_view,can_edit,categories(name,gender)").eq("admin_id", professor.id),
         supabase.from("categories").select("id,name,gender").eq("admin_id", professor.id).eq("active", true),
         supabase.from("training_sessions").select("activity_type").eq("created_by", professor.id),
+        supabase.rpc("get_superadmin_professor_accounts"),
       ]);
 
-      const firstError = [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult].find((result) => result.error)?.error;
+      const firstError = [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult, accountsResult].find((result) => result.error)?.error;
       if (firstError) throw firstError;
 
       const categoryMap = new Map();
-      (ownedCategoriesResult.data || []).forEach((category) => {
-        categoryMap.set(category.id, {
-          id: category.id,
-          name: category.name,
-          gender: category.gender,
-          can_view: true,
-          can_edit: true,
-          source: "Responsable",
-        });
-      });
+      (ownedCategoriesResult.data || []).forEach((category) => categoryMap.set(category.id, {
+        id: category.id, name: category.name, gender: category.gender, can_view: true, can_edit: true, source: "Responsable",
+      }));
       (permissionsResult.data || []).forEach((permission) => {
         const current = categoryMap.get(permission.category_id);
         categoryMap.set(permission.category_id, {
@@ -119,8 +114,12 @@ export default function ProfessorDeleteManager() {
       });
 
       const sessions = sessionsResult.data || [];
+      const account = (accountsResult.data || []).find((item) => item.professor_id === professor.id) || null;
+      const profile = profileResult.data || professor;
+      setEditName(profile.full_name || professor.full_name || "");
       setDetails({
-        profile: profileResult.data || professor,
+        profile,
+        accountEmail: account?.email || "",
         player: playerResult.data || null,
         categories: Array.from(categoryMap.values()).sort((a, b) => `${a.gender}-${a.name}`.localeCompare(`${b.gender}-${b.name}`, "es")),
         activities: {
@@ -142,13 +141,40 @@ export default function ProfessorDeleteManager() {
     setDetails(null);
     setDetailsError("");
     setDetailsLoading(false);
+    setEditing(false);
+    setSavingEdit(false);
+  }
+
+  async function saveProfessorEdit(event) {
+    event.preventDefault();
+    const nextName = editName.trim();
+    if (!nextName || !selectedProfessor || !details) return;
+    setSavingEdit(true);
+    setDetailsError("");
+    const { error } = await supabase.rpc("superadmin_update_professor", {
+      p_professor_id: selectedProfessor.id,
+      p_full_name: nextName,
+      p_active: details.profile?.active !== false,
+    });
+    setSavingEdit(false);
+    if (error) return setDetailsError(error.message || "No se pudieron guardar los cambios del Profe.");
+
+    setAdmins((current) => current.map((item) => item.id === selectedProfessor.id ? { ...item, full_name: nextName } : item));
+    setSelectedProfessor((current) => current ? { ...current, full_name: nextName } : current);
+    setDetails((current) => current ? { ...current, profile: { ...current.profile, full_name: nextName } } : current);
+    setEditing(false);
+    setMessage(`✓ Datos de ${nextName} actualizados.`);
   }
 
   async function toggleActive(professor) {
     const next = professor.active === false;
     setTogglingId(professor.id);
     setMessage("");
-    const { error } = await supabase.from("profiles").update({ active: next }).eq("id", professor.id);
+    const { error } = await supabase.rpc("superadmin_update_professor", {
+      p_professor_id: professor.id,
+      p_full_name: details?.profile?.full_name || professor.full_name || "Profe",
+      p_active: next,
+    });
     setTogglingId("");
     if (error) {
       const text = error.message || "No se pudo cambiar el estado del Profe.";
@@ -156,7 +182,6 @@ export default function ProfessorDeleteManager() {
       if (selectedProfessor?.id === professor.id) setDetailsError(text);
       return;
     }
-
     setAdmins((current) => current.map((item) => item.id === professor.id ? { ...item, active: next } : item));
     if (selectedProfessor?.id === professor.id) {
       setSelectedProfessor((current) => current ? { ...current, active: next } : current);
@@ -198,7 +223,7 @@ export default function ProfessorDeleteManager() {
   const listPortal = createPortal(
     <div className="card professor-unified-card">
       <div className="card-head"><div><h2>Gestión de Profes</h2><span>Control exclusivo del Super Administrador.</span></div></div>
-      <p className="professor-status-note">Tocá el nombre de un Profe para ver su ficha completa. ACTIVO permite cargar y modificar información; INACTIVO conserva el acceso en modo solo lectura.</p>
+      <p className="professor-status-note">Tocá el nombre de un Profe para ver su ficha completa, correo de cuenta y modificar sus datos.</p>
       {message && <div className="message">{message}</div>}
       <div className="professor-unified-list">
         {admins.length ? admins.map((professor) => {
@@ -213,8 +238,7 @@ export default function ProfessorDeleteManager() {
           </div>;
         }) : <div className="empty">No hay Profes registrados.</div>}
       </div>
-    </div>,
-    mountNode,
+    </div>, mountNode,
   );
 
   const detailPortal = selectedProfessor ? createPortal(
@@ -222,19 +246,9 @@ export default function ProfessorDeleteManager() {
       <div className="card professor-detail-card" onClick={(event) => event.stopPropagation()}>
         <div className="professor-detail-head">
           <button type="button" className="professor-detail-back" onClick={closeDetails}>← Volver a Profes</button>
-          <div className="professor-detail-title">
-            <span className="eyebrow">Ficha del Profe</span>
-            <h2>{selectedProfessor.full_name || "Profe"}</h2>
-          </div>
+          <div className="professor-detail-title"><span className="eyebrow">Ficha del Profe</span><h2>{selectedProfessor.full_name || "Profe"}</h2></div>
           <div className="professor-detail-head-actions">
-            <button
-              type="button"
-              className={`professor-status-btn professor-detail-status ${details?.profile?.active === false ? "inactive" : "active"}`}
-              disabled={!details || togglingId === selectedProfessor.id}
-              onClick={() => toggleActive({ ...selectedProfessor, active: details?.profile?.active })}
-            >
-              {togglingId === selectedProfessor.id ? "Guardando..." : details?.profile?.active === false ? "INACTIVO" : "ACTIVO"}
-            </button>
+            <button type="button" className={`professor-status-btn professor-detail-status ${details?.profile?.active === false ? "inactive" : "active"}`} disabled={!details || togglingId === selectedProfessor.id} onClick={() => toggleActive({ ...selectedProfessor, active: details?.profile?.active })}>{togglingId === selectedProfessor.id ? "Guardando..." : details?.profile?.active === false ? "INACTIVO" : "ACTIVO"}</button>
             <button type="button" className="professor-detail-close" aria-label="Cerrar" onClick={closeDetails}>×</button>
           </div>
         </div>
@@ -243,6 +257,18 @@ export default function ProfessorDeleteManager() {
         {detailsError && <div className="message">{detailsError}</div>}
 
         {details && <>
+          <div className="professor-account-card">
+            <div><span>Correo de cuenta</span><b>{details.accountEmail || "Sin correo asociado"}</b><small>Correo utilizado para crear e ingresar a la cuenta. Solo visible para Super Admin.</small></div>
+            <button type="button" className="primary professor-edit-btn" onClick={() => setEditing((value) => !value)}>{editing ? "Cancelar edición" : "✏️ Modificar datos"}</button>
+          </div>
+
+          {editing && <form className="professor-edit-form" onSubmit={saveProfessorEdit}>
+            <label>Nombre y apellido<input value={editName} onChange={(event) => setEditName(event.target.value)} required /></label>
+            <label>Correo de cuenta<input type="email" value={details.accountEmail || ""} readOnly /></label>
+            <small>El correo de acceso es un dato de Auth y se mantiene en solo lectura para no romper el inicio de sesión.</small>
+            <div className="form-actions"><button type="button" onClick={() => { setEditing(false); setEditName(details.profile?.full_name || ""); }}>Cancelar</button><button type="submit" className="primary" disabled={savingEdit}>{savingEdit ? "Guardando..." : "Guardar cambios"}</button></div>
+          </form>}
+
           <div className="professor-detail-grid">
             <div className="professor-detail-item"><span>Estado</span><b>{details.profile?.active === false ? "INACTIVO" : "ACTIVO"}</b></div>
             <div className="professor-detail-item"><span>Rol</span><b>{details.profile?.role === "pending_admin" ? "Profe pendiente" : "Profe"}</b></div>
@@ -253,42 +279,13 @@ export default function ProfessorDeleteManager() {
           </div>
 
           <div className="professor-detail-sections">
-            <div className="professor-detail-section">
-              <h3>Categorías y permisos</h3>
-              <div className="professor-detail-list">
-                {details.categories.length ? details.categories.map((category) => <div key={category.id}>
-                  <b>{genderText(category.gender)} · {category.name}</b>
-                  <span>{category.can_edit ? "Puede ver y editar" : category.can_view ? "Solo lectura" : "Sin acceso"}</span>
-                </div>) : <div className="empty">No tiene categorías asignadas.</div>}
-              </div>
-            </div>
-
-            <div className="professor-detail-section">
-              <h3>Actividad administrativa</h3>
-              <div className="professor-detail-list">
-                <div><b>Entrenamientos</b><span>{details.activities.training}</span></div>
-                <div><b>Partidos</b><span>{details.activities.match}</span></div>
-                <div><b>Torneos</b><span>{details.activities.tournament}</span></div>
-              </div>
-            </div>
-
-            {details.player && <div className="professor-detail-section">
-              <h3>Perfil de Jugador@ asociado</h3>
-              <div className="professor-detail-list">
-                <div><b>Nombre</b><span>{details.player.full_name || "—"}</span></div>
-                <div><b>DNI</b><span>{details.player.dni || "—"}</span></div>
-                <div><b>Fecha de nacimiento</b><span>{dateText(details.player.birth_date)}</span></div>
-                <div><b>Rama</b><span>{genderText(details.player.sex)}</span></div>
-                <div><b>Categoría</b><span>{detailCategory}</span></div>
-                <div><b>Equipo</b><span>{details.player.team ? `Equipo ${details.player.team}` : "Sin asignar"}</span></div>
-                <div><b>Código personal</b><span>{details.player.access_code || "—"}</span></div>
-              </div>
-            </div>}
+            <div className="professor-detail-section"><h3>Categorías y permisos</h3><div className="professor-detail-list">{details.categories.length ? details.categories.map((category) => <div key={category.id}><b>{genderText(category.gender)} · {category.name}</b><span>{category.can_edit ? "Puede ver y editar" : category.can_view ? "Solo lectura" : "Sin acceso"}</span></div>) : <div className="empty">No tiene categorías asignadas.</div>}</div></div>
+            <div className="professor-detail-section"><h3>Actividad administrativa</h3><div className="professor-detail-list"><div><b>Entrenamientos</b><span>{details.activities.training}</span></div><div><b>Partidos</b><span>{details.activities.match}</span></div><div><b>Torneos</b><span>{details.activities.tournament}</span></div></div></div>
+            {details.player && <div className="professor-detail-section"><h3>Perfil de Jugador@ asociado</h3><div className="professor-detail-list"><div><b>Nombre</b><span>{details.player.full_name || "—"}</span></div><div><b>DNI</b><span>{details.player.dni || "—"}</span></div><div><b>Fecha de nacimiento</b><span>{dateText(details.player.birth_date)}</span></div><div><b>Rama</b><span>{genderText(details.player.sex)}</span></div><div><b>Categoría</b><span>{detailCategory}</span></div><div><b>Equipo</b><span>{details.player.team ? `Equipo ${details.player.team}` : "Sin asignar"}</span></div><div><b>Código personal</b><span>{details.player.access_code || "—"}</span></div></div></div>}
           </div>
         </>}
       </div>
-    </div>,
-    document.body,
+    </div>, document.body,
   ) : null;
 
   return <>{listPortal}{detailPortal}</>;
