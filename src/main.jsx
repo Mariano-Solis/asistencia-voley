@@ -52,6 +52,7 @@ import './mgsm-nav-icons-semantic.css'
 import './mgsm-payments-page.css'
 import './mgsm-registration-approval.css'
 import './mgsm-turnstile.css'
+import './mgsm-history-session-actions.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
