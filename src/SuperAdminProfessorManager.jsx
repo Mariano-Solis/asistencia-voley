@@ -18,11 +18,16 @@ export default function SuperAdminProfessorManager() {
       if (!section) return
 
       const rows = Array.from(section.querySelectorAll('.admin-list .admin-row'))
+      const unused = [...professors]
       rows.forEach((row) => {
         if (row.querySelector('[data-superadmin-professor-management]')) return
         const name = row.querySelector('b')?.textContent?.trim() || ''
-        const professor = professors.find((item) => (item.full_name || 'Profe') === name)
-        if (!professor) return
+        const matchIndex = unused.findIndex((item) => (item.full_name || 'Profe') === name)
+        if (matchIndex < 0) return
+        const [professor] = unused.splice(matchIndex, 1)
+
+        const badge = row.querySelector('.team-badge')
+        if (badge) badge.textContent = professor.active === false ? 'INACTIVO' : 'ACTIVO'
 
         const block = document.createElement('div')
         block.dataset.superadminProfessorManagement = 'true'
@@ -30,10 +35,11 @@ export default function SuperAdminProfessorManager() {
 
         const email = document.createElement('div')
         email.className = 'superadmin-professor-email'
-        email.innerHTML = '<b>Correo de cuenta</b>'
+        const emailLabel = document.createElement('b')
+        emailLabel.textContent = 'Correo de cuenta'
         const emailValue = document.createElement('span')
         emailValue.textContent = professor.email || 'Sin correo asociado'
-        email.appendChild(emailValue)
+        email.append(emailLabel, emailValue)
 
         const edit = document.createElement('button')
         edit.type = 'button'
@@ -59,7 +65,15 @@ export default function SuperAdminProfessorManager() {
 
       const card = document.createElement('div')
       card.className = 'modal-card superadmin-professor-modal-card'
-      card.innerHTML = '<div class="modal-head"><h2>Modificar Profe</h2><button type="button" data-close>×</button></div>'
+      const head = document.createElement('div')
+      head.className = 'modal-head'
+      const title = document.createElement('h2')
+      title.textContent = 'Modificar Profe'
+      const closeButton = document.createElement('button')
+      closeButton.type = 'button'
+      closeButton.textContent = '×'
+      head.append(title, closeButton)
+      card.appendChild(head)
 
       const form = document.createElement('form')
       const nameLabel = document.createElement('label')
@@ -69,16 +83,16 @@ export default function SuperAdminProfessorManager() {
       nameInput.value = professor.full_name || ''
       nameLabel.appendChild(nameInput)
 
-      const emailLabel = document.createElement('label')
-      emailLabel.textContent = 'Correo de cuenta'
+      const accountEmailLabel = document.createElement('label')
+      accountEmailLabel.textContent = 'Correo de cuenta'
       const emailInput = document.createElement('input')
       emailInput.type = 'email'
       emailInput.readOnly = true
       emailInput.value = professor.email || ''
-      emailLabel.appendChild(emailInput)
+      accountEmailLabel.appendChild(emailInput)
       const emailHelp = document.createElement('small')
       emailHelp.textContent = 'El correo de acceso se muestra como dato de la cuenta y no se modifica desde esta ficha.'
-      emailLabel.appendChild(emailHelp)
+      accountEmailLabel.appendChild(emailHelp)
 
       const activeLabel = document.createElement('label')
       activeLabel.className = 'superadmin-professor-active'
@@ -102,13 +116,13 @@ export default function SuperAdminProfessorManager() {
       save.textContent = 'Guardar cambios'
       actions.append(cancel, save)
 
-      form.append(nameLabel, emailLabel, activeLabel, message, actions)
+      form.append(nameLabel, accountEmailLabel, activeLabel, message, actions)
       card.appendChild(form)
       overlay.appendChild(card)
       document.body.appendChild(overlay)
 
       const close = () => overlay.remove()
-      card.querySelector('[data-close]').addEventListener('click', close)
+      closeButton.addEventListener('click', close)
       cancel.addEventListener('click', close)
       overlay.addEventListener('click', (event) => { if (event.target === overlay) close() })
 
@@ -139,10 +153,10 @@ export default function SuperAdminProfessorManager() {
         const row = Array.from(document.querySelectorAll('.admin-list .admin-row'))
           .find((item) => item.querySelector('[data-superadmin-professor-management] .superadmin-professor-email span')?.textContent === (professor.email || 'Sin correo asociado'))
         if (row) {
-          const title = row.querySelector('b')
-          if (title) title.textContent = nextName
-          const badge = row.querySelector('.team-badge')
-          if (badge) badge.textContent = activeInput.checked ? 'ACTIVO' : 'INACTIVO'
+          const rowTitle = row.querySelector('b')
+          if (rowTitle) rowTitle.textContent = nextName
+          const rowBadge = row.querySelector('.team-badge')
+          if (rowBadge) rowBadge.textContent = activeInput.checked ? 'ACTIVO' : 'INACTIVO'
         }
         close()
       })
