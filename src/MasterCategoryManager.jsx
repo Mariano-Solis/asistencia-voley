@@ -267,7 +267,7 @@ export default function MasterCategoryManager() {
       )}
 
       <div className="master-rule-note">
-        <b>Masculino:</b> la única categoría activa es Primera. MASTER existe exclusivamente en Femenino y admite equipos A, B, C y D.
+        <b>Masculino:</b> cuando un jugador queda en Primera y no hay una división adicional indicada, se asigna automáticamente al Equipo A. MASTER continúa siendo exclusivo de la rama Femenina.
       </div>
 
       {message && <div className="message master-message">{message}</div>}
