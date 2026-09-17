@@ -10,9 +10,9 @@ declare
   v_category_id uuid;
   v_year integer := extract(year from timezone('America/Argentina/Mendoza', now()))::integer;
 begin
-  -- Administrative category choices are explicit overrides. The admin UI starts
-  -- from the selected category and only replaces it when this RPC returns an id.
-  -- Returning null for admins preserves the manually selected exception.
+  -- Any category explicitly selected from an administrative screen has priority
+  -- over automatic assignment. Existing admin flows keep the selected category
+  -- whenever this RPC returns null.
   if exists (
     select 1
     from public.profiles p
@@ -31,7 +31,7 @@ begin
   if lower(trim(p_sex)) = 'male' then
     v_category_name := 'Primera';
   else
-    if v_age >= 30 then v_category_name := 'MASTER';
+    if v_age >= 30 then v_category_name := 'Master A';
     elsif v_age <= 12 then v_category_name := 'Sub 12';
     elsif v_age <= 14 then v_category_name := 'Sub 14';
     elsif v_age <= 16 then v_category_name := 'Sub 16';
