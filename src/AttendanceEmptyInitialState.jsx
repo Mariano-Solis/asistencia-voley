@@ -9,6 +9,13 @@ function findAttendanceSection() {
   ) || null;
 }
 
+function setWaitingState(filterCard, attendanceCard, activityLabel, activityPicker, waiting) {
+  filterCard.dataset.attendanceWaitingCategory = waiting ? "true" : "false";
+  attendanceCard.hidden = waiting;
+  if (activityLabel) activityLabel.hidden = waiting;
+  if (activityPicker) activityPicker.hidden = waiting;
+}
+
 function prepare(section) {
   if (!section || section.dataset.emptyInitialStateReady === "true") return;
 
@@ -19,35 +26,29 @@ function prepare(section) {
 
   section.dataset.emptyInitialStateReady = "true";
 
+  // "Sin categoría" es una opción real del selector visual. No representa una
+  // categoría de la base de datos ni puede generar una sesión de asistencia.
   const placeholder = document.createElement("option");
   placeholder.value = PLACEHOLDER_VALUE;
   placeholder.textContent = "Sin categoría";
-  placeholder.disabled = true;
-  placeholder.hidden = true;
   select.prepend(placeholder);
-
-  // La selección real de React se conserva internamente, pero la pantalla comienza
-  // deliberadamente neutra hasta que el Profe elija una categoría de forma explícita.
-  select.value = PLACEHOLDER_VALUE;
-  filterCard.dataset.attendanceWaitingCategory = "true";
-  attendanceCard.hidden = true;
 
   const activityLabel = Array.from(filterCard.querySelectorAll("label")).find(
     (label) => label.textContent?.trim() === "Actividad"
   );
   const activityPicker = filterCard.querySelector(".activity-picker");
-  if (activityLabel) activityLabel.hidden = true;
-  if (activityPicker) activityPicker.hidden = true;
 
-  const reveal = () => {
-    if (!select.value || select.value === PLACEHOLDER_VALUE) return;
-    filterCard.dataset.attendanceWaitingCategory = "false";
-    if (activityLabel) activityLabel.hidden = false;
-    if (activityPicker) activityPicker.hidden = false;
-    attendanceCard.hidden = false;
+  const applySelectionState = () => {
+    const waiting = !select.value || select.value === PLACEHOLDER_VALUE;
+    setWaitingState(filterCard, attendanceCard, activityLabel, activityPicker, waiting);
   };
 
-  select.addEventListener("change", reveal);
+  // La pantalla siempre inicia en estado neutro. El Profe debe seleccionar
+  // explícitamente una categoría antes de ver Jugador@s o cargar asistencia.
+  select.value = PLACEHOLDER_VALUE;
+  applySelectionState();
+
+  select.addEventListener("change", applySelectionState);
 }
 
 export default function AttendanceEmptyInitialState() {
