@@ -70,6 +70,23 @@ if (client) {
 
   client.auth.signUp = async ({ email, password, options = {} }) => {
     const cleanEmail = String(email || '').trim().toLowerCase()
+    const signupData = options?.data || {}
+    const signupRole = String(signupData?.role || 'player').trim()
+    const signupDni = String(signupData?.dni || '').trim()
+
+    if (signupDni && ['player', 'professor_player_pending'].includes(signupRole)) {
+      const duplicateCheck = await client.rpc('player_dni_exists', { p_dni: signupDni })
+      if (!duplicateCheck.error && duplicateCheck.data === true) {
+        return {
+          data: { user: null, session: null },
+          error: {
+            message: 'Ya existe un Jugador@ registrado con este DNI. No crees una segunda cuenta; pedile al Profe o al Super Administrador que revise la cuenta existente.',
+            status: 409,
+          },
+        }
+      }
+    }
+
     const staged = consumeTurnstileToken()
     const captchaToken = String(options?.captchaToken || staged.token || '').trim()
 
@@ -88,7 +105,7 @@ if (client) {
         action: 'signup',
         email: cleanEmail,
         password,
-        data: options?.data || {},
+        data: signupData,
         redirect_to: options?.emailRedirectTo || getAuthRedirectUrl(),
         captcha_token: captchaToken,
       })
