@@ -31,23 +31,38 @@ main.app nav[data-approval-open='true'] button.active:not(.mgsm-approval-nav-tab
 .registration-approval-title h1{margin:0 0 4px;font-size:32px}
 .registration-approval-title p{margin:0;color:#666;line-height:1.45}
 .registration-approval-title>button{border:0;border-radius:12px;background:#eee;padding:11px 14px;font-weight:800;cursor:pointer}
+.registration-approval-subtabs{display:flex;gap:8px;margin:0 0 16px;padding:5px;background:#f0f0f0;border-radius:14px}
+.registration-approval-subtabs button{flex:1;border:0;border-radius:10px;min-height:44px;padding:9px 12px;background:transparent;color:#555;font-weight:800;cursor:pointer}
+.registration-approval-subtabs button.active{background:#b5121b;color:#fff;box-shadow:0 5px 16px rgba(181,18,27,.18)}
 .registration-approval-message{margin:0 0 16px;padding:12px 14px;border-radius:12px;background:#f1f1f1;font-weight:700}
 .registration-approval-section{background:#fff;border:1px solid #e5e5e5;border-radius:18px;padding:16px;margin-bottom:16px;box-shadow:0 10px 30px rgba(0,0,0,.05)}
 .registration-approval-section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
 .registration-approval-section-head h2{margin:0;font-size:21px}
 .registration-approval-section-head span{color:#666;font-size:13px}
 .registration-request-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px;border:1px solid #e8e8e8;border-radius:14px;margin-top:10px;background:#fafafa}
-.registration-request-card.rejected{opacity:.78}
+.registration-request-card.rejected{opacity:1;background:#fffafa;border-color:#f0d6d6}
 .registration-request-info{display:flex;flex-direction:column;gap:4px;min-width:0}
 .registration-request-info strong{font-size:17px}
 .registration-request-info span{color:#333}
 .registration-request-info small{color:#666}
+.registration-rejection-reason{margin-top:7px;padding:9px 10px;border-radius:9px;background:#f8eeee;color:#6f2424;font-size:13px;line-height:1.4}
 .registration-request-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .registration-request-actions button{border:0;border-radius:10px;min-height:42px;padding:9px 12px;font-weight:800;cursor:pointer}
 .registration-request-actions .approve{background:#dff4e6;color:#12662e}
 .registration-request-actions .reject{background:#fde2e2;color:#8b1010}
 .registration-request-actions button:disabled{opacity:.55;cursor:wait}
 .registration-approval-empty{padding:18px;border-radius:12px;background:#f6f6f6;color:#666;text-align:center}
+.registration-reject-backdrop{position:fixed;inset:0;z-index:250000;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:18px}
+.registration-reject-dialog{width:min(520px,100%);box-sizing:border-box;background:#fff;border-radius:20px;padding:22px;box-shadow:0 25px 80px rgba(0,0,0,.35)}
+.registration-reject-dialog h2{margin:0 0 8px;font-size:24px}
+.registration-reject-dialog p{margin:0 0 16px;color:#555;line-height:1.5}
+.registration-reject-dialog label{display:flex;flex-direction:column;gap:7px;font-weight:800}
+.registration-reject-dialog label span{font-weight:500;color:#777}
+.registration-reject-dialog textarea{width:100%;box-sizing:border-box;resize:vertical;border:1px solid #d7d7d7;border-radius:11px;padding:11px;font:inherit;min-height:86px}
+.registration-reject-dialog-actions{display:flex;gap:9px;margin-top:16px}
+.registration-reject-dialog-actions button{flex:1;border:0;border-radius:11px;min-height:44px;font-weight:800;cursor:pointer}
+.registration-reject-dialog-actions .cancel{background:#eee;color:#333}
+.registration-reject-dialog-actions .confirm{background:#b5121b;color:#fff}
 .pending-approval-gate{position:fixed;inset:0;z-index:200000;background:rgba(20,20,20,.76);display:grid;place-items:center;padding:20px}
 .pending-approval-card{width:min(520px,100%);box-sizing:border-box;background:#fff;border-radius:22px;padding:28px;text-align:center;box-shadow:0 28px 90px rgba(0,0,0,.4)}
 .pending-approval-icon{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px;background:#fff0bf;font-size:28px}
@@ -56,4 +71,4 @@ main.app nav[data-approval-open='true'] button.active:not(.mgsm-approval-nav-tab
 .pending-approval-card p{line-height:1.55;color:#4f4f4f}
 .pending-approval-note{display:block;margin:14px 0;padding:11px;border-radius:12px;background:#f4f4f4;color:#333;line-height:1.45}
 .pending-approval-card button{border:0;border-radius:11px;background:#b5121b;color:#fff;min-height:44px;padding:10px 18px;font-weight:800;cursor:pointer}
-@media(max-width:760px){.registration-approval-title{flex-direction:column}.registration-approval-title h1{font-size:27px}.registration-approval-title>button{width:100%}.registration-approval-section{padding:12px}.registration-approval-section-head{align-items:flex-start;flex-direction:column}.registration-request-card{grid-template-columns:1fr}.registration-request-actions{justify-content:stretch}.registration-request-actions button{flex:1 1 140px}.pending-approval-card{padding:22px 18px}.pending-approval-card h1{font-size:23px}}
+@media(max-width:760px){.registration-approval-title{flex-direction:column}.registration-approval-title h1{font-size:27px}.registration-approval-title>button{width:100%}.registration-approval-subtabs{flex-direction:column}.registration-approval-section{padding:12px}.registration-approval-section-head{align-items:flex-start;flex-direction:column}.registration-request-card{grid-template-columns:1fr}.registration-request-actions{justify-content:stretch}.registration-request-actions button{flex:1 1 140px}.registration-reject-dialog{padding:19px 16px}.registration-reject-dialog-actions{flex-direction:column}.pending-approval-card{padding:22px 18px}.pending-approval-card h1{font-size:23px}}
