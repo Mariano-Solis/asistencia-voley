@@ -1,0 +1,66 @@
+/* =========================================================
+   HISTORIAL · ACCIONES DE SESIÓN VISIBLES
+   The native session card already opens the editable detail view.
+   Make that capability explicit and make the destructive action easy to find.
+========================================================= */
+
+main.app .session-list .session-card > span:last-child {
+  min-width: 132px;
+  font-size: 0;
+  text-align: right;
+  color: #8f0d14;
+  font-weight: 800;
+}
+
+main.app .session-list .session-card > span:last-child::after {
+  content: "Modificar / Eliminar →";
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+main.app .session-detail .record-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+main.app .session-detail .record-actions .danger {
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid #efb6ba;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #9f1119 !important;
+  font-weight: 800;
+}
+
+main.app .session-detail .record-actions .danger:hover,
+main.app .session-detail .record-actions .danger:focus-visible {
+  background: #fde2e4;
+  border-color: #c51f28;
+}
+
+@media (max-width: 768px) {
+  main.app .session-list .session-card {
+    align-items: center;
+    gap: 10px;
+  }
+
+  main.app .session-list .session-card > span:last-child {
+    min-width: 104px;
+  }
+
+  main.app .session-list .session-card > span:last-child::after {
+    content: "Modificar →";
+    font-size: 11px;
+  }
+
+  main.app .session-detail .detail-head {
+    gap: 10px;
+  }
+
+  main.app .session-detail .record-actions .danger {
+    width: 100%;
+  }
+}
