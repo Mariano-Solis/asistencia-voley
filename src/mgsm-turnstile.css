@@ -1,0 +1,33 @@
+.mgsm-turnstile-wrap {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin: 6px 0 2px;
+  padding: 12px;
+  border: 1px solid #e3e7ed;
+  border-radius: 14px;
+  background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.mgsm-turnstile-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #17253a;
+}
+
+.mgsm-turnstile-widget {
+  width: 100%;
+  min-height: 65px;
+}
+
+.mgsm-turnstile-wrap small {
+  color: #64748b;
+  line-height: 1.35;
+}
+
+@media (max-width: 480px) {
+  .mgsm-turnstile-wrap {
+    padding: 10px;
+  }
+}
