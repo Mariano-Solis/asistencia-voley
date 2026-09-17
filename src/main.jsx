@@ -8,6 +8,7 @@ import WorkflowCore from './WorkflowCore'
 import PermissionsEnhancement from './PermissionsEnhancement'
 import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import AttendanceSaveGuard from './AttendanceSaveGuard'
+import AttendanceEmptyInitialState from './AttendanceEmptyInitialState'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
 import PaymentHubStable from './PaymentHubStable'
 import AdminPaymentsPage from './AdminPaymentsPage'
@@ -70,6 +71,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PermissionsEnhancement />
     <SafePlayerAttendanceFilter />
     <AttendanceSaveGuard />
+    <AttendanceEmptyInitialState />
     <ProfessorTrainingHub />
     <PaymentHubStable />
     <AdminPaymentsPage />
