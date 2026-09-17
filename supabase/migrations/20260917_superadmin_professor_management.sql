@@ -16,10 +16,10 @@ declare
   actor_active boolean;
   actor_status text;
 begin
-  select role, active, approval_status
+  select pr.role, pr.active, pr.approval_status
     into actor_role, actor_active, actor_status
-  from public.profiles
-  where id = actor;
+  from public.profiles pr
+  where pr.id = actor;
 
   if actor is null
      or actor_role <> 'super_admin'
@@ -29,11 +29,11 @@ begin
   end if;
 
   return query
-  select p.id, p.full_name, u.email::text, p.active, p.approval_status
-  from public.profiles p
-  left join auth.users u on u.id = p.id
-  where p.role = 'admin'
-  order by p.full_name nulls last;
+  select pr.id, pr.full_name, u.email::text, pr.active, pr.approval_status
+  from public.profiles pr
+  left join auth.users u on u.id = pr.id
+  where pr.role = 'admin'
+  order by pr.full_name nulls last;
 end;
 $$;
 
@@ -57,10 +57,10 @@ declare
   actor_active boolean;
   actor_status text;
 begin
-  select role, active, approval_status
+  select pr.role, pr.active, pr.approval_status
     into actor_role, actor_active, actor_status
-  from public.profiles
-  where id = actor;
+  from public.profiles pr
+  where pr.id = actor;
 
   if actor is null
      or actor_role <> 'super_admin'
@@ -73,11 +73,11 @@ begin
     raise exception 'El nombre del profe es obligatorio.';
   end if;
 
-  update public.profiles
+  update public.profiles pr
   set full_name = btrim(p_full_name),
-      active = coalesce(p_active, active)
-  where id = p_professor_id
-    and role = 'admin';
+      active = coalesce(p_active, pr.active)
+  where pr.id = p_professor_id
+    and pr.role = 'admin';
 
   if not found then
     raise exception 'No se encontró el profe indicado.';
