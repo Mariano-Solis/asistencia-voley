@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { supabase } from "./supabase";
 
 const EMPTY_COUNTS = { total: 0, female: 0, male: 0 };
 
@@ -11,52 +12,44 @@ function findPlayersToolbar() {
   }) || null;
 }
 
-function countVisiblePlayers(grid) {
-  if (!grid) return EMPTY_COUNTS;
-  const cards = Array.from(grid.querySelectorAll(":scope > .player-card"));
-  let female = 0;
-  let male = 0;
-
-  cards.forEach((card) => {
-    const categoryText = card.querySelector(".player-card-top p")?.textContent?.trim().toLowerCase() || "";
-    if (categoryText.startsWith("femenino")) female += 1;
-    else if (categoryText.startsWith("masculino")) male += 1;
-  });
-
-  return { total: cards.length, female, male };
+function normalize(value) {
+  return String(value || "").trim().toLocaleLowerCase("es");
 }
 
 export default function PlayerDynamicCounter() {
   const [host, setHost] = useState(null);
+  const [players, setPlayers] = useState([]);
   const [counts, setCounts] = useState(EMPTY_COUNTS);
 
   useEffect(() => {
-    let currentToolbar = null;
-    let currentGrid = null;
-    let gridObserver = null;
-
-    const disconnectGrid = () => {
-      gridObserver?.disconnect();
-      gridObserver = null;
-      currentGrid = null;
+    let alive = true;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("players")
+        .select("id,full_name,sex,category_id,active")
+        .eq("active", true);
+      if (!alive || error) return;
+      setPlayers(data || []);
     };
+    load();
+    const timer = window.setInterval(load, 4000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    let currentToolbar = null;
 
     const refresh = () => {
       const toolbar = findPlayersToolbar();
       if (!toolbar) {
-        if (currentToolbar) {
-          disconnectGrid();
-          currentToolbar = null;
-          setHost(null);
-          setCounts(EMPTY_COUNTS);
-        }
+        currentToolbar = null;
+        setHost(null);
+        setCounts(EMPTY_COUNTS);
         return;
       }
 
       if (toolbar !== currentToolbar) {
-        disconnectGrid();
         currentToolbar = toolbar;
-
         let counterHost = toolbar.parentElement?.querySelector(":scope > .player-dynamic-counter-host");
         if (!counterHost) {
           counterHost = document.createElement("div");
@@ -66,30 +59,24 @@ export default function PlayerDynamicCounter() {
         setHost(counterHost);
       }
 
-      const grid = toolbar.parentElement?.querySelector(":scope > .player-grid") || null;
-      if (grid !== currentGrid) {
-        disconnectGrid();
-        currentGrid = grid;
-        if (grid) {
-          gridObserver = new MutationObserver(() => setCounts(countVisiblePlayers(grid)));
-          gridObserver.observe(grid, { childList: true, subtree: true, characterData: true });
-        }
-      }
-
-      setCounts(countVisiblePlayers(grid));
+      const search = normalize(toolbar.querySelector('input[placeholder="Buscar por nombre"]')?.value);
+      const categoryId = toolbar.querySelector("select")?.value || "all";
+      const visible = players.filter((player) =>
+        (categoryId === "all" || player.category_id === categoryId) &&
+        (!search || normalize(player.full_name).includes(search))
+      );
+      const female = visible.filter((player) => normalize(player.sex) === "female").length;
+      const male = visible.filter((player) => normalize(player.sex) === "male").length;
+      setCounts({ total: visible.length, female, male });
     };
 
     refresh();
-    const timer = window.setInterval(refresh, 350);
+    const timer = window.setInterval(refresh, 250);
     return () => {
       window.clearInterval(timer);
-      disconnectGrid();
-      if (currentToolbar) {
-        const counterHost = currentToolbar.parentElement?.querySelector(":scope > .player-dynamic-counter-host");
-        counterHost?.remove();
-      }
+      if (currentToolbar) currentToolbar.parentElement?.querySelector(":scope > .player-dynamic-counter-host")?.remove();
     };
-  }, []);
+  }, [players]);
 
   if (!host) return null;
 

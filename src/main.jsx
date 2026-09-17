@@ -9,7 +9,6 @@ import PermissionsEnhancement from './PermissionsEnhancement'
 import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import AttendanceSaveGuard from './AttendanceSaveGuard'
 import ProfessorTrainingHub from './ProfessorTrainingHub'
-import MasterCategoryManager from './MasterCategoryManager'
 import PaymentHubStable from './PaymentHubStable'
 import AdminPaymentsPage from './AdminPaymentsPage'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
@@ -45,7 +44,6 @@ import './mgsm-professor-modal-stability.css'
 import './mgsm-ultra-visual.css'
 import './mgsm-ultra-final.css'
 import './mgsm-payments.css'
-import './mgsm-master-category.css'
 import './mgsm-payment-destination.css'
 import './mgsm-payments-stable.css'
 import './mgsm-app-polish.css'
@@ -73,7 +71,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <SafePlayerAttendanceFilter />
     <AttendanceSaveGuard />
     <ProfessorTrainingHub />
-    <MasterCategoryManager />
     <PaymentHubStable />
     <AdminPaymentsPage />
     <AdminDualTopbarAction />
