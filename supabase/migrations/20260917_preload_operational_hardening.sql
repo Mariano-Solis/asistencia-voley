@@ -1,11 +1,11 @@
 -- Pre-load operational hardening for the semi-massive data entry day.
--- 1) Keep automatic category calculation deterministic and caller-independent.
+-- 1) Separate automatic category calculation from administrative manual overrides.
 -- 2) Make dual-role player self-enrollment pending until human approval.
 -- 3) Prevent regular professors from approving their own player request.
 -- 4) Remove anonymous execution from approval-management RPCs.
 -- 5) Cover the app_ui_settings foreign key flagged by the performance advisor.
 
-create or replace function public.calculate_player_category(p_birth_date date, p_sex text)
+create or replace function public.calculate_player_category_auto(p_birth_date date, p_sex text)
 returns uuid
 language plpgsql
 stable security definer
@@ -47,6 +47,38 @@ begin
 end;
 $function$;
 
+-- Existing administrative screens start with the explicitly selected category and
+-- only replace it if this RPC returns an id. Returning null for an approved admin
+-- therefore makes the human-selected category authoritative, while public/trigger
+-- flows continue using the automatic result.
+create or replace function public.calculate_player_category(p_birth_date date, p_sex text)
+returns uuid
+language plpgsql
+stable security definer
+set search_path to 'public'
+as $function$
+begin
+  if exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role in ('admin','super_admin')
+      and p.active = true
+      and p.approval_status = 'approved'
+  ) then
+    return null;
+  end if;
+
+  return public.calculate_player_category_auto(p_birth_date, p_sex);
+end;
+$function$;
+
+-- The helper is internal. Postgres function owners can still call it from the
+-- SECURITY DEFINER routines below, but it is not exposed as a client RPC.
+revoke all on function public.calculate_player_category_auto(date,text) from public;
+revoke all on function public.calculate_player_category_auto(date,text) from anon;
+revoke all on function public.calculate_player_category_auto(date,text) from authenticated;
+
 create or replace function public.create_my_player_profile(
   p_first_name text,
   p_last_name text,
@@ -78,7 +110,7 @@ begin
     raise exception 'Esta función es solo para Profes o Super Admin.';
   end if;
 
-  category_value := public.calculate_player_category(p_birth_date, p_sex);
+  category_value := public.calculate_player_category_auto(p_birth_date, p_sex);
   if category_value is null then
     raise exception 'No se pudo determinar una categoría automática. Revisá sexo, fecha de nacimiento y categorías activas.';
   end if;
