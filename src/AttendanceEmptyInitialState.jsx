@@ -17,6 +17,19 @@ function setWaitingState(filterCard, attendanceCard, activityLabel, activityPick
   if (activityPicker) activityPicker.hidden = waiting;
 }
 
+function restoreWaitingVisual(section) {
+  if (!section) return;
+  const select = section.querySelector('select[data-attendance-category-proxy="true"]');
+  const filterCard = select?.closest(".filter-card");
+  if (!select || !filterCard || filterCard.dataset.attendanceWaitingCategory !== "true") return;
+
+  // React puede volver a pintar el valor interno de la primera categoría después
+  // de terminar la lectura. Restauramos SOLO el valor visual del select. Asignar
+  // select.value no modifica el árbol DOM ni dispara change, por lo que no crea
+  // ciclos de MutationObserver/re-render.
+  if (select.value !== PLACEHOLDER_VALUE) select.value = PLACEHOLDER_VALUE;
+}
+
 function prepare(section) {
   if (!section || section.dataset.emptyInitialStateReady === "true") return;
 
@@ -40,10 +53,14 @@ function prepare(section) {
   const applySelectionState = (event) => {
     const waiting = !select.value || select.value === PLACEHOLDER_VALUE;
 
+    // El placeholder es únicamente el estado neutro de entrada. No se envía a
+    // React como category_id y por eso jamás puede crear/cargar una sesión falsa.
     if (waiting && event) event.stopPropagation();
+
     setWaitingState(filterCard, attendanceCard, activityLabel, activityPicker, waiting);
   };
 
+  filterCard.dataset.attendanceWaitingCategory = "true";
   select.value = PLACEHOLDER_VALUE;
   applySelectionState();
 
@@ -53,12 +70,24 @@ function prepare(section) {
 export default function AttendanceEmptyInitialState() {
   useEffect(() => {
     const refresh = () => prepare(findAttendanceSection());
+    const restore = () => restoreWaitingVisual(findAttendanceSection());
+
     refresh();
 
+    // El observer se usa solamente para descubrir la pantalla cuando se navega a
+    // Asistencia. prepare() es idempotente y no resincroniza un nodo ya preparado.
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    return () => observer.disconnect();
+    // AppNew emite este evento al cambiar loading/dirty/saving. Cuando finaliza la
+    // carga inicial, React puede haber repintado Master A: corregimos solo el value
+    // visual, sin tocar hidden, atributos ni estado React y sin provocar un loop.
+    window.addEventListener("voley:attendance-state", restore);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("voley:attendance-state", restore);
+    };
   }, []);
 
   return null;
