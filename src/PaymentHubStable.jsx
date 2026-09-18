@@ -444,13 +444,13 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
                 </div>
                 <b className={`stable-pay-state ${state.cls}`}>{state.label}</b>
                 <div className="stable-pay-row-actions">
-                  {payment?.receipt_path ? <button type="button" onClick={() => openReceipt(payment.receipt_path, setMessage)}>👁 Ver</button> : <span>Sin archivo</span>}
+                  {payment?.receipt_path ? <button type="button" onClick={() => openReceipt(payment.receipt_path, setMessage)}>👁 Ver</button> : <span>Sin Archivo</span>}
                   {role === "super_admin" && payment?.receipt_path && ["manual_review", "pending_validation", "rejected"].includes(payment.validation_status) && <>
                     <button type="button" className="approve" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "validated")}>✓ Aprobar</button>
                     {payment.validation_status !== "rejected" && <button type="button" className="reject" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "rejected")}>✕ Rechazar</button>}
                   </>}
                   {role === "super_admin" && payment?.validation_status === "validated" && (
-                    <button type="button" className="revoke" disabled={reviewing === payment.id || bulkReviewing} onClick={() => revokePayment(payment.id, player.full_name)}>↩ Revocar aprobación</button>
+                    <button type="button" className="revoke" disabled={reviewing === payment.id || bulkReviewing} onClick={() => revokePayment(payment.id, player.full_name)}>↩ Revocar Aprobación</button>
                   )}
                 </div>
               </article>
