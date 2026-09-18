@@ -60,5 +60,8 @@ import './mgsm-player-dynamic-counter.css'
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <App />
+  <>
+    <App />
+    <ProfessorTrainingHub />
+  </>
 )
