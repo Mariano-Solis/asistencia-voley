@@ -1,9 +1,9 @@
-export const CONFLICT_MESSAGE = 'La asistencia fue modificada por otro profesor. Revisá los cambios antes de continuar.';
-export const OFFLINE_MESSAGE = 'Sin conexión. Tus cambios todavía no se guardaron. Volvé a intentarlo cuando recuperes conexión.';
+export const CONFLICT_MESSAGE = 'La Asistencia Fue Modificada Por Otro Profesor. Revisá Los Cambios Antes De Continuar.';
+export const OFFLINE_MESSAGE = 'Sin Conexión. Tus Cambios Todavía No Se Guardaron. Volvé A Intentarlo Cuando Recuperes Conexión.';
 export function attendanceWriteError(error) {
   const message = String(error?.message || '');
   if (navigator.onLine === false || /failed to fetch|fetch failed|networkerror|network request failed|load failed/i.test(message)) return OFFLINE_MESSAGE;
-  return message || 'No se pudo guardar la asistencia. Volvé a intentarlo.';
+  return message || 'No Se Pudo Guardar La Asistencia. Volvé A Intentarlo.';
 }
 export function attendanceFingerprint(session, rows) {
   const fields = ['opponent','event_location','event_start_date','event_end_date','tournament_location','tournament_start_date','tournament_end_date'];
