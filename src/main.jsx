@@ -9,7 +9,6 @@ import PermissionsEnhancement from './PermissionsEnhancement'
 import SafePlayerAttendanceFilter from './SafePlayerAttendanceFilter'
 import AttendanceSaveGuard from './AttendanceSaveGuard'
 import AttendanceEmptyInitialState from './AttendanceEmptyInitialState'
-import ProfessorTrainingHub from './ProfessorTrainingHub'
 import PaymentHubStable from './PaymentHubStable'
 import AdminPaymentsPage from './AdminPaymentsPage'
 import AdminDualTopbarAction from './AdminDualTopbarAction'
@@ -62,6 +61,5 @@ document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLo
 ReactDOM.createRoot(document.getElementById('root')).render(
   <>
     <App />
-    <ProfessorTrainingHub />
   </>
 )
