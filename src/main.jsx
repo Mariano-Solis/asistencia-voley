@@ -1,5 +1,4 @@
 import ReactDOM from 'react-dom/client'
-import { useEffect, useState } from 'react'
 import App from './App'
 import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
 import PhotoSourcePicker from './PhotoSourcePicker'
@@ -61,51 +60,6 @@ import './mgsm-player-dynamic-counter.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
-function AuthenticatedEnhancers() {
-  const [active, setActive] = useState(() => !!document.querySelector('main.app, main.player-dashboard, .player-dashboard'))
-  useEffect(() => {
-    let frame = 0
-    const sync = () => {
-      frame = 0
-      const next = !!document.querySelector('main.app, main.player-dashboard, .player-dashboard')
-      setActive(current => current === next ? current : next)
-    }
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(sync)
-    }
-    sync()
-    const observer = new MutationObserver(schedule)
-    observer.observe(document.getElementById('root'), { childList: true, subtree: true })
-    return () => {
-      observer.disconnect()
-      if (frame) cancelAnimationFrame(frame)
-    }
-  }, [])
-  if (!active) return null
-  return <>
-    <DualRoleSelfEnrollment />
-    <ProfessorDeleteManager />
-    <WorkflowCore />
-    <PermissionsEnhancement />
-    <SafePlayerAttendanceFilter />
-    <AttendanceSaveGuard />
-    <AttendanceEmptyInitialState />
-    <ProfessorTrainingHub />
-    <PaymentHubStable />
-    <AdminPaymentsPage />
-    <AdminDualTopbarAction />
-    <FeatureTabManager />
-    <PlayerTabVisibilityGuard />
-    <PlayerInstitutionalFooter />
-    <AdminHeaderPaymentPolish />
-    <CategoryAdminManager />
-    <RegistrationApprovalManager />
-    <SuperAdminPlayerEmail />
-    <PlayerDynamicCounter />
-    <AppPolish />
-  </>
-}
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <>
     <App />
@@ -114,6 +68,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PasswordVisibilityEnhancer />
     <RegistrationTurnstile />
     <PendingApprovalGate />
-    <AuthenticatedEnhancers />
   </>
 )
