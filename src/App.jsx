@@ -136,7 +136,7 @@ function AuthRecovery() {
       if (error) {
         const text = String(error.message || "");
         if (/already confirmed|confirmed/i.test(text)) {
-          setMessage("Esta cuenta ya está verificada. No necesitás otro correo de confirmación. Si no podés entrar, usá «¿Olvidaste Tu Contraseña?».");
+          setMessage("Esta Cuenta Ya Está Verificada. No Necesitás Otro Correo De Confirmación. Si No Podés Entrar, Usá «¿Olvidaste Tu Contraseña?».");
         } else {
           throw error;
         }
