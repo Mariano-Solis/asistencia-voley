@@ -28,7 +28,7 @@ export default function PlayerInstitutionalFooter() {
   return createPortal(
     <footer className="player-institutional-footer" aria-label="Municipalidad de San Martín VOLEY">
       <img src="/Logo.jpg" alt="Municipalidad de San Martín - VOLEY" />
-      <span>Municipalidad de San Martín - VOLEY - #vamoselpoli</span>
+      <span>Municipalidad de San Martín - VOLEY - #VamosElPoli</span>
     </footer>,
     target
   )
