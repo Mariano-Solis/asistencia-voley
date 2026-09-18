@@ -61,7 +61,7 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
     try {
       if (mode === "player") {
         if (email && password) {
-          const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw error; onPlayer(data.session);
+          const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw error; await onPlayer(data.session);
         } else {
           const { data, error } = await supabase.rpc("player_login", { p_name: name.trim(), p_code: code.trim().toUpperCase() }); if (error) throw error;
           if (!data?.ok) throw new Error(data?.message || "Nombre O Código Incorrectos.");
@@ -95,7 +95,10 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
         const playerRow = await supabase.from("players").select("*").eq("user_id", uid).single();
         if (playerRow.error) throw playerRow.error;
         if (selfie) { const path = `${uid}/${Date.now()}-${selfie.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; const up = await supabase.storage.from("player-selfies").upload(path, selfie, { upsert: true, contentType: selfie.type || "image/jpeg" }); if (!up.error) await supabase.from("players").update({ selfie_path: path }).eq("id", playerRow.data.id); }
-        setMessage(`✓ Cuenta Creada. Tu Código Personal Es ${playerRow.data.access_code}. Guardalo: También Podés Copiarlo Desde Tu Perfil.`); onPlayer(data.session);
+        await supabase.auth.signOut({ scope: "local" });
+        setMessage("✓ Cuenta Creada Correctamente. Queda Pendiente De Aprobación. Cuando Un Profe Autorizado O El Super Administrador La Apruebe, Podrás Ingresar.");
+        setMode("player");
+        return;
       }
     } catch (e) { setMessage(errorText(e)); } finally { setLoading(false); onAuthEnd?.(); }
   }
@@ -496,7 +499,12 @@ function App() {
     const p = await supabase.from('profiles').select('*').eq('id',current.user.id).maybeSingle();
     if (epoch !== authEpoch.current) return;
     if (p.error || !p.data) { clearIdentity(); return; }
-    if (p.data.role === 'player') { setSession(null); setProfile(null); setPlayerSession(current); return; }
+    if (p.data.role === 'player') {
+      setSession(null); setProfile(null);
+      if (p.data.active === true && p.data.approval_status === 'approved') setPlayerSession(current);
+      else setPlayerSession(null);
+      return;
+    }
     if (!['admin','super_admin'].includes(p.data.role)) { clearIdentity(); return; }
     const [c, pe, ps, ui, pref] = await Promise.all([
       supabase.from('categories').select('*').eq('active',true).order('gender').order('name'),
@@ -536,12 +544,34 @@ function App() {
   const logout=async()=>{authEpoch.current++;removeStoredPlayer(localStorage);clearIdentity();await supabase.auth.signOut({scope:'local'});};
   async function acceptAdmin(current) {
     if (!isAuthSession(current)) throw new Error('La Sesión No Es Válida. Volvé A Ingresar.');
-    const p = await supabase.from('profiles').select('role').eq('id',current.user.id).maybeSingle();
-    if (p.error || !['admin','super_admin'].includes(p.data?.role)) {
+    const p = await supabase.from('profiles').select('role,active,approval_status').eq('id',current.user.id).maybeSingle();
+    if (p.error || !['admin','super_admin'].includes(p.data?.role) || p.data?.active !== true || p.data?.approval_status !== 'approved') {
       clearIdentity(); await supabase.auth.signOut({scope:'local'});
-      throw new Error('Esta Cuenta No Tiene Acceso Como Profe. Ingresá Desde Jugador@s.');
+      throw new Error('Esta Cuenta No Tiene Acceso Como Profe Aprobado.');
     }
     await applySession(current);
+  }
+  async function acceptPlayer(current) {
+    if (isLegacySession(current)) {
+      storeLegacyPlayer(current);
+      setPlayerSession(current);
+      return;
+    }
+    if (!isAuthSession(current)) throw new Error('La Sesión No Es Válida. Volvé A Ingresar.');
+    const p = await supabase.from('profiles').select('role,active,approval_status').eq('id',current.user.id).maybeSingle();
+    if (p.error || !p.data) {
+      clearIdentity(); await supabase.auth.signOut({scope:'local'});
+      throw new Error('No Se Pudo Verificar El Estado De Tu Cuenta.');
+    }
+    if (p.data.role !== 'player') {
+      clearIdentity(); await supabase.auth.signOut({scope:'local'});
+      throw new Error('Esta Cuenta No Corresponde A Un Jugador@.');
+    }
+    if (p.data.active !== true || p.data.approval_status !== 'approved') {
+      clearIdentity(); await supabase.auth.signOut({scope:'local'});
+      throw new Error('Tu Cuenta Está Pendiente De Aprobación. Un Profe Autorizado O El Super Administrador Debe Aprobarla Antes De Que Puedas Ingresar.');
+    }
+    setPlayerSession(current);
   }
   if (dualPlayerMode&&isAuthSession(session)) return <PlayerDashboard session={session} onLogout={logout} onBackAdmin={()=>setDualPlayerMode(false)}/>;
   if ((isAuthSession(playerSession)||isLegacySession(playerSession))&&!session) return <PlayerDashboard session={playerSession} onLogout={logout}/>;
@@ -549,7 +579,7 @@ function App() {
     onAuthStart={mode=>{authIntent.current=mode;authEpoch.current++;}}
     onAuthEnd={()=>{authIntent.current=null;}}
     onAdmin={acceptAdmin}
-    onPlayer={current=>{if(isLegacySession(current)){storeLegacyPlayer(current);setPlayerSession(current);}else if(isAuthSession(current)){setPlayerSession(current);}}}/>;
+    onPlayer={acceptPlayer}/>;
   const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['payments','Pagos'],['requests','Solicitudes']];
   if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Mi Perfil']);
   if(profile.role==='super_admin')nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
