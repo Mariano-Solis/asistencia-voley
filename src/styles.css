@@ -449,3 +449,35 @@ footer{grid-column:2;grid-row:3;background:#fff;color:#555;border-top:4px solid 
   .category-edit-grid>input{grid-column:1/-1}
   .category-edit-grid>button{width:100%}
 }
+
+
+/* ===== SOLAPAS COMO PESTAÑA NORMAL ===== */
+.solapas-page-card{padding:18px}
+.solapas-page-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.solapas-page-grid .solapas-option{margin:0;padding:13px 14px;border:1px solid #ececef;border-radius:12px;background:#fafafa}
+.solapas-page-grid .solapas-option input[type="checkbox"]{width:20px!important;height:20px!important;min-width:20px!important}
+@media(max-width:680px){.solapas-page-grid{grid-template-columns:1fr}}
+
+/* Mi Perfil: sin selección debe verse como una solapa normal blanca. */
+.app>nav .player-profile-nav{
+  background:#fff!important;
+  color:#3b3b3b!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
+.app>nav .player-profile-nav:hover{
+  background:#fff1f2!important;
+  color:var(--mgsm-red)!important;
+  border-color:#f8d6d9!important;
+}
+
+/* Selector de Profe: placeholder neutro hasta elección explícita. */
+.permission-professor-picker{padding:16px}
+.permission-professor-picker label{display:grid;gap:8px;font-weight:800;color:#3d4148}
+.permission-empty{margin-top:14px}
+
+/* El encabezado móvil ya no aloja Solapas: mantener sólo identidad + Salir. */
+@media(max-width:820px){
+  .topbar .top-user{margin-left:auto}
+  .topbar .top-user>button{min-width:58px}
+}
