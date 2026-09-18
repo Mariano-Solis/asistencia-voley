@@ -516,16 +516,7 @@ function DualRoleRouter() {
     <>
       <AppNew />
       <ProfessorSelfSignup />
-      {isDual && adminVisible && (
-        <button
-          type="button"
-          className="product-secondary-action"
-          onClick={switchPlayer}
-          style={{ position: "fixed", right: 18, bottom: 18, zIndex: 9998, border: 0, borderRadius: 999, padding: "12px 16px", background: "#111", color: "#fff", fontWeight: 800, boxShadow: "0 8px 24px rgba(0,0,0,.22)", cursor: "pointer" }}
-        >
-          🏐 Ir a mi perfil de Jugador@
-        </button>
-      )}
+
     </>
   );
 }
