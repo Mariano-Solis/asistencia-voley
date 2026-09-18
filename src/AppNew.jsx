@@ -214,7 +214,39 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
     }catch(error){draftRef.current=true;setDirty(true);setMsg(attendanceWriteError(error));}
     finally{savingRef.current=false;setSaving(false);}
   }
-  return <section data-attendance-dirty={dirty ? "true" : "false"} data-attendance-loaded-at={loadedAt || ""}><PageTitle title="Asistencia" text="Tomá y modificá la asistencia de cada Jugador@." action={<input type="date" value={date} disabled={saving} onChange={changeDate}/>}/><div className="card filter-card"><label>Categoría</label><select data-attendance-category-proxy="true" value={categoryId} disabled={saving} onChange={changeCategory}><option value="">Sin Categoría</option>{editable.map(c => <option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select>{categoryId && <><label>Actividad</label><div className="activity-picker">{Object.entries(TYPES).map(([k,v]) => <button type="button" key={k} className={type === k && open ? "active" : type === k ? "selected" : ""} disabled={saving} onClick={() => changeActivity(k)}>{v[0]} {v[1]}</button>)}</div>{open && type === "match" && <div className="event-grid"><label>Rival<input value={details.opponent} disabled={saving || loading} onChange={e => editDetails(d => ({...d, opponent: e.target.value}))}/></label><label>Lugar<input value={details.location} disabled={saving || loading} onChange={e => editDetails(d => ({...d, location: e.target.value}))}/></label></div>}{open && type === "tournament" && <div className="event-grid"><label>Lugar<input value={details.location} disabled={saving || loading} onChange={e => editDetails(d => ({...d, location: e.target.value}))}/></label><label>Desde<input type="date" value={details.start} disabled={saving || loading} onChange={e => editDetails(d => ({...d, start: e.target.value}))}/></label><label>Hasta<input type="date" value={details.end} disabled={saving || loading} onChange={e => editDetails(d => ({...d, end: e.target.value}))}/></label></div>}</>}</></div>{categoryId && <div className="card attendance-card"><div className="card-head"><h3>{plural(categories.find(c => c.id === categoryId)?.gender)} · {categoryName(categories, categoryId)}</h3><span>{list.length} Jugador@s</span></div>{list.length ? list.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.team ? `Equipo ${p.team}` : "Sin asignar"}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>) : <Empty text="No hay Jugador@s en esta categoría."/>}<button className="primary wide" disabled={saving || loading || conflict || !open || !list.length} onClick={save}>{saving ? "Guardando..." : "Guardar / modificar registro"}</button>{msg && <div className="message" role="status">{msg}</div>}{conflict && <button type="button" className="attendance-review" disabled={saving} onClick={reviewChanges}>Revisar cambios guardados</button>}{loadedAt && <small className="attendance-loaded">Última lectura: {new Date(loadedAt).toLocaleTimeString()}</small>}</div></section>;
+  return <section data-attendance-dirty={dirty ? "true" : "false"} data-attendance-loaded-at={loadedAt || ""}>
+    <PageTitle title="Asistencia" text="Tomá y modificá la asistencia de cada Jugador@." action={<input type="date" value={date} disabled={saving} onChange={changeDate}/>}/>
+    <div className="card filter-card">
+      <label>Categoría</label>
+      <select data-attendance-category-proxy="true" value={categoryId} disabled={saving} onChange={changeCategory}>
+        <option value="">Sin Categoría</option>
+        {editable.map(c => <option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}
+      </select>
+      {categoryId && <>
+        <label>Actividad</label>
+        <div className="activity-picker">
+          {Object.entries(TYPES).map(([k,v]) => <button type="button" key={k} className={type === k && open ? "active" : type === k ? "selected" : ""} disabled={saving} onClick={() => changeActivity(k)}>{v[0]} {v[1]}</button>)}
+        </div>
+        {open && type === "match" && <div className="event-grid">
+          <label>Rival<input value={details.opponent} disabled={saving || loading} onChange={e => editDetails(d => ({...d, opponent: e.target.value}))}/></label>
+          <label>Lugar<input value={details.location} disabled={saving || loading} onChange={e => editDetails(d => ({...d, location: e.target.value}))}/></label>
+        </div>}
+        {open && type === "tournament" && <div className="event-grid">
+          <label>Lugar<input value={details.location} disabled={saving || loading} onChange={e => editDetails(d => ({...d, location: e.target.value}))}/></label>
+          <label>Desde<input type="date" value={details.start} disabled={saving || loading} onChange={e => editDetails(d => ({...d, start: e.target.value}))}/></label>
+          <label>Hasta<input type="date" value={details.end} disabled={saving || loading} onChange={e => editDetails(d => ({...d, end: e.target.value}))}/></label>
+        </div>}
+      </>}
+    </div>
+    {categoryId && <div className="card attendance-card">
+      <div className="card-head"><h3>{plural(categories.find(c => c.id === categoryId)?.gender)} · {categoryName(categories, categoryId)}</h3><span>{list.length} Jugador@s</span></div>
+      {list.length ? list.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.team ? `Equipo ${p.team}` : "Sin asignar"}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>) : <Empty text="No hay Jugador@s en esta categoría."/>}
+      <button className="primary wide" disabled={saving || loading || conflict || !open || !list.length} onClick={save}>{saving ? "Guardando..." : "Guardar / modificar registro"}</button>
+      {msg && <div className="message" role="status">{msg}</div>}
+      {conflict && <button type="button" className="attendance-review" disabled={saving} onClick={reviewChanges}>Revisar cambios guardados</button>}
+      {loadedAt && <small className="attendance-loaded">Última lectura: {new Date(loadedAt).toLocaleTimeString()}</small>}
+    </div>}
+  </section>;
 }
 function Avatar({ player }) { if (player?.selfie_path) { const { data } = supabase.storage.from("player-selfies").getPublicUrl(player.selfie_path); return <img className="avatar photo" src={data.publicUrl} alt=""/>; } return <div className="avatar">{player?.full_name?.charAt(0)?.toUpperCase() || "J"}</div>; }
 function PageTitle({ title, text, action }) { return <div className="page-title"><div><h1>{title}</h1><p>{text}</p></div>{action}</div>; }
