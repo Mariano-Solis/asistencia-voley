@@ -254,7 +254,7 @@ function PlayerPaymentPanel({ player, onClose }) {
   );
 }
 
-export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, embedded = false }) {
+export function AdminPaymentPanel({ role, canApprovePayments = role === "super_admin", onClose, embedded = false }) {
   const period = currentPeriod();
   const refreshInFlightRef = useRef(false);
   const [players, setPlayers] = useState([]);
