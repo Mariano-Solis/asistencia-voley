@@ -76,14 +76,14 @@ export default function TrainingSchedule({ playerMode = false }) {
     <section className={`training-schedule ${playerMode ? "training-schedule-player" : ""}`}>
       <div className="training-schedule-head">
         <div>
-          <span className="training-schedule-eyebrow">🏐 Municipalidad de San Martín - VOLEY</span>
+          <span className="training-schedule-eyebrow">🏐 Municipalidad De San Martín - VOLEY</span>
           <h1>Horarios</h1>
-          <p>Horarios de entrenamiento por día, cancha y categoría.</p>
+          <p>Horarios De Entrenamiento Por Día, Cancha y Categoría.</p>
         </div>
         <div className="training-schedule-badge">#VamosElPoli</div>
       </div>
 
-      <div className="training-day-tabs" role="tablist" aria-label="Días de entrenamiento">
+      <div className="training-day-tabs" role="tablist" aria-label="Días De Entrenamiento">
         {DAYS.map((day) => (
           <button
             key={day.key}
