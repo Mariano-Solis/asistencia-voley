@@ -39,6 +39,12 @@ async function shareText(title, text) {
 }
 function ageOf(birth) { if (!birth) return "—"; const b = new Date(`${birth}T12:00:00`), n = new Date(); let a = n.getFullYear() - b.getFullYear(); if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--; return a; }
 function categoryName(categories, id) { return categories.find(c => c.id === id)?.name || "Sin Categoría"; }
+function mergeNavigationOrder(items, savedOrder = []) {
+  const labels = items.map(([, label]) => label);
+  const orderedLabels = [...savedOrder.filter(label => labels.includes(label)), ...labels.filter(label => !savedOrder.includes(label))];
+  const byLabel = Object.fromEntries(items.map(item => [item[1], item]));
+  return orderedLabels.map(label => byLabel[label]).filter(Boolean);
+}
 
 function Brand({ compact = false }) { return <div className={`brand ${compact ? "compact" : ""}`}><img src={LOGO} alt="MGSM VOLEY MENDOZA"/><div><strong>{APP_NAME}</strong><span>{TAGLINE}</span></div></div>; }
 
@@ -406,18 +412,62 @@ function RequestsPage({ profile }) {
   return <section className="registration-approval-page"><header className="registration-approval-title"><div><h1>Solicitudes</h1><p>Aprobá Las Cuentas Pendientes Sin Recargar La Página.</p></div><button type="button" onClick={()=>load(true)}>↻ Actualizar</button></header>{msg&&<div className="registration-approval-message">{msg}</div>}{loading?<div className="registration-approval-empty">Cargando Solicitudes...</div>:<>{profile.role==="super_admin"&&<section className="registration-approval-section"><div className="registration-approval-section-head"><h2>👨‍🏫 Profes</h2><span>{pendingProfessors.length} Pendiente{pendingProfessors.length===1?"":"s"}</span></div>{pendingProfessors.length?pendingProfessors.map(x=>card("professor",x)):<div className="registration-approval-empty">No Hay Solicitudes De Profes Pendientes.</div>}</section>}<section className="registration-approval-section"><div className="registration-approval-section-head"><h2>🏐 Jugador@s</h2><span>{pendingPlayers.length} Pendiente{pendingPlayers.length===1?"":"s"}</span></div>{pendingPlayers.length?pendingPlayers.map(x=>card("player",x)):<div className="registration-approval-empty">No Hay Solicitudes De Jugador@s Pendientes.</div>}</section></>}</section>;
 }
 
-function SolapasSettings({ profile, disabledTabs, onSaved }) {
-  const [draft,setDraft]=useState(disabledTabs),[msg,setMsg]=useState(""),[saving,setSaving]=useState(false);
-  useEffect(()=>setDraft(disabledTabs),[disabledTabs]);
-  const options=["Asistencia","Jugador@s","Historial","Horarios","Pagos","Solicitudes","Profes","Categorías","Permisos"];
-  async function save(){
-    setSaving(true);setMsg("");
-    try{const r=await supabase.from("app_ui_settings").update({disabled_tabs:draft,updated_at:new Date().toISOString(),updated_by:profile.id}).eq("id","global");if(r.error)throw r.error;onSaved(draft);setMsg("✓ Solapas Actualizadas Correctamente.");}
-    catch(e){setMsg(errorText(e));}finally{setSaving(false);}
+function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationItems, navigationOrder, onSavedOrder }) {
+  const labels = navigationItems.map(([,label])=>label);
+  const [visibilityDraft,setVisibilityDraft]=useState(disabledTabs),[orderDraft,setOrderDraft]=useState(()=>mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label));
+  const [msg,setMsg]=useState(""),[savingVisibility,setSavingVisibility]=useState(false),[savingOrder,setSavingOrder]=useState(false),[dragged,setDragged]=useState("");
+  useEffect(()=>setVisibilityDraft(disabledTabs),[disabledTabs]);
+  useEffect(()=>setOrderDraft(mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label)),[navigationOrder,labels.join("|")]);
+  const visibilityOptions=["Asistencia","Jugador@s","Historial","Horarios","Pagos","Solicitudes","Profes","Categorías","Permisos"];
+
+  function moveLabel(label,direction){
+    setOrderDraft(current=>{
+      const next=[...current], index=next.indexOf(label), target=index+direction;
+      if(index<0||target<0||target>=next.length)return current;
+      [next[index],next[target]]=[next[target],next[index]];
+      return next;
+    });
   }
-  return <section><PageTitle title="Solapas" text="Definí Qué Secciones Ven Profes y Jugador@s. Como Super Admin Siempre Ves Todas."/>
-    <div className="card solapas-page-card"><div className="solapas-page-grid">{options.map(label=><label className="solapas-option" key={label}><input type="checkbox" checked={!draft.includes(label)} onChange={e=>setDraft(cur=>e.target.checked?cur.filter(x=>x!==label):[...cur,label])}/><span>{label}</span></label>)}</div>
-    {msg&&<div className="message">{msg}</div>}<button className="primary wide" type="button" disabled={saving} onClick={save}>{saving?"Guardando...":"Guardar Cambios"}</button></div>
+  function dropOn(target){
+    if(!dragged||dragged===target)return;
+    setOrderDraft(current=>{
+      const next=current.filter(label=>label!==dragged);
+      const index=next.indexOf(target);
+      next.splice(index<0?next.length:index,0,dragged);
+      return next;
+    });
+    setDragged("");
+  }
+  async function saveOrder(){
+    setSavingOrder(true);setMsg("");
+    try{
+      const r=await supabase.from("user_ui_preferences").upsert({user_id:profile.id,navigation_order:orderDraft,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+      if(r.error)throw r.error;
+      onSavedOrder(orderDraft);
+      setMsg("✓ Orden De Solapas Guardado Para Tu Cuenta.");
+    }catch(e){setMsg(errorText(e));}finally{setSavingOrder(false);}
+  }
+  async function saveVisibility(){
+    if(profile.role!=="super_admin")return;
+    setSavingVisibility(true);setMsg("");
+    try{
+      const r=await supabase.from("app_ui_settings").update({disabled_tabs:visibilityDraft,updated_at:new Date().toISOString(),updated_by:profile.id}).eq("id","global");
+      if(r.error)throw r.error;
+      onSavedVisibility(visibilityDraft);
+      setMsg("✓ Visibilidad Global Actualizada Correctamente.");
+    }catch(e){setMsg(errorText(e));}finally{setSavingVisibility(false);}
+  }
+  return <section><PageTitle title="Solapas" text="Ordená Las Secciones A Tu Gusto. Este Orden Es Personal Para Tu Cuenta."/>
+    <div className="card solapas-order-card">
+      <div className="card-head"><div><h2>Orden Personal</h2><span>Arrastrá Las Solapas O Usá Las Flechas. El Cambio Solo Afecta Tu Cuenta.</span></div></div>
+      <div className="solapas-order-list">{orderDraft.map((label,index)=><div className={`solapas-order-item ${dragged===label?"dragging":""}`} key={label} draggable onDragStart={()=>setDragged(label)} onDragEnd={()=>setDragged("")} onDragOver={e=>e.preventDefault()} onDrop={()=>dropOn(label)}>
+        <span className="solapas-drag-handle" title="Arrastrar">☰</span><b>{label}</b>
+        <div className="solapas-order-actions"><button type="button" aria-label={`Subir ${label}`} disabled={index===0} onClick={()=>moveLabel(label,-1)}>↑</button><button type="button" aria-label={`Bajar ${label}`} disabled={index===orderDraft.length-1} onClick={()=>moveLabel(label,1)}>↓</button></div>
+      </div>)}</div>
+      <button className="primary wide" type="button" disabled={savingOrder} onClick={saveOrder}>{savingOrder?"Guardando...":"Guardar Orden"}</button>
+    </div>
+    {profile.role==="super_admin"&&<div className="card solapas-page-card"><div className="card-head"><div><h2>Visibilidad Global</h2><span>Definí Qué Secciones Pueden Ver Los Profes y Jugador@s.</span></div></div><div className="solapas-page-grid">{visibilityOptions.map(label=><label className="solapas-option" key={label}><input type="checkbox" checked={!visibilityDraft.includes(label)} onChange={e=>setVisibilityDraft(cur=>e.target.checked?cur.filter(x=>x!==label):[...cur,label])}/><span>{label}</span></label>)}</div><button className="primary wide" type="button" disabled={savingVisibility} onClick={saveVisibility}>{savingVisibility?"Guardando...":"Guardar Visibilidad"}</button></div>}
+    {msg&&<div className="message">{msg}</div>}
   </section>;
 }
 
@@ -433,10 +483,10 @@ function PlayerSelfEdit({player,onClose,onSaved}) { const [data,setData]=useStat
 
 function App() {
   const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[playerSession,setPlayerSession]=useState(readStoredPlayer),[players,setPlayers]=useState([]),[categories,setCategories]=useState([]),[permissions,setPermissions]=useState({}),[tab,setTab]=useState("home");
-  const [disabledTabs,setDisabledTabs]=useState([]);
+  const [disabledTabs,setDisabledTabs]=useState([]),[navigationOrder,setNavigationOrder]=useState([]);
   const [dualPlayerAvailable,setDualPlayerAvailable]=useState(false),[dualPlayerMode,setDualPlayerMode]=useState(false);
   const authIntent = useRef(null), authEpoch = useRef(0);
-  function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); setDisabledTabs([]); setDualPlayerAvailable(false); setDualPlayerMode(false); }
+  function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); setDisabledTabs([]); setNavigationOrder([]); setDualPlayerAvailable(false); setDualPlayerMode(false); }
   async function applySession(current) {
     const epoch = ++authEpoch.current;
     if (!isAuthSession(current)) { clearIdentity(); return; }
@@ -445,11 +495,12 @@ function App() {
     if (p.error || !p.data) { clearIdentity(); return; }
     if (p.data.role === 'player') { setSession(null); setProfile(null); setPlayerSession(current); return; }
     if (!['admin','super_admin'].includes(p.data.role)) { clearIdentity(); return; }
-    const [c, pe, ps, ui] = await Promise.all([
+    const [c, pe, ps, ui, pref] = await Promise.all([
       supabase.from('categories').select('*').eq('active',true).order('gender').order('name'),
       supabase.from('admin_category_permissions').select('category_id,can_view,can_edit').eq('admin_id',current.user.id),
       supabase.from('players').select('*').eq('active',true).order('full_name'),
-      supabase.from('app_ui_settings').select('disabled_tabs').eq('id','global').maybeSingle()
+      supabase.from('app_ui_settings').select('disabled_tabs').eq('id','global').maybeSingle(),
+      supabase.from('user_ui_preferences').select('navigation_order').eq('user_id',current.user.id).maybeSingle()
     ]);
     if (epoch !== authEpoch.current) return;
     const map = Object.fromEntries((pe.data||[]).map(x=>[x.category_id,x]));
@@ -462,7 +513,7 @@ function App() {
       }
     }
     const ownPlayer = nextPlayers.find(row=>row.user_id===current.user.id && row.active && row.approval_status==="approved");
-    setPermissions(map); setCategories((c.data||[]).filter(x=>can(p.data,x,map))); setPlayers(nextPlayers); setDisabledTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]); setDualPlayerAvailable(!!ownPlayer);
+    setPermissions(map); setCategories((c.data||[]).filter(x=>can(p.data,x,map))); setPlayers(nextPlayers); setDisabledTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]); setNavigationOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]); setDualPlayerAvailable(!!ownPlayer);
     setPlayerSession(null); setProfile(p.data); setSession(current);
   }
   useEffect(()=>{
@@ -496,8 +547,12 @@ function App() {
     onAuthEnd={()=>{authIntent.current=null;}}
     onAdmin={acceptAdmin}
     onPlayer={current=>{if(isLegacySession(current)){storeLegacyPlayer(current);setPlayerSession(current);}else if(isAuthSession(current)){setPlayerSession(current);}}}/>;
-  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['payments','Pagos'],['requests','Solicitudes']];if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Mi Perfil']);if(profile.role==='super_admin')nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos'],['settings','Solapas']);
-  const visibleNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>!disabledTabs.includes(label));
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{l}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='payments'&&<AdminPaymentPanel role={profile.role} embedded/>} {tab==='requests'&&<RequestsPage profile={profile}/>} {tab==='admins'&&<AdminUsers profile={profile}/>}  {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>} {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSaved={setDisabledTabs}/>}</div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
+  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['payments','Pagos'],['requests','Solicitudes']];
+  if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Mi Perfil']);
+  if(profile.role==='super_admin')nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
+  nav.push(['settings','Solapas']);
+  const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
+  const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{l}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='payments'&&<AdminPaymentPanel role={profile.role} embedded/>} {tab==='requests'&&<RequestsPage profile={profile}/>} {tab==='admins'&&<AdminUsers profile={profile}/>}  {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>} {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>} </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
 }
 export default App;
