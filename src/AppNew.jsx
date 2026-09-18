@@ -302,6 +302,41 @@ function App() {
     return ()=>{mounted=false;authEpoch.current++;subscription.unsubscribe();};
   },[]);
   const refresh=()=>isAuthSession(session)?applySession(session):Promise.resolve();
+
+  // Keep every authenticated role synchronized with permission/category/player changes.
+  // Realtime is the fast path; focus/visibility/online are a recovery path for mobile
+  // browsers that temporarily suspend WebSockets in the background.
+  useEffect(()=>{
+    if (!isAuthSession(session) || !['admin','super_admin'].includes(profile?.role)) return;
+    let stopped = false;
+    let timer = null;
+    const sync = () => {
+      if (stopped) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (!stopped) void applySession(session); }, 80);
+    };
+    const permissionFilter = profile.role === 'admin' ? `admin_id=eq.${profile.id}` : undefined;
+    let channel = supabase.channel(`app-sync:${profile.id}`);
+    channel = channel.on('postgres_changes', { event:'*', schema:'public', table:'admin_category_permissions', ...(permissionFilter ? { filter: permissionFilter } : {}) }, sync);
+    channel = channel.on('postgres_changes', { event:'*', schema:'public', table:'categories' }, sync);
+    channel = channel.on('postgres_changes', { event:'*', schema:'public', table:'players' }, sync);
+    if (profile.role === 'super_admin') channel = channel.on('postgres_changes', { event:'*', schema:'public', table:'profiles' }, sync);
+    channel.subscribe();
+
+    const resume = () => { if (document.visibilityState === 'visible') sync(); };
+    window.addEventListener('focus', sync);
+    window.addEventListener('online', sync);
+    document.addEventListener('visibilitychange', resume);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('online', sync);
+      document.removeEventListener('visibilitychange', resume);
+      void supabase.removeChannel(channel);
+    };
+  },[session, profile?.id, profile?.role]);
+
   const logout=async()=>{authEpoch.current++;removeStoredPlayer(localStorage);clearIdentity();await supabase.auth.signOut({scope:'local'});};
   async function acceptAdmin(current) {
     if (!isAuthSession(current)) throw new Error('La sesión no es válida. Volvé a ingresar.');
