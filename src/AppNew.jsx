@@ -89,13 +89,13 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
         const playerRow = await supabase.from("players").select("*").eq("user_id", uid).single();
         if (playerRow.error) throw playerRow.error;
         if (selfie) { const path = `${uid}/${Date.now()}-${selfie.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; const up = await supabase.storage.from("player-selfies").upload(path, selfie, { upsert: true, contentType: selfie.type || "image/jpeg" }); if (!up.error) await supabase.from("players").update({ selfie_path: path }).eq("id", playerRow.data.id); }
-        setMessage(`✓ Cuenta creada. Tu Código Personal es ${playerRow.data.access_code}. Guardalo: también podés copiarlo desde tu perfil.`); onPlayer(data.session);
+        setMessage(`✓ Cuenta Creada. Tu Código Personal Es ${playerRow.data.access_code}. Guardalo: También Podés Copiarlo Desde Tu Perfil.`); onPlayer(data.session);
       }
     } catch (e) { setMessage(errorText(e)); } finally { setLoading(false); onAuthEnd?.(); }
   }
   return <main className="auth"><div className="auth-bg-logo"/><section className="auth-card">
     <Brand/><div className="auth-tabs"><button type="button" className={mode === "player" ? "active" : ""} onClick={() => setMode("player")}>Jugador@s</button><button type="button" className={mode === "admin" ? "active" : ""} onClick={() => setMode("admin")}>Profe</button><button type="button" className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>Crear Cuenta</button></div>
-    <p className="auth-subtitle">{mode === "signup" ? "Creá Tu Cuenta Personal De Jugador@." : mode === "admin" ? "Acceso Para Profes Y Administradores." : "Ingresá Para Consultar Tu Asistencia."}</p>
+    <p className="auth-subtitle">{mode === "signup" ? "Creá Tu Cuenta Personal De Jugador@." : mode === "admin" ? "Acceso Para Profes y Administradores." : "Ingresá Para Consultar Tu Asistencia."}</p>
     <form onSubmit={submit}>
       {mode === "player" && <><input type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><div className="or">O Acceso Con Código Personal</div><input placeholder="Nombre y Apellido" value={name} onChange={e => setName(e.target.value)}/><input placeholder="Código Personal" value={code} onChange={e => setCode(e.target.value.toUpperCase())}/><button className="primary" disabled={loading}>{loading ? "Ingresando..." : "Ingresar"}</button></>}
       {mode === "admin" && <><input required type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><input required type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><button className="primary" disabled={loading}>{loading ? "Ingresando..." : "Ingresar Como Profe"}</button></>}
