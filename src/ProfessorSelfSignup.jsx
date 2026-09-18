@@ -186,7 +186,6 @@ export default function ProfessorSelfSignup() {
               <input required type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)} />
               <input required minLength={6} type="password" placeholder="Contraseña (Mínimo 6 Caracteres)" value={password} onChange={e => setPassword(e.target.value)} />
               <small>Nombre y Apellido Se Guardan Automáticamente Con El Formato Institucional. Confirmar El Correo No Habilita Por Sí Solo El Acceso De Profe: La Aprobación Del Super Administrador Es Obligatoria.</small>
-              <div className="mgsm-turnstile-slot" data-turnstile-slot="professor-signup" />
               <button className="primary" disabled={saving}>{saving ? "Creando Solicitud..." : alsoPlayer ? "Solicitar Cuenta Profe + Jugador@" : "Solicitar Cuenta De Profe"}</button>
             </form>
 
