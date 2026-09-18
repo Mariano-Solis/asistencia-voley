@@ -61,32 +61,5 @@ import './mgsm-player-dynamic-counter.css'
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <>
-    <App />
-    <PhotoSourcePicker />
-    <StorageSafetyEnhancer />
-    <PasswordVisibilityEnhancer />
-    <RegistrationTurnstile />
-    <PendingApprovalGate />
-    <DualRoleSelfEnrollment />
-    <ProfessorDeleteManager />
-    <WorkflowCore />
-    <PermissionsEnhancement />
-    <SafePlayerAttendanceFilter />
-    <AttendanceSaveGuard />
-    <AttendanceEmptyInitialState />
-    <ProfessorTrainingHub />
-    <PaymentHubStable />
-    <AdminPaymentsPage />
-    <AdminDualTopbarAction />
-    <FeatureTabManager />
-    <PlayerTabVisibilityGuard />
-    <PlayerInstitutionalFooter />
-    <AdminHeaderPaymentPolish />
-    <CategoryAdminManager />
-    <RegistrationApprovalManager />
-    <SuperAdminPlayerEmail />
-    <PlayerDynamicCounter />
-    <AppPolish />
-  </>
+  <App />
 )
