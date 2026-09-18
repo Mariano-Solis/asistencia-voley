@@ -271,3 +271,116 @@ footer{grid-column:2;grid-row:3;background:#fff;color:#555;border-top:4px solid 
   .solapas-option{padding:12px 2px}
   .stable-pay-admin-page-card{padding:14px;border-radius:14px}
 }
+
+
+/* ===== PLAYER DYNAMIC COUNTER — VISUAL SUMMARY ===== */
+.player-dynamic-counter{
+  margin:-2px 0 18px;
+  padding:14px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  background:linear-gradient(135deg,#fff 0%,#fff8f8 100%);
+  border:1px solid #eadcdf;
+}
+.player-dynamic-counter>div{
+  position:relative;
+  min-height:86px;
+  padding:16px 18px;
+  border:1px solid #ececef;
+  border-radius:16px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(28,31,36,.06);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  overflow:hidden;
+}
+.player-dynamic-counter>div:before{
+  content:"";
+  position:absolute;
+  left:0;top:0;bottom:0;
+  width:5px;
+  background:var(--mgsm-red);
+}
+.player-dynamic-counter>div:nth-child(2):before{background:#c94b66}
+.player-dynamic-counter>div:nth-child(3):before{background:#4d6f9f}
+.player-dynamic-counter span{
+  color:#747982;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.player-dynamic-counter b{
+  margin-top:5px;
+  color:#17191d;
+  font-size:30px;
+  line-height:1;
+  letter-spacing:-.03em;
+}
+
+/* ===== SOLAPAS — PRIMARY ADMIN CONTROL ===== */
+.top-user .solapas-launcher{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:42px;
+  padding:8px 14px;
+  border:1px solid rgba(181,18,27,.18);
+  border-radius:14px;
+  background:linear-gradient(180deg,#fff,#fff7f8);
+  color:var(--mgsm-red);
+  box-shadow:0 7px 20px rgba(181,18,27,.13);
+  font-weight:900;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+.top-user .solapas-launcher:hover{transform:translateY(-1px);border-color:rgba(181,18,27,.38);box-shadow:0 10px 24px rgba(181,18,27,.18)}
+.solapas-launcher-icon{
+  width:28px;height:28px;
+  border-radius:9px;
+  display:grid;place-items:center;
+  background:var(--mgsm-red);
+  color:#fff;
+  font-size:14px;
+  box-shadow:0 4px 10px rgba(181,18,27,.22);
+}
+.solapas-modal-card{width:min(560px,100%);padding:22px}
+.solapas-eyebrow{display:block;margin-bottom:4px;color:var(--mgsm-red);font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.solapas-modal-card .modal-head small{display:block;margin-top:4px;color:#7a7f87;font-size:11px}
+.solapas-modal-card>.simple-list{margin:14px 0;border:1px solid #ececef;border-radius:15px;padding:4px 14px;background:#fafafa}
+
+/* ===== PROFESSOR ACCOUNT MANAGEMENT ===== */
+.professor-management-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.professor-account-card{padding:17px;overflow:hidden}
+.professor-account-head{display:flex;align-items:center;gap:12px}
+.professor-account-avatar{width:44px;height:44px;min-width:44px;border-radius:14px;display:grid;place-items:center;background:#fff0f1;font-size:21px}
+.professor-account-head h3{margin:0;font-size:15px;color:#202126}
+.professor-account-head p{margin:4px 0 0;color:#6f747c;font-size:11px;overflow-wrap:anywhere}
+.professor-status{padding:6px 9px;border-radius:999px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.professor-status.active{background:#eaf8ef;color:#16713b}
+.professor-status.pending{background:#fff2df;color:#8b5b00}
+.professor-account-details{display:grid;grid-template-columns:1.4fr .8fr .8fr;gap:8px;margin:14px 0}
+.professor-account-details>div{padding:10px;border-radius:11px;background:#fafafa;border:1px solid #f0f0f1;min-width:0}
+.professor-account-details span{display:block;color:#858a92;font-size:9px;font-weight:800;margin-bottom:4px}
+.professor-account-details b{display:block;color:#34373d;font-size:10px;overflow-wrap:anywhere}
+.professor-account-actions{display:flex;gap:8px}
+.professor-account-actions button{flex:1;padding:9px 11px;border-radius:10px;background:#f3f4f6;color:#34373d;font-size:11px;font-weight:800}
+.professor-account-actions button:hover{background:#eceef1}
+.professor-account-actions .danger{background:#fff0f0!important;color:#b91c1c!important}
+.professor-edit-modal .field-label{display:grid;gap:6px}
+.professor-active-toggle{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:11px;background:#f7f7f8;font-weight:800}
+.professor-active-toggle input{width:20px!important;height:20px!important;margin:0;padding:0}
+.professor-security-note{display:block;color:#777;line-height:1.45;background:#fafafa;border-radius:10px;padding:10px}
+
+@media(max-width:760px){
+  .player-dynamic-counter{grid-template-columns:repeat(3,1fr);gap:7px;padding:9px}
+  .player-dynamic-counter>div{min-height:72px;padding:12px 10px}
+  .player-dynamic-counter span{font-size:8px}
+  .player-dynamic-counter b{font-size:25px}
+  .top-user .solapas-launcher{padding:7px 10px;min-height:38px}
+  .solapas-launcher-icon{width:25px;height:25px}
+  .professor-management-grid{grid-template-columns:1fr}
+  .professor-account-details{grid-template-columns:1fr 1fr}
+  .professor-account-details>div:first-child{grid-column:1/-1}
+}
