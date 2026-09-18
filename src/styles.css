@@ -578,3 +578,104 @@ main.app>.topbar .topbar-exit{
 .professor-account-actions .danger{
   flex-basis:auto!important;
 }
+
+
+/* ===== ORDEN PERSONAL DE SOLAPAS ===== */
+.solapas-order-card{
+  padding:18px;
+  margin-bottom:16px;
+}
+.solapas-order-card .card-head{
+  margin-bottom:14px;
+}
+.solapas-order-card .card-head h2{
+  margin:0 0 4px;
+}
+.solapas-order-card .card-head span{
+  color:#747982;
+  font-size:11px;
+}
+.solapas-order-list{
+  display:grid;
+  gap:8px;
+  margin-bottom:14px;
+}
+.solapas-order-item{
+  display:grid;
+  grid-template-columns:36px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  min-height:52px;
+  padding:8px 10px;
+  border:1px solid #e7e7ea;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 3px 12px rgba(20,24,30,.04);
+  cursor:grab;
+  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease,opacity .16s ease;
+}
+.solapas-order-item:hover{
+  border-color:#e1b7bb;
+  box-shadow:0 6px 18px rgba(181,18,27,.08);
+}
+.solapas-order-item.dragging{
+  opacity:.5;
+  transform:scale(.99);
+  border-color:var(--mgsm-red);
+}
+.solapas-drag-handle{
+  width:32px;
+  height:32px;
+  border-radius:9px;
+  display:grid;
+  place-items:center;
+  background:#f4f4f5;
+  color:#6c7178;
+  font-size:18px;
+  line-height:1;
+  user-select:none;
+}
+.solapas-order-item b{
+  font-size:13px;
+  color:#2d3035;
+}
+.solapas-order-actions{
+  display:flex;
+  gap:6px;
+}
+.solapas-order-actions button{
+  width:34px;
+  height:34px;
+  min-width:34px;
+  padding:0;
+  border-radius:9px;
+  background:#f5f5f6;
+  color:#34373d;
+  font-weight:900;
+  font-size:16px;
+}
+.solapas-order-actions button:hover:not(:disabled){
+  background:#fff0f1;
+  color:var(--mgsm-red);
+}
+.solapas-order-actions button:disabled{
+  opacity:.28;
+  cursor:not-allowed;
+}
+.solapas-page-card .card-head{
+  margin-bottom:12px;
+}
+.solapas-page-card>.primary,
+.solapas-order-card>.primary{
+  margin-top:12px;
+}
+@media(max-width:620px){
+  .solapas-order-card{padding:14px}
+  .solapas-order-item{
+    grid-template-columns:32px minmax(0,1fr) auto;
+    gap:8px;
+    padding:8px;
+  }
+  .solapas-drag-handle{width:30px;height:30px}
+  .solapas-order-actions button{width:32px;height:32px;min-width:32px}
+}
