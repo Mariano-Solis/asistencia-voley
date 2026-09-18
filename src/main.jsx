@@ -25,7 +25,6 @@ import RegistrationTurnstile from './RegistrationTurnstile'
 import SuperAdminPlayerEmail from './SuperAdminPlayerEmail'
 import PlayerDynamicCounter from './PlayerDynamicCounter'
 import AppPolish from './AppPolish'
-import GlobalInterfaceCasing from './GlobalInterfaceCasing'
 import officialLogo from '../Logo.jpg'
 import './styles.css'
 import './mgsm-topbar.css'
@@ -89,6 +88,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <SuperAdminPlayerEmail />
     <PlayerDynamicCounter />
     <AppPolish />
-    <GlobalInterfaceCasing />
   </>
 )
