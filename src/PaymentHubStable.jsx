@@ -320,7 +320,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, e
   const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && p.validation_status !== "validated").length;
 
   async function updateFee(playerId, value) {
-    if (!canApprovePayments) return;
+    if (role !== "super_admin") return;
     const fee = Number(value);
     const { error } = await supabase.from("players").update({ monthly_fee: fee }).eq("id", playerId);
     if (error) setMessage("No Se Pudo Modificar La Cuota.");
@@ -345,7 +345,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, e
   async function approveAllReceipts() {
     if (!canApprovePayments || bulkReviewing || unvalidatedReceiptsCount === 0) return;
     const label = periodLabel(period);
-    const confirmed = window.confirm(`Vas A Aprobar Todos Los Comprobantes Cargados De ${Label}. ¿Querés Continuar?`);
+    const confirmed = window.confirm(`Vas A Aprobar Todos Los Comprobantes Cargados De ${label}. ¿Querés Continuar?`);
     if (!confirmed) return;
 
     setBulkReviewing(true);
@@ -360,7 +360,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, e
         const count = Number(data.updated_count || 0);
         setMessage(count > 0
           ? `✓ Se aprobaron ${count} comprobante${count === 1 ? "" : "s"} de ${label}.`
-          : `✓ Todos Los Comprobantes De ${Label} Ya Estaban Aprobados.`);
+          : `✓ Todos Los Comprobantes De ${label} Ya Estaban Aprobados.`);
         await load(false, false);
       }
     } finally {
@@ -370,7 +370,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, e
 
   async function revokePayment(paymentId, playerName) {
     if (!canApprovePayments || reviewing) return;
-    const confirmed = window.confirm(`Vas A Revocar La Aprobación Del Comprobante De ${PlayerName}. Quedará Pendiente De Revisión. ¿Querés Continuar?`);
+    const confirmed = window.confirm(`Vas A Revocar La Aprobación Del Comprobante De ${playerName}. Quedará Pendiente De Revisión. ¿Querés Continuar?`);
     if (!confirmed) return;
 
     setReviewing(paymentId);
@@ -382,7 +382,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, e
       if (error || !data?.ok) {
         setMessage("No Se Pudo Revocar La Aprobación Del Comprobante.");
       } else {
-        setMessage(`↩ Aprobación Revocada Para ${PlayerName}. El Comprobante Quedó Pendiente De Revisión.`);
+        setMessage(`↩ Aprobación Revocada Para ${playerName}. El Comprobante Quedó Pendiente De Revisión.`);
         await load(false, false);
       }
     } finally {
@@ -420,11 +420,11 @@ export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, e
         {canApprovePayments && (
           <div className="stable-pay-bulk-actions">
             <div>
-              <strong>Acciones del período · {periodLabel(period)}</strong>
+              <strong>Acciones Del Período · {periodLabel(period)}</strong>
               <small>{receiptsCount} comprobante{receiptsCount === 1 ? "" : "s"} cargado{receiptsCount === 1 ? "" : "s"} · {unvalidatedReceiptsCount} sin aprobar</small>
             </div>
             <button type="button" className="approve-all" disabled={bulkReviewing || unvalidatedReceiptsCount === 0} onClick={approveAllReceipts}>
-              {bulkReviewing ? "⏳ Aprobando..." : `✓ Aprobar todos los comprobantes de ${periodLabel(period)}`}
+              {bulkReviewing ? "⏳ Aprobando..." : `✓ Aprobar Todos Los Comprobantes De ${periodLabel(period)}`}
             </button>
           </div>
         )}
