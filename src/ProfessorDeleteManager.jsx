@@ -18,6 +18,10 @@ export default function ProfessorDeleteManager() {
   const [detailsError, setDetailsError] = useState("");
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editPlayer, setEditPlayer] = useState(null);
+  const [allCategories, setAllCategories] = useState([]);
   const [savingEdit, setSavingEdit] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({ firstName: "", lastName: "", email: "", password: "" });
@@ -122,16 +126,17 @@ export default function ProfessorDeleteManager() {
     setEditName(professor.full_name || "");
 
     try {
-      const [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult, accountsResult] = await Promise.all([
+      const [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult, accountsResult, allCategoriesResult] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", professor.id).maybeSingle(),
         supabase.from("players").select("*, categories(name,gender)").eq("user_id", professor.id).maybeSingle(),
         supabase.from("admin_category_permissions").select("category_id,can_view,can_edit,categories(name,gender)").eq("admin_id", professor.id),
         supabase.from("categories").select("id,name,gender").eq("admin_id", professor.id).eq("active", true),
         supabase.from("training_sessions").select("activity_type").eq("created_by", professor.id),
         supabase.rpc("get_superadmin_professor_accounts"),
+        supabase.from("categories").select("id,name,gender").eq("active", true).order("gender").order("name"),
       ]);
 
-      const firstError = [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult, accountsResult].find((result) => result.error)?.error;
+      const firstError = [profileResult, playerResult, permissionsResult, ownedCategoriesResult, sessionsResult, accountsResult, allCategoriesResult].find((result) => result.error)?.error;
       if (firstError) throw firstError;
 
       const categoryMap = new Map();
@@ -154,6 +159,19 @@ export default function ProfessorDeleteManager() {
       const account = (accountsResult.data || []).find((item) => item.professor_id === professor.id) || null;
       const profile = profileResult.data || professor;
       setEditName(profile.full_name || professor.full_name || "");
+      setEditEmail(account?.email || "");
+      setEditPassword("");
+      setEditPlayer(playerResult.data ? {
+        first_name: playerResult.data.first_name || "",
+        last_name: playerResult.data.last_name || "",
+        dni: playerResult.data.dni || "",
+        birth_date: playerResult.data.birth_date || "",
+        sex: playerResult.data.sex || "female",
+        team: playerResult.data.team || "",
+        category_id: playerResult.data.category_id || "",
+        access_code: playerResult.data.access_code || "",
+      } : null);
+      setAllCategories(allCategoriesResult.data || []);
       setDetails({
         profile,
         accountEmail: account?.email || "",
@@ -179,28 +197,77 @@ export default function ProfessorDeleteManager() {
     setDetailsError("");
     setDetailsLoading(false);
     setEditing(false);
+    setEditEmail("");
+    setEditPassword("");
+    setEditPlayer(null);
+    setAllCategories([]);
     setSavingEdit(false);
   }
 
   async function saveProfessorEdit(event) {
     event.preventDefault();
     const nextName = editName.trim();
-    if (!nextName || !selectedProfessor || !details) return;
+    const nextEmail = editEmail.trim().toLowerCase();
+    if (!nextName || !nextEmail || !selectedProfessor || !details) return;
+    if (editPassword && editPassword.length < 8) return setDetailsError("La Nueva Contraseña Debe Tener Al Menos 8 Caracteres.");
+    if (editPlayer && (!editPlayer.first_name.trim() || !editPlayer.last_name.trim() || !editPlayer.birth_date)) {
+      return setDetailsError("Completá Nombre, Apellido y Fecha De Nacimiento Del Perfil De Jugador@.");
+    }
+
     setSavingEdit(true);
     setDetailsError("");
-    const { error } = await supabase.rpc("superadmin_update_professor", {
-      p_professor_id: selectedProfessor.id,
-      p_full_name: nextName,
-      p_active: details.profile?.active !== false,
-    });
-    setSavingEdit(false);
-    if (error) return setDetailsError(error.message || "No se pudieron guardar los cambios del Profe.");
+    try {
+      const accountUpdate = await supabase.functions.invoke("update-professor-account", {
+        body: { user_id: selectedProfessor.id, email: nextEmail, password: editPassword || undefined },
+      });
+      if (accountUpdate.error) {
+        let detail = accountUpdate.error.message || "No Se Pudo Actualizar La Cuenta Del Profe.";
+        try { const body = await accountUpdate.error.context?.json?.(); if (body?.error) detail = body.error; } catch (_) {}
+        throw new Error(detail);
+      }
+      if (!accountUpdate.data?.ok) throw new Error(accountUpdate.data?.error || "No Se Pudo Actualizar La Cuenta Del Profe.");
 
-    setAdmins((current) => current.map((item) => item.id === selectedProfessor.id ? { ...item, full_name: nextName } : item));
-    setSelectedProfessor((current) => current ? { ...current, full_name: nextName } : current);
-    setDetails((current) => current ? { ...current, profile: { ...current.profile, full_name: nextName } } : current);
-    setEditing(false);
-    setMessage(`✓ Datos de ${nextName} actualizados.`);
+      const profileUpdate = await supabase.rpc("superadmin_update_professor", {
+        p_professor_id: selectedProfessor.id,
+        p_full_name: nextName,
+        p_active: details.profile?.active !== false,
+      });
+      if (profileUpdate.error) throw profileUpdate.error;
+
+      let nextPlayer = details.player;
+      if (editPlayer && details.player?.id) {
+        const playerPayload = {
+          first_name: editPlayer.first_name.trim(),
+          last_name: editPlayer.last_name.trim(),
+          full_name: `${editPlayer.last_name.trim().toUpperCase()} ${editPlayer.first_name.trim()}`,
+          dni: editPlayer.dni.trim() || null,
+          birth_date: editPlayer.birth_date || null,
+          sex: editPlayer.sex,
+          team: editPlayer.team || null,
+          category_id: editPlayer.category_id || null,
+          access_code: editPlayer.access_code.trim().toUpperCase() || details.player.access_code,
+        };
+        const playerUpdate = await supabase.from("players").update(playerPayload).eq("id", details.player.id).select("*, categories(name,gender)").single();
+        if (playerUpdate.error) throw playerUpdate.error;
+        nextPlayer = playerUpdate.data;
+      }
+
+      setAdmins((current) => current.map((item) => item.id === selectedProfessor.id ? { ...item, full_name: nextName } : item));
+      setSelectedProfessor((current) => current ? { ...current, full_name: nextName } : current);
+      setDetails((current) => current ? {
+        ...current,
+        accountEmail: nextEmail,
+        player: nextPlayer,
+        profile: { ...current.profile, full_name: nextName },
+      } : current);
+      setEditPassword("");
+      setEditing(false);
+      setMessage(`✓ Todos Los Datos De ${nextName} Fueron Actualizados.`);
+    } catch (error) {
+      setDetailsError(error?.message || "No Se Pudieron Guardar Los Cambios Del Profe.");
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   async function toggleActive(professor) {
@@ -307,14 +374,44 @@ export default function ProfessorDeleteManager() {
         {details && <>
           <div className="professor-account-card">
             <div><span>Correo de cuenta</span><b>{details.accountEmail || "Sin correo asociado"}</b><small>Correo utilizado para crear e ingresar a la cuenta. Solo visible para Super Admin.</small></div>
-            <button type="button" className="primary professor-edit-btn" onClick={() => setEditing((value) => !value)}>{editing ? "Cancelar edición" : "✏️ Modificar datos"}</button>
+            <button type="button" className="primary professor-edit-btn" onClick={() => {
+              if (!editing) {
+                setEditName(details.profile?.full_name || "");
+                setEditEmail(details.accountEmail || "");
+                setEditPassword("");
+                setEditPlayer(details.player ? {
+                  first_name: details.player.first_name || "",
+                  last_name: details.player.last_name || "",
+                  dni: details.player.dni || "",
+                  birth_date: details.player.birth_date || "",
+                  sex: details.player.sex || "female",
+                  team: details.player.team || "",
+                  category_id: details.player.category_id || "",
+                  access_code: details.player.access_code || "",
+                } : null);
+              }
+              setEditing((value) => !value);
+            }}>{editing ? "Cancelar Edición" : "✏️ Modificar Datos"}</button>
           </div>
 
           {editing && <form className="professor-edit-form" onSubmit={saveProfessorEdit}>
-            <label>Nombre y apellido<input value={editName} onChange={(event) => setEditName(event.target.value)} required /></label>
-            <label>Correo de cuenta<input type="email" value={details.accountEmail || ""} readOnly /></label>
-            <small>El correo de acceso es un dato de Auth y se mantiene en solo lectura para no romper el inicio de sesión.</small>
-            <div className="form-actions"><button type="button" onClick={() => { setEditing(false); setEditName(details.profile?.full_name || ""); }}>Cancelar</button><button type="submit" className="primary" disabled={savingEdit}>{savingEdit ? "Guardando..." : "Guardar cambios"}</button></div>
+            <label>Nombre y Apellido<input value={editName} onChange={(event) => setEditName(event.target.value)} required /></label>
+            <label>Correo De Cuenta<input type="email" value={editEmail} onChange={(event) => setEditEmail(event.target.value)} required /></label>
+            <label>Nueva Contraseña<input type="password" minLength={8} value={editPassword} onChange={(event) => setEditPassword(event.target.value)} placeholder="Dejar Vacío Para Mantener La Actual" /></label>
+            {editPlayer && <div className="professor-player-edit-block">
+              <h3>Perfil De Jugador@ Asociado</h3>
+              <div className="professor-create-grid">
+                <label>Nombre<input value={editPlayer.first_name} onChange={(event) => setEditPlayer((current) => ({ ...current, first_name: event.target.value }))} required /></label>
+                <label>Apellido<input value={editPlayer.last_name} onChange={(event) => setEditPlayer((current) => ({ ...current, last_name: event.target.value }))} required /></label>
+                <label>DNI<input value={editPlayer.dni} onChange={(event) => setEditPlayer((current) => ({ ...current, dni: event.target.value }))} /></label>
+                <label>Fecha De Nacimiento<input type="date" value={editPlayer.birth_date} onChange={(event) => setEditPlayer((current) => ({ ...current, birth_date: event.target.value }))} required /></label>
+                <label>Rama<select value={editPlayer.sex} onChange={(event) => setEditPlayer((current) => ({ ...current, sex: event.target.value }))}><option value="female">Femenino</option><option value="male">Masculino</option></select></label>
+                <label>Equipo<select value={editPlayer.team} onChange={(event) => setEditPlayer((current) => ({ ...current, team: event.target.value }))}><option value="">Sin Asignar</option>{["A","B","C","D","E"].map((team) => <option key={team} value={team}>Equipo {team}</option>)}</select></label>
+                <label>Categoría<select value={editPlayer.category_id} onChange={(event) => setEditPlayer((current) => ({ ...current, category_id: event.target.value }))}><option value="">Sin Categoría</option>{allCategories.filter((category) => category.gender === editPlayer.sex).map((category) => <option key={category.id} value={category.id}>{genderText(category.gender)} · {category.name}</option>)}</select></label>
+                <label>Código Personal<input value={editPlayer.access_code} onChange={(event) => setEditPlayer((current) => ({ ...current, access_code: event.target.value.toUpperCase() }))} /></label>
+              </div>
+            </div>}
+            <div className="form-actions"><button type="button" onClick={() => { setEditing(false); setEditName(details.profile?.full_name || ""); setEditEmail(details.accountEmail || ""); setEditPassword(""); }}>Cancelar</button><button type="submit" className="primary" disabled={savingEdit}>{savingEdit ? "Guardando..." : "Guardar Todos Los Cambios"}</button></div>
           </form>}
 
           <div className="professor-detail-grid">

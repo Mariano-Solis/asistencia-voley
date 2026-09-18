@@ -10,6 +10,7 @@ const BASE_TABS = [
   'Profes',
   'Categorías',
   'Permisos',
+  'Solicitudes',
   'Entrenamientos',
   'Pagos',
 ]
@@ -40,6 +41,7 @@ function canonicalLabel(value = '') {
   if (text.includes('profe')) return 'Profes'
   if (text.includes('categor')) return 'Categorías'
   if (text.includes('permiso')) return 'Permisos'
+  if (text.includes('solicitud')) return 'Solicitudes'
   if (text.includes('entrenamiento')) return 'Entrenamientos'
   if (text.includes('pago') || text.includes('cuota')) return 'Pagos'
 
