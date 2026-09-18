@@ -43,6 +43,11 @@ main.app nav button[data-feature-tab="Entrenamientos"]::before { content:"📚" 
 main.app > nav button[data-feature-tab="Pagos"]::before,
 main.app nav button[data-feature-tab="Pagos"]::before { content:"💳" !important; }
 
+main.app > nav button[data-feature-tab="Mi Perfil"]::before,
+main.app nav button[data-feature-tab="Mi Perfil"]::before { content:"👤" !important; }
+main.app > nav button[data-feature-tab="Solapas"]::before,
+main.app nav button[data-feature-tab="Solapas"]::before { content:"⚙️" !important; }
+
 main.app > nav button.active[data-feature-tab]::before,
 main.app nav button.active[data-feature-tab]::before {
   background:rgba(255,255,255,.20) !important;
