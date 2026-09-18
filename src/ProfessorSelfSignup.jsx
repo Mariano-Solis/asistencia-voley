@@ -138,18 +138,18 @@ export default function ProfessorSelfSignup() {
           onClick={() => { setMessage(""); setOpen(true); }}
         >
           <span aria-hidden="true">👨‍🏫</span>
-          <span>Crear Cuenta de Profe</span>
+          <span>Crear Cuenta De Profe</span>
         </button>,
         portalTarget
       )}
 
       {open && (
-        <div className="professor-signup-overlay" role="dialog" aria-modal="true" aria-label="Crear Cuenta de Profe">
+        <div className="professor-signup-overlay" role="dialog" aria-modal="true" aria-label="Crear Cuenta De Profe">
           <div className="professor-signup-card">
             <div className="professor-signup-head">
               <div>
                 <span className="professor-signup-kicker">MGSM VOLEY MENDOZA</span>
-                <h2>Crear Cuenta de Profe</h2>
+                <h2>Crear Cuenta De Profe</h2>
                 <p>Cada Profe Crea Su Propia Cuenta. El Super Administrador Debe Aprobarla Antes De Habilitar El Acceso.</p>
               </div>
               <button type="button" className="professor-signup-close" onClick={() => setOpen(false)}>×</button>
