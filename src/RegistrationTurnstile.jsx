@@ -6,14 +6,20 @@ const SCRIPT_ID = 'mgsm-turnstile-script'
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 
 function ensureHost(form) {
-  let host = form.querySelector(':scope > .mgsm-turnstile-wrap')
+  const slot = form.querySelector('[data-turnstile-slot]')
+  let host = slot?.querySelector(':scope > .mgsm-turnstile-wrap') || form.querySelector(':scope > .mgsm-turnstile-wrap')
   if (!host) {
     host = document.createElement('div')
     host.className = 'mgsm-turnstile-wrap'
     host.innerHTML = '<div class="mgsm-turnstile-title">Verificación De Seguridad</div><div class="mgsm-turnstile-status">Cargando Verificación...</div><div class="mgsm-turnstile-widget"></div><button type="button" class="mgsm-turnstile-retry" hidden>Reintentar Verificación</button><small>Esta Verificación Evita Registros Automáticos O Masivos.</small>'
-    const submit = form.querySelector('button[type="submit"], button.primary')
-    if (submit) form.insertBefore(host, submit)
-    else form.appendChild(host)
+    if (slot) slot.appendChild(host)
+    else {
+      const submit = form.querySelector('button[type="submit"], button.primary')
+      if (submit) form.insertBefore(host, submit)
+      else form.appendChild(host)
+    }
+  } else if (slot && host.parentElement !== slot) {
+    slot.appendChild(host)
   }
   return host
 }
