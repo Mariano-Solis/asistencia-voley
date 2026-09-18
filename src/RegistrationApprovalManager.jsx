@@ -86,6 +86,42 @@ export default function RegistrationApprovalManager() {
   }, [isAdmin, role])
 
   useEffect(() => {
+    if (!isAdmin) return undefined
+
+    let stopped = false
+    let timer = null
+    const syncRequests = () => {
+      if (stopped) return
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (!stopped) void loadRequests(false)
+      }, 100)
+    }
+
+    const channel = supabase
+      .channel(`registration-requests:${role}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, syncRequests)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, syncRequests)
+      .subscribe()
+
+    const resume = () => {
+      if (document.visibilityState === 'visible') syncRequests()
+    }
+    window.addEventListener('focus', syncRequests)
+    window.addEventListener('online', syncRequests)
+    document.addEventListener('visibilitychange', resume)
+
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+      window.removeEventListener('focus', syncRequests)
+      window.removeEventListener('online', syncRequests)
+      document.removeEventListener('visibilitychange', resume)
+      void supabase.removeChannel(channel)
+    }
+  }, [isAdmin, role])
+
+  useEffect(() => {
     if (!isAdmin) {
       setNavTarget(null)
       setHost(null)
