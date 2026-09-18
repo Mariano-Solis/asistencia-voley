@@ -210,3 +210,51 @@ footer{grid-column:2;grid-row:3;background:#fff;color:#555;border-top:4px solid 
 }
 
 @media(max-width:380px){.dashboard-stats{grid-template-columns:1fr}.brand div{max-width:180px;overflow:hidden}.brand strong{white-space:normal}.app>nav button{padding-left:10px;padding-right:10px}.status span{display:none}}
+
+
+/* ===== AUTH / ONBOARDING POLISH ===== */
+.auth{padding:28px 16px 48px;align-items:flex-start;background:linear-gradient(180deg,#f7f8fa 0%,#fff 45%,#f8eef0 100%)}
+.auth-card{width:min(600px,100%);border:1px solid #e4e6ea;border-top:5px solid var(--mgsm-red);border-radius:28px;padding:36px 30px;box-shadow:0 22px 70px rgba(28,31,36,.12);overflow:hidden}
+.auth-card .brand{margin-bottom:26px;gap:12px}
+.auth-card .brand img{width:104px;height:104px;border:5px solid #fff;border-radius:50%;box-shadow:0 8px 24px rgba(181,18,27,.16)}
+.auth-card .brand strong{font-size:24px;line-height:1.2;letter-spacing:-.025em;color:#17191d}
+.auth-card .brand span{font-size:12px;letter-spacing:.18em;color:var(--mgsm-red)}
+.auth-tabs{gap:6px;padding:6px;border-radius:16px;background:#f1f2f4;margin-bottom:18px}
+.auth-tabs button{min-height:48px;padding:10px 8px;border-radius:12px;font-size:13px;color:#62666d;transition:.18s ease}
+.auth-tabs button.active{background:var(--mgsm-red);color:#fff;box-shadow:0 7px 18px rgba(181,18,27,.22)}
+.auth-subtitle{font-size:14px;line-height:1.5;color:#62666d;margin:4px 0 20px}
+.auth-card form{gap:13px}
+.auth-card form input,.auth-card form select{min-height:54px;border:1px solid #d9dde3;border-radius:14px;padding:13px 16px;background:#fff;color:#17191d;font-size:16px;box-sizing:border-box;transition:border-color .18s ease,box-shadow .18s ease}
+.auth-card form input:focus,.auth-card form select:focus{outline:none;border-color:var(--mgsm-red);box-shadow:0 0 0 4px rgba(181,18,27,.09)}
+.auth-card form input::placeholder{color:#9298a1}
+.auth-card .field-label{font-size:13px;color:#454a52;font-weight:800}
+.auth-card .field-label input{margin-top:8px}
+.auth-card .or{display:flex;align-items:center;gap:10px;margin:3px 0;color:#9298a1;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.auth-card .or:before,.auth-card .or:after{content:"";height:1px;background:#e5e7eb;flex:1}
+.auth-card form>.primary{min-height:52px;border-radius:14px;font-size:15px;box-shadow:0 8px 20px rgba(181,18,27,.18)}
+.auth-card .legal{margin-top:18px;font-size:11px;line-height:1.45;color:#858b94}
+.auth-card .message{border-radius:14px;line-height:1.45}
+
+/* Photo is optional and should look inviting, not like a technical upload control. */
+.auth-card .selfie-field,.modal-card .selfie-field{gap:9px;padding:16px;border:1.5px dashed #d6aeb2;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#fff8f8 100%);color:#353a41}
+.auth-card .selfie-field>span:first-child,.modal-card .selfie-field>span:first-child{font-size:13px;font-weight:800;color:#353a41}
+.auth-card .file-button,.modal-card .file-button{display:flex;align-items:center;justify-content:center;min-height:48px;box-sizing:border-box;padding:11px 16px;border:1px solid #d88c93;border-radius:13px;background:#fff;color:var(--mgsm-red)!important;font-size:14px!important;font-weight:800;cursor:pointer;box-shadow:0 5px 14px rgba(181,18,27,.08);transition:.18s ease}
+.auth-card .file-button:hover,.modal-card .file-button:hover{background:#fff4f5;border-color:var(--mgsm-red);transform:translateY(-1px)}
+.auth-card .file-name,.modal-card .file-name{font-size:12px!important;color:#166534!important;font-weight:700}
+.hidden-file{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important}
+
+.voley-auth-recovery-controls{padding-top:3px!important;gap:8px 18px!important}
+.voley-auth-recovery-controls button{font-size:13px!important;line-height:1.35!important}
+
+@media(max-width:600px){
+ .auth{padding:18px 10px 36px}
+ .auth-card{padding:25px 18px 28px;border-radius:22px}
+ .auth-card .brand{margin-bottom:22px}
+ .auth-card .brand img{width:88px;height:88px}
+ .auth-card .brand strong{font-size:21px;white-space:normal}
+ .auth-tabs{margin-inline:-2px}
+ .auth-tabs button{font-size:12px;min-height:46px}
+ .auth-subtitle{font-size:13px;margin-bottom:17px}
+ .auth-card form input,.auth-card form select{min-height:52px;font-size:16px}
+ .auth-card .selfie-field{padding:14px}
+}
