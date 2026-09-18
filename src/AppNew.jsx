@@ -44,7 +44,13 @@ function mergeNavigationOrder(items, savedOrder = []) {
   const labels = items.map(([, label]) => label);
   const orderedLabels = [...savedOrder.filter(label => labels.includes(label)), ...labels.filter(label => !savedOrder.includes(label))];
   const byLabel = Object.fromEntries(items.map(item => [item[1], item]));
-  return orderedLabels.map(label => byLabel[label]).filter(Boolean);
+  const ordered = orderedLabels.map(label => byLabel[label]).filter(Boolean);
+
+  // Orden fijo de cierre: Entrenamiento siempre penúltimo y Solapas siempre último.
+  const tailLabels = ["Entrenamiento", "Solapas"];
+  const regular = ordered.filter(([, label]) => !tailLabels.includes(label));
+  const tail = tailLabels.map(label => byLabel[label]).filter(Boolean);
+  return [...regular, ...tail];
 }
 
 function Brand({ compact = false }) { return <div className={`brand ${compact ? "compact" : ""}`}><img src={LOGO} alt="MGSM VOLEY MENDOZA"/><div><strong>{APP_NAME}</strong><span>{TAGLINE}</span></div></div>; }
@@ -427,30 +433,38 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
   useEffect(()=>setOrderDraft(mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label)),[navigationOrder,labels.join("|")]);
   const visibilityOptions=["Asistencia","Jugador@s","Historial","Horarios","Entrenamiento","Pagos","Solicitudes","Profes","Categorías","Permisos"];
 
+  const fixedTail = ["Entrenamiento","Solapas"];
+  const normalizeOrder = (order) => {
+    const regular = order.filter(label => !fixedTail.includes(label));
+    return [...regular, ...fixedTail.filter(label => labels.includes(label))];
+  };
   function moveLabel(label,direction){
+    if(fixedTail.includes(label))return;
     setOrderDraft(current=>{
-      const next=[...current], index=next.indexOf(label), target=index+direction;
-      if(index<0||target<0||target>=next.length)return current;
-      [next[index],next[target]]=[next[target],next[index]];
-      return next;
+      const movable=current.filter(item=>!fixedTail.includes(item));
+      const index=movable.indexOf(label), target=index+direction;
+      if(index<0||target<0||target>=movable.length)return normalizeOrder(current);
+      [movable[index],movable[target]]=[movable[target],movable[index]];
+      return normalizeOrder(movable);
     });
   }
   function dropOn(target){
-    if(!dragged||dragged===target)return;
+    if(!dragged||dragged===target||fixedTail.includes(dragged)||fixedTail.includes(target))return;
     setOrderDraft(current=>{
-      const next=current.filter(label=>label!==dragged);
-      const index=next.indexOf(target);
-      next.splice(index<0?next.length:index,0,dragged);
-      return next;
+      const movable=current.filter(label=>!fixedTail.includes(label)&&label!==dragged);
+      const index=movable.indexOf(target);
+      movable.splice(index<0?movable.length:index,0,dragged);
+      return normalizeOrder(movable);
     });
     setDragged("");
   }
   async function saveOrder(){
     setSavingOrder(true);setMsg("");
     try{
-      const r=await supabase.from("user_ui_preferences").upsert({user_id:profile.id,navigation_order:orderDraft,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+      const normalizedOrder=normalizeOrder(orderDraft);
+      const r=await supabase.from("user_ui_preferences").upsert({user_id:profile.id,navigation_order:normalizedOrder,updated_at:new Date().toISOString()},{onConflict:"user_id"});
       if(r.error)throw r.error;
-      onSavedOrder(orderDraft);
+      setOrderDraft(normalizedOrder); onSavedOrder(normalizedOrder);
       setMsg("✓ Orden De Solapas Guardado Para Tu Cuenta.");
     }catch(e){setMsg(errorText(e));}finally{setSavingOrder(false);}
   }
@@ -468,8 +482,8 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
     <div className="card solapas-order-card">
       <div className="card-head"><div><h2>Orden Personal</h2><span>Arrastrá Las Solapas O Usá Las Flechas. El Cambio Solo Afecta Tu Cuenta.</span></div></div>
       <div className="solapas-order-list">{orderDraft.map((label,index)=><div className={`solapas-order-item ${dragged===label?"dragging":""}`} key={label} draggable onDragStart={()=>setDragged(label)} onDragEnd={()=>setDragged("")} onDragOver={e=>e.preventDefault()} onDrop={()=>dropOn(label)}>
-        <span className="solapas-drag-handle" title="Arrastrar">☰</span><b>{label}</b>
-        <div className="solapas-order-actions"><button type="button" aria-label={`Subir ${label}`} disabled={index===0} onClick={()=>moveLabel(label,-1)}>↑</button><button type="button" aria-label={`Bajar ${label}`} disabled={index===orderDraft.length-1} onClick={()=>moveLabel(label,1)}>↓</button></div>
+        <span className="solapas-drag-handle" title={fixedTail.includes(label)?"Posición Fija":"Arrastrar"}>{fixedTail.includes(label)?"🔒":"☰"}</span><b>{label}</b>
+        <div className="solapas-order-actions"><button type="button" aria-label={`Subir ${label}`} disabled={fixedTail.includes(label)||index===0} onClick={()=>moveLabel(label,-1)}>↑</button><button type="button" aria-label={`Bajar ${label}`} disabled={fixedTail.includes(label)||index===orderDraft.length-1} onClick={()=>moveLabel(label,1)}>↓</button></div>
       </div>)}</div>
       <button className="primary wide" type="button" disabled={savingOrder} onClick={saveOrder}>{savingOrder?"Guardando...":"Guardar Orden"}</button>
     </div>
@@ -587,6 +601,6 @@ function App() {
   nav.push(['settings','Solapas']);
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{l}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='training'&&<ProfessorTrainingHub/>} {tab==='payments'&&<AdminPaymentPanel role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>} {tab==='requests'&&<RequestsPage profile={profile}/>} {tab==='admins'&&<AdminUsers profile={profile}/>}  {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>} {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>} </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">🏐</span>}{l}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='training'&&<ProfessorTrainingHub/>} {tab==='payments'&&<AdminPaymentPanel role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>} {tab==='requests'&&<RequestsPage profile={profile}/>} {tab==='admins'&&<AdminUsers profile={profile}/>}  {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>} {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>} </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
 }
 export default App;
