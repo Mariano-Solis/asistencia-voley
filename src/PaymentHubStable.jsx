@@ -216,7 +216,7 @@ function PlayerPaymentPanel({ player, onClose }) {
       <div className="stable-pay-modal-card stable-pay-player-modal">
         <div className="stable-pay-modal-head">
           <div><span>💳</span><div><h2>Mis pagos</h2><p>{player.full_name}</p></div></div>
-          <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
+          {!embedded && <button type="button" onClick={onClose} aria-label="Cerrar">×</button>}
         </div>
 
         <OfficialAccount onCopy={copyAlias} />
@@ -254,7 +254,7 @@ function PlayerPaymentPanel({ player, onClose }) {
   );
 }
 
-function AdminPaymentPanel({ role, onClose }) {
+export function AdminPaymentPanel({ role, onClose, embedded = false }) {
   const period = currentPeriod();
   const refreshInFlightRef = useRef(false);
   const [players, setPlayers] = useState([]);
@@ -391,8 +391,8 @@ function AdminPaymentPanel({ role, onClose }) {
   }
 
   return (
-    <div className="stable-pay-modal" role="dialog" aria-modal="true" aria-label="Administración de pagos">
-      <div className="stable-pay-modal-card stable-pay-admin-modal">
+    <div className={embedded ? "stable-pay-admin-page" : "stable-pay-modal"} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : "true"} aria-label="Administración de pagos">
+      <div className={embedded ? "stable-pay-admin-page-card stable-pay-admin-modal" : "stable-pay-modal-card stable-pay-admin-modal"}>
         <div className="stable-pay-modal-head">
           <div><span>💳</span><div><h2>Pagos</h2><p>{periodLabel(period)} · {role === "super_admin" ? "Vista del club" : "Tus categorías autorizadas"}</p></div></div>
           <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
