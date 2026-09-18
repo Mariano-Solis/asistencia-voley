@@ -341,7 +341,7 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
         )}
       </div>
 
-      {editing && <DualPlayerEdit player={player} onClose={() => setEditing(false)} onSaved={(updated) => { setPlayer(updated); setEditing(false); setMessage("✓ Perfil actualizado correctamente."); }} />}
+      {editing && <DualPlayerEdit player={player} onClose={() => setEditing(false)} onSaved={(updated) => { setPlayer(updated); setEditing(false); setMessage("✓ Perfil Actualizado Correctamente."); }} />}
     </main>
   );
 }
