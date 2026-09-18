@@ -254,7 +254,7 @@ function PlayerPaymentPanel({ player, onClose }) {
   );
 }
 
-export function AdminPaymentPanel({ role, onClose, embedded = false }) {
+export function AdminPaymentPanel({ role, canApprovePayments = false, onClose, embedded = false }) {
   const period = currentPeriod();
   const refreshInFlightRef = useRef(false);
   const [players, setPlayers] = useState([]);
@@ -320,7 +320,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
   const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && p.validation_status !== "validated").length;
 
   async function updateFee(playerId, value) {
-    if (role !== "super_admin") return;
+    if (!canApprovePayments) return;
     const fee = Number(value);
     const { error } = await supabase.from("players").update({ monthly_fee: fee }).eq("id", playerId);
     if (error) setMessage("No Se Pudo Modificar La Cuota.");
@@ -328,7 +328,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
   }
 
   async function reviewPayment(paymentId, decision) {
-    if (role !== "super_admin") return;
+    if (!canApprovePayments) return;
     setReviewing(paymentId);
     setMessage("");
     const { data, error } = await supabase.functions.invoke("review-payment-receipt", {
@@ -343,7 +343,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
   }
 
   async function approveAllReceipts() {
-    if (role !== "super_admin" || bulkReviewing || unvalidatedReceiptsCount === 0) return;
+    if (!canApprovePayments || bulkReviewing || unvalidatedReceiptsCount === 0) return;
     const label = periodLabel(period);
     const confirmed = window.confirm(`Vas A Aprobar Todos Los Comprobantes Cargados De ${Label}. ¿Querés Continuar?`);
     if (!confirmed) return;
@@ -369,7 +369,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
   }
 
   async function revokePayment(paymentId, playerName) {
-    if (role !== "super_admin" || reviewing) return;
+    if (!canApprovePayments || reviewing) return;
     const confirmed = window.confirm(`Vas A Revocar La Aprobación Del Comprobante De ${PlayerName}. Quedará Pendiente De Revisión. ¿Querés Continuar?`);
     if (!confirmed) return;
 
@@ -417,7 +417,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
           </select>
         </div>
 
-        {role === "super_admin" && (
+        {canApprovePayments && (
           <div className="stable-pay-bulk-actions">
             <div>
               <strong>Acciones del período · {periodLabel(period)}</strong>
@@ -445,11 +445,11 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
                 <b className={`stable-pay-state ${state.cls}`}>{state.label}</b>
                 <div className="stable-pay-row-actions">
                   {payment?.receipt_path ? <button type="button" onClick={() => openReceipt(payment.receipt_path, setMessage)}>👁 Ver</button> : <span>Sin Archivo</span>}
-                  {role === "super_admin" && payment?.receipt_path && ["manual_review", "pending_validation", "rejected"].includes(payment.validation_status) && <>
+                  {canApprovePayments && payment?.receipt_path && ["manual_review", "pending_validation", "rejected"].includes(payment.validation_status) && <>
                     <button type="button" className="approve" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "validated")}>✓ Aprobar</button>
                     {payment.validation_status !== "rejected" && <button type="button" className="reject" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "rejected")}>✕ Rechazar</button>}
                   </>}
-                  {role === "super_admin" && payment?.validation_status === "validated" && (
+                  {canApprovePayments && payment?.validation_status === "validated" && (
                     <button type="button" className="revoke" disabled={reviewing === payment.id || bulkReviewing} onClick={() => revokePayment(payment.id, player.full_name)}>↩ Revocar Aprobación</button>
                   )}
                 </div>
