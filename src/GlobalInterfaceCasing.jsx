@@ -6,7 +6,7 @@ const SKIP_TAGS = new Set(["SCRIPT","STYLE","TEXTAREA","CODE","PRE"]);
 const ATTRIBUTES = ["placeholder","title","aria-label"];
 
 function formatHashtag(token) {
-  const match = token.match(/^(#)([\\p{L}\\p{N}_]+)(.*)$/u);
+  const match = token.match(/^(#)([\p{L}\p{N}_]+)(.*)$/u);
   if (!match) return null;
   const [, hash, body, suffix] = match;
   if (body.toLocaleLowerCase("es-AR") === "vamoselpoli") return hash + "VamosElPoli" + suffix;
@@ -14,7 +14,7 @@ function formatHashtag(token) {
 }
 
 export function formatInterfaceText(value = "") {
-  return String(value).replace(/\\S+/gu, token => {
+  return String(value).replace(/\S+/gu, token => {
     const hashtag = formatHashtag(token);
     if (hashtag) return hashtag;
     if (ONLY_Y_RE.test(token)) {
