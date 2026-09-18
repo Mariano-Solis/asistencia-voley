@@ -31,3 +31,31 @@
     padding: 10px;
   }
 }
+
+
+.mgsm-turnstile-status {
+  min-height: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #475569;
+}
+
+.mgsm-turnstile-retry {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #b5121b;
+  border-radius: 12px;
+  background: #fff;
+  color: #b5121b;
+  font: 800 14px/1.2 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.mgsm-turnstile-retry:hover {
+  background: #fff4f5;
+}
+
+.mgsm-turnstile-retry[hidden] {
+  display: none !important;
+}
