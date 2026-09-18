@@ -38,7 +38,7 @@ function playerSignupForm() {
   const card = document.querySelector('.auth-card')
   if (!card) return null
   const activeTab = card.querySelector('.auth-tabs button.active')?.textContent?.trim()
-  if (activeTab !== 'Crear cuenta') return null
+  if (activeTab !== 'Crear Cuenta') return null
   return card.querySelector('form')
 }
 
