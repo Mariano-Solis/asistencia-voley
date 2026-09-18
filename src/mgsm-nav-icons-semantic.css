@@ -38,6 +38,8 @@ main.app > nav button[data-feature-tab="Solicitudes"]::before,
 main.app nav button[data-feature-tab="Solicitudes"]::before { content:"📥" !important; }
 main.app > nav button[data-training-hub-button]::before,
 main.app nav button[data-training-hub-button]::before,
+main.app > nav button[data-feature-tab="Entrenamiento"]::before,
+main.app nav button[data-feature-tab="Entrenamiento"]::before,
 main.app > nav button[data-feature-tab="Entrenamientos"]::before,
 main.app nav button[data-feature-tab="Entrenamientos"]::before { content:"📚" !important; }
 main.app > nav button[data-feature-tab="Pagos"]::before,
