@@ -36,9 +36,19 @@ export default function PendingApprovalGate() {
 
     check()
     const { data } = supabase.auth.onAuthStateChange(() => setTimeout(check, 0))
+    const channel = supabase
+      .channel('pending-approval-gate')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, () => setTimeout(check, 0))
+      .subscribe()
+    const resume = () => { if (document.visibilityState === 'visible') void check() }
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', resume)
     return () => {
       alive = false
       data?.subscription?.unsubscribe()
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', resume)
+      void supabase.removeChannel(channel)
     }
   }, [])
 
