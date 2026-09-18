@@ -6,7 +6,7 @@ import TrainingSchedule from "./TrainingSchedule";
 import { supabase } from "./supabase";
 
 const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
-const APP_NAME = "Municipalidad de San Martín - VOLEY";
+const APP_NAME = "Municipalidad De San Martín - VOLEY";
 const TAGLINE = "#VamosElPoli";
 const LOGO = "/Logo.jpg";
 const TYPES = { training: "Entrenamiento", match: "Partido", tournament: "Torneo" };
@@ -70,7 +70,7 @@ function AuthRecovery() {
 
       const forgot = document.createElement("button");
       forgot.type = "button";
-      forgot.textContent = "¿Olvidaste tu contraseña?";
+      forgot.textContent = "¿Olvidaste Tu Contraseña?";
       forgot.style.cssText = "border:0;background:none;color:#b5121b;text-decoration:underline;cursor:pointer;font:inherit;padding:4px 2px;";
       forgot.addEventListener("click", () => {
         setEmail(emailInput.value.trim());
@@ -80,7 +80,7 @@ function AuthRecovery() {
 
       const resend = document.createElement("button");
       resend.type = "button";
-      resend.textContent = "📩 Reenviar correo de verificación";
+      resend.textContent = "📩 Reenviar Correo De Verificación";
       resend.style.cssText = "border:0;background:none;color:#333;text-decoration:underline;cursor:pointer;font:inherit;padding:4px 2px;";
       resend.addEventListener("click", () => {
         setEmail(emailInput.value.trim());
@@ -101,7 +101,7 @@ function AuthRecovery() {
   async function sendRecovery() {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
-      setMessage("Ingresá tu correo electrónico primero.");
+      setMessage("Ingresá Tu Correo Electrónico Primero.");
       return;
     }
     setLoading(true);
@@ -111,9 +111,9 @@ function AuthRecovery() {
         redirectTo: PUBLIC_APP_URL,
       });
       if (error) throw error;
-      setMessage("✓ Listo. Revisá tu correo (y Spam/Correo no deseado). Si la cuenta existe, Supabase enviará el enlace para cambiar la contraseña.");
+      setMessage("✓ Listo. Revisá Tu Correo (y Spam/Correo No Deseado). Si La Cuenta Existe, Supabase Enviará El Enlace Para Cambiar La Contraseña.");
     } catch (error) {
-      setMessage(error?.message || "No se pudo enviar el correo de recuperación.");
+      setMessage(error?.message || "No Se Pudo Enviar El Correo De Recuperación.");
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ function AuthRecovery() {
   async function resendVerification() {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
-      setMessage("Ingresá el correo con el que registraste la cuenta.");
+      setMessage("Ingresá El Correo Con El Que Registraste La Cuenta.");
       return;
     }
     setLoading(true);
@@ -136,15 +136,15 @@ function AuthRecovery() {
       if (error) {
         const text = String(error.message || "");
         if (/already confirmed|confirmed/i.test(text)) {
-          setMessage("Esta cuenta ya está verificada. No necesitás otro correo de confirmación. Si no podés entrar, usá «¿Olvidaste tu contraseña?».");
+          setMessage("Esta Cuenta Ya Está Verificada. No Necesitás Otro Correo De Confirmación. Si No Podés Entrar, Usá «¿Olvidaste Tu Contraseña?».");
         } else {
           throw error;
         }
       } else {
-        setMessage("✓ Correo de verificación reenviado. Revisá Recibidos y Spam/Correo no deseado.");
+        setMessage("✓ Correo De Verificación Reenviado. Revisá Recibidos y Spam/Correo No Deseado.");
       }
     } catch (error) {
-      setMessage(error?.message || "No se pudo reenviar el correo de verificación.");
+      setMessage(error?.message || "No Se Pudo Reenviar El Correo De Verificación.");
     } finally {
       setLoading(false);
     }
@@ -152,11 +152,11 @@ function AuthRecovery() {
 
   async function updatePassword() {
     if (newPassword.length < 6) {
-      setMessage("La nueva contraseña debe tener al menos 6 caracteres.");
+      setMessage("La Nueva Contraseña Debe Tener Al Menos 6 Caracteres.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setMessage("Las contraseñas no coinciden.");
+      setMessage("Las Contraseñas No Coinciden.");
       return;
     }
     setLoading(true);
@@ -164,10 +164,10 @@ function AuthRecovery() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setMessage("✓ Contraseña actualizada. Ya podés ingresar con tu cuenta.");
+      setMessage("✓ Contraseña Actualizada. Ya Podés Ingresar Con Tu Cuenta.");
       setTimeout(() => setModal(null), 1300);
     } catch (error) {
-      setMessage(error?.message || "No se pudo actualizar la contraseña.");
+      setMessage(error?.message || "No Se Pudo Actualizar La Contraseña.");
     } finally {
       setLoading(false);
     }
@@ -175,7 +175,7 @@ function AuthRecovery() {
 
   if (!modal) return null;
 
-  const title = modal === "forgot" ? "Recuperar contraseña" : modal === "resend" ? "Verificar cuenta" : "Nueva contraseña";
+  const title = modal === "forgot" ? "Recuperar Contraseña" : modal === "resend" ? "Verificar Cuenta" : "Nueva Contraseña";
 
   return (
     <div className="voley-auth-modal" style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,.62)", display: "grid", placeItems: "center", padding: 20 }}>
@@ -185,24 +185,24 @@ function AuthRecovery() {
           <button type="button" onClick={() => setModal(null)} aria-label="Cerrar" style={{ border: 0, background: "none", fontSize: 28, cursor: "pointer" }}>×</button>
         </div>
         <p style={{ color: "#555", lineHeight: 1.5 }}>
-          {modal === "forgot" && "Ingresá el correo de tu cuenta y te enviaremos un enlace para crear una nueva contraseña."}
-          {modal === "resend" && "Ingresá el correo usado al registrarte. Si la cuenta todavía no está confirmada, te enviaremos un nuevo correo de verificación."}
-          {modal === "password" && "Elegí una nueva contraseña para tu cuenta."}
+          {modal === "forgot" && "Ingresá El Correo De Tu Cuenta y Te Enviaremos Un Enlace Para Crear Una Nueva Contraseña."}
+          {modal === "resend" && "Ingresá El Correo Usado Al Registrarte. Si La Cuenta Todavía No Está Confirmada, Te Enviaremos Un Nuevo Correo De Verificación."}
+          {modal === "password" && "Elegí Una Nueva Contraseña Para Tu Cuenta."}
         </p>
 
         {modal !== "password" ? (
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo electrónico" autoFocus style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", marginBottom: 12 }} />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo Electrónico" autoFocus style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", marginBottom: 12 }} />
         ) : (
           <>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nueva contraseña" autoFocus style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", marginBottom: 10 }} />
-            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repetir contraseña" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", marginBottom: 12 }} />
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nueva Contraseña" autoFocus style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", marginBottom: 10 }} />
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repetir Contraseña" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", marginBottom: 12 }} />
           </>
         )}
 
         {message && <div style={{ background: "#f4f4f4", borderRadius: 10, padding: 12, marginBottom: 12, lineHeight: 1.45 }}>{message}</div>}
 
         <button type="button" disabled={loading} onClick={modal === "forgot" ? sendRecovery : modal === "resend" ? resendVerification : updatePassword} style={{ width: "100%", border: 0, borderRadius: 10, padding: "13px 16px", background: "#b5121b", color: "#fff", fontWeight: 700, cursor: loading ? "wait" : "pointer" }}>
-          {loading ? "Enviando..." : modal === "forgot" ? "Enviar recuperación" : modal === "resend" ? "Reenviar correo" : "Guardar nueva contraseña"}
+          {loading ? "Enviando..." : modal === "forgot" ? "Enviar Recuperación" : modal === "resend" ? "Reenviar Correo" : "Guardar Nueva Contraseña"}
         </button>
       </section>
     </div>
@@ -274,7 +274,7 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
     return () => { mounted = false; };
   }, [session?.user?.id, initialPlayer?.id]);
 
-  if (!player) return <main className="loading-screen">Cargando tu perfil...</main>;
+  if (!player) return <main className="loading-screen">Cargando Tu Perfil...</main>;
 
   const counts = {
     present: rows.filter(r => r.status === "present").length,
@@ -288,14 +288,14 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
       <header className="topbar">
         <div className="brand compact"><img src={LOGO} alt="MGSM VOLEY MENDOZA"/><div><strong>{APP_NAME}</strong><span>{TAGLINE}</span></div></div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <button type="button" onClick={onSwitchAdmin}>👨‍🏫 Ir a Profe</button>
+          <button type="button" onClick={onSwitchAdmin}>👨‍🏫 Ir A Profe</button>
           <button type="button" onClick={onLogout}>Salir</button>
         </div>
       </header>
 
       <div className="player-wrap">
         <div className="player-section-nav">
-          <button type="button" className={view === "profile" ? "active" : ""} onClick={() => setView("profile")}>👤 Mi perfil</button>
+          <button type="button" className={view === "profile" ? "active" : ""} onClick={() => setView("profile")}>👤 Mi Perfil</button>
           <button type="button" className={view === "schedule" ? "active" : ""} onClick={() => setView("schedule")}>🕐 Horarios</button>
         </div>
 
@@ -306,11 +306,11 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
             <section className="hero-profile card">
               {player.selfie_path ? <img className="avatar photo" src={photoData?.publicUrl} alt=""/> : <div className="avatar">{player.full_name?.charAt(0)?.toUpperCase() || "J"}</div>}
               <div className="grow">
-                <span className="eyebrow">Mi perfil · Jugador@</span>
+                <span className="eyebrow">Mi Perfil · Jugador@</span>
                 <h1>{player.full_name}</h1>
-                <p>{player.team ? `Equipo ${player.team}` : "Sin asignar"}</p>
+                <p>{player.team ? `Equipo ${player.team}` : "Sin Asignar"}</p>
               </div>
-              <button className="profile-edit-btn" onClick={() => setEditing(true)}>✏️ Editar mis datos</button>
+              <button className="profile-edit-btn" onClick={() => setEditing(true)}>✏️ Editar Mis Datos</button>
             </section>
 
             <div className="stats">
@@ -320,20 +320,20 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
             </div>
 
             <div className="card access-box">
-              <span>Tu código personal</span>
+              <span>Tu Código Personal</span>
               <strong>{player.access_code || "—"}</strong>
-              <button type="button" onClick={() => navigator.clipboard?.writeText(player.access_code || "").then(() => setMessage("✓ Código copiado."))}>📋 Copiar código</button>
+              <button type="button" onClick={() => navigator.clipboard?.writeText(player.access_code || "").then(() => setMessage("✓ Código Copiado."))}>📋 Copiar Código</button>
             </div>
 
             <div className="card">
-              <div className="card-head"><h2>Mi asistencia</h2></div>
+              <div className="card-head"><h2>Mi Asistencia</h2></div>
               <div className="simple-list">
                 {rows.length ? rows.map((r, i) => (
                   <div className="history-row" key={r.session_id || i}>
                     <div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type] || "Actividad"}</span></div>
                     <span className={`badge ${r.status}`}>{STATUS[r.status] || r.status}</span>
                   </div>
-                )) : <div className="empty">Todavía no tenés asistencias registradas.</div>}
+                )) : <div className="empty">Todavía No Tenés Asistencias Registradas.</div>}
               </div>
             </div>
             {message && <div className="message">{message}</div>}
@@ -341,7 +341,7 @@ function DualPlayerDashboard({ session, player: initialPlayer, onSwitchAdmin, on
         )}
       </div>
 
-      {editing && <DualPlayerEdit player={player} onClose={() => setEditing(false)} onSaved={(updated) => { setPlayer(updated); setEditing(false); setMessage("✓ Perfil actualizado correctamente."); }} />}
+      {editing && <DualPlayerEdit player={player} onClose={() => setEditing(false)} onSaved={(updated) => { setPlayer(updated); setEditing(false); setMessage("✓ Perfil Actualizado Correctamente."); }} />}
     </main>
   );
 }
@@ -391,7 +391,7 @@ function DualPlayerEdit({ player, onClose, onSaved }) {
       }
       onSaved(updated);
     } catch (e) {
-      setError(e?.message || "No se pudieron guardar los cambios.");
+      setError(e?.message || "No Se Pudieron Guardar Los Cambios.");
     } finally {
       setSaving(false);
     }
@@ -400,7 +400,7 @@ function DualPlayerEdit({ player, onClose, onSaved }) {
   return (
     <div className="modal">
       <div className="modal-card">
-        <div className="modal-head"><h2>Mi perfil</h2><button type="button" onClick={onClose}>×</button></div>
+        <div className="modal-head"><h2>Mi Perfil</h2><button type="button" onClick={onClose}>×</button></div>
         <form onSubmit={save}>
           <div className="two">
             <input required value={data.first} placeholder="Nombre" onChange={e => setData(d => ({ ...d, first: e.target.value }))}/>
@@ -418,7 +418,7 @@ function DualPlayerEdit({ player, onClose, onSaved }) {
             {data.file && <span className="file-name">✓ {data.file.name}</span>}
           </label>
           {error && <div className="message">{error}</div>}
-          <div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>{saving ? "Guardando..." : "Guardar cambios"}</button></div>
+          <div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>{saving ? "Guardando..." : "Guardar Cambios"}</button></div>
         </form>
       </div>
     </div>

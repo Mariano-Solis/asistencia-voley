@@ -30,7 +30,7 @@ export default function ProfessorSelfSignup() {
     const sync = () => {
       const card = document.querySelector(".auth-card");
       const activeTab = card?.querySelector(".auth-tabs button.active")?.textContent?.trim() || "";
-      const shouldShow = activeTab === "Profe" || activeTab === "Crear cuenta";
+      const shouldShow = activeTab === "Profe" || activeTab === "Crear Cuenta";
 
       if (!card || !shouldShow) {
         if (host?.isConnected) host.remove();
@@ -74,12 +74,12 @@ export default function ProfessorSelfSignup() {
     const normalizedLast = normalizeLastName(last);
 
     if (!normalizedFirst || !normalizedLast || !email.trim() || password.length < 6) {
-      setMessage("Completá nombre, apellido, correo y una contraseña de al menos 6 caracteres.");
+      setMessage("Completá Nombre, Apellido, Correo y Una Contraseña De Al Menos 6 Caracteres.");
       return;
     }
 
     if (alsoPlayer && (!dni.trim() || !birth)) {
-      setMessage("Para registrarte también como Jugador@ completá DNI y fecha de nacimiento.");
+      setMessage("Para Registrarte También Como Jugador@ Completá DNI y Fecha De Nacimiento.");
       return;
     }
 
@@ -114,16 +114,16 @@ export default function ProfessorSelfSignup() {
       setBirth("");
 
       const verificationText = data.session
-        ? "Tu correo ya está verificado."
-        : "Revisá tu correo y confirmá la cuenta.";
+        ? "Tu Correo Ya Está Verificado."
+        : "Revisá Tu Correo y Confirmá La Cuenta.";
 
       setMessage(
         alsoPlayer
-          ? `✓ Solicitud creada como Profe + Jugador@. ${verificationText} El acceso de Profe quedará pendiente hasta que el Super Administrador lo apruebe; tu perfil de Jugador@ también deberá ser aprobado por un Profe autorizado o el Super Administrador.`
-          : `✓ Solicitud de Profe creada. ${verificationText} El acceso quedará pendiente hasta que el Super Administrador confirme que pertenecés al cuerpo de Profes.`
+          ? `✓ Solicitud Creada Como Profe + Jugador@. ${VerificationText} El Acceso De Profe Quedará Pendiente Hasta Que El Super Administrador Lo Apruebe; Tu Perfil De Jugador@ También Deberá Ser Aprobado Por Un Profe Autorizado O El Super Administrador.`
+          : `✓ Solicitud De Profe Creada. ${VerificationText} El Acceso Quedará Pendiente Hasta Que El Super Administrador Confirme Que Pertenecés Al Cuerpo De Profes.`
       );
     } catch (e) {
-      setMessage(e?.message || "No se pudo crear la cuenta.");
+      setMessage(e?.message || "No Se Pudo Crear La Cuenta.");
     } finally {
       setSaving(false);
     }
@@ -138,19 +138,19 @@ export default function ProfessorSelfSignup() {
           onClick={() => { setMessage(""); setOpen(true); }}
         >
           <span aria-hidden="true">👨‍🏫</span>
-          <span>Crear cuenta de Profe</span>
+          <span>Crear Cuenta De Profe</span>
         </button>,
         portalTarget
       )}
 
       {open && (
-        <div className="professor-signup-overlay" role="dialog" aria-modal="true" aria-label="Crear cuenta de Profe">
+        <div className="professor-signup-overlay" role="dialog" aria-modal="true" aria-label="Crear Cuenta De Profe">
           <div className="professor-signup-card">
             <div className="professor-signup-head">
               <div>
                 <span className="professor-signup-kicker">MGSM VOLEY MENDOZA</span>
-                <h2>Crear cuenta de Profe</h2>
-                <p>Cada Profe crea su propia cuenta. El Super Administrador debe aprobarla antes de habilitar el acceso.</p>
+                <h2>Crear Cuenta De Profe</h2>
+                <p>Cada Profe Crea Su Propia Cuenta. El Super Administrador Debe Aprobarla Antes De Habilitar El Acceso.</p>
               </div>
               <button type="button" className="professor-signup-close" onClick={() => setOpen(false)}>×</button>
             </div>
@@ -163,7 +163,7 @@ export default function ProfessorSelfSignup() {
 
               <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700 }}>
                 <input type="checkbox" checked={alsoPlayer} onChange={e => setAlsoPlayer(e.target.checked)} style={{ width: 20, height: 20 }} />
-                También soy Jugador@
+                También Soy Jugador@
               </label>
 
               {alsoPlayer && (
@@ -176,17 +176,17 @@ export default function ProfessorSelfSignup() {
                     <input required placeholder="DNI" value={dni} onChange={e => setDni(e.target.value)} />
                   </div>
                   <label className="field-label">
-                    Fecha de nacimiento
+                    Fecha De Nacimiento
                     <input required type="date" value={birth} onChange={e => setBirth(e.target.value)} />
                   </label>
-                  <small>Tu categoría como Jugador@ se calculará automáticamente. Ese perfil quedará pendiente de aprobación independiente.</small>
+                  <small>Tu Categoría Como Jugador@ Se Calculará Automáticamente. Ese Perfil Quedará Pendiente De Aprobación Independiente.</small>
                 </>
               )}
 
-              <input required type="email" placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} />
-              <input required minLength={6} type="password" placeholder="Contraseña (mínimo 6 caracteres)" value={password} onChange={e => setPassword(e.target.value)} />
-              <small>Nombre y apellido se guardan automáticamente con el formato institucional. Confirmar el correo no habilita por sí solo el acceso de Profe: la aprobación del Super Administrador es obligatoria.</small>
-              <button className="primary" disabled={saving}>{saving ? "Creando solicitud..." : alsoPlayer ? "Solicitar cuenta Profe + Jugador@" : "Solicitar cuenta de Profe"}</button>
+              <input required type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)} />
+              <input required minLength={6} type="password" placeholder="Contraseña (Mínimo 6 Caracteres)" value={password} onChange={e => setPassword(e.target.value)} />
+              <small>Nombre y Apellido Se Guardan Automáticamente Con El Formato Institucional. Confirmar El Correo No Habilita Por Sí Solo El Acceso De Profe: La Aprobación Del Super Administrador Es Obligatoria.</small>
+              <button className="primary" disabled={saving}>{saving ? "Creando Solicitud..." : alsoPlayer ? "Solicitar Cuenta Profe + Jugador@" : "Solicitar Cuenta De Profe"}</button>
             </form>
 
             {message && <div className="message">{message}</div>}

@@ -52,11 +52,11 @@ function safeName(name) {
 
 function stateOf(payment) {
   if (!payment) return { cls: "pending", label: "Pendiente" };
-  if (payment.validation_status === "validated") return { cls: "paid", label: "✓ Comprobante válido" };
-  if (payment.validation_status === "pending_validation") return { cls: "review", label: "⏳ Verificando comprobante" };
-  if (payment.validation_status === "manual_review") return { cls: "review", label: "⚠ Pendiente de revisión" };
+  if (payment.validation_status === "validated") return { cls: "paid", label: "✓ Comprobante Válido" };
+  if (payment.validation_status === "pending_validation") return { cls: "review", label: "⏳ Verificando Comprobante" };
+  if (payment.validation_status === "manual_review") return { cls: "review", label: "⚠ Pendiente De Revisión" };
   if (payment.validation_status === "rejected") return { cls: "rejected", label: "✕ Rechazado" };
-  return { cls: "review", label: "⏳ Verificando comprobante" };
+  return { cls: "review", label: "⏳ Verificando Comprobante" };
 }
 
 async function openReceipt(path, setMessage) {
@@ -69,7 +69,7 @@ async function openReceipt(path, setMessage) {
     else window.location.href = data.signedUrl;
   } catch {
     popup?.close();
-    setMessage("No se pudo abrir el comprobante.");
+    setMessage("No Se Pudo Abrir El Comprobante.");
   }
 }
 
@@ -78,13 +78,13 @@ function OfficialAccount({ onCopy }) {
     <section className="stable-pay-account">
       <span className="stable-pay-eyebrow">CUENTA OFICIAL DE PAGO</span>
       <strong className="stable-pay-alias">{OFFICIAL_PAYMENT.alias}</strong>
-      <button type="button" onClick={() => onCopy(OFFICIAL_PAYMENT.alias)}>📋 Copiar alias</button>
+      <button type="button" onClick={() => onCopy(OFFICIAL_PAYMENT.alias)}>📋 Copiar Alias</button>
       <div className="stable-pay-account-detail">
         <span>{OFFICIAL_PAYMENT.provider}</span>
         <span>{OFFICIAL_PAYMENT.holder}</span>
         <span>CVU {OFFICIAL_PAYMENT.cvu}</span>
       </div>
-      <small>Transferí únicamente a esta cuenta.</small>
+      <small>Transferí Únicamente A Esta Cuenta.</small>
     </section>
   );
 }
@@ -110,7 +110,7 @@ function PlayerPaymentPanel({ player, onClose }) {
         .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason,detected_provider,validated_at")
         .eq("player_id", player.id)
         .order("period_month", { ascending: false });
-      if (error) setMessage("No se pudieron cargar tus pagos.");
+      if (error) setMessage("No Se Pudieron Cargar Tus Pagos.");
       else setPayments(data || []);
     } finally {
       if (showLoading) setLoading(false);
@@ -133,16 +133,16 @@ function PlayerPaymentPanel({ player, onClose }) {
   async function upload(file) {
     if (!file || !player?.monthly_fee || verifying) return;
     if (!ALLOWED_TYPES.has(file.type)) {
-      setMessage("El comprobante debe ser JPG, PNG o PDF.");
+      setMessage("El Comprobante Debe Ser JPG, PNG O PDF.");
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setMessage("El comprobante no puede superar los 10 MB.");
+      setMessage("El Comprobante No Puede Superar Los 10 MB.");
       return;
     }
 
     setUploading(true);
-    setMessage("⏳ Cargando comprobante...");
+    setMessage("⏳ Cargando Comprobante...");
     const folder = period.slice(0, 7);
     const path = `${player.id}/${folder}/${Date.now()}-${safeName(file.name)}`;
 
@@ -164,38 +164,38 @@ function PlayerPaymentPanel({ player, onClose }) {
 
       if (error) {
         await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-        setMessage("⚠ No se pudo cargar el comprobante. Intentá nuevamente.");
+        setMessage("⚠ No Se Pudo Cargar El Comprobante. Intentá Nuevamente.");
         return;
       }
 
       if (data?.status === "pending_validation") {
-        setMessage("✓ Comprobante cargado. Se verificará en segundo plano. Podés cerrar esta ventana y seguir usando la aplicación.");
+        setMessage("✓ Comprobante Cargado. Se Verificará En Segundo Plano. Podés Cerrar Esta Ventana y Seguir Usando La Aplicación.");
         await load(false, false);
         return;
       }
 
       if (data?.status === "validated") {
-        setMessage("✓ Comprobante validado automáticamente.");
+        setMessage("✓ Comprobante Validado Automáticamente.");
         await load(false, false);
         return;
       }
 
       if (data?.status === "manual_review") {
-        setMessage("⚠ Comprobante cargado. No pudo verificarse automáticamente y será revisado por el Super Administrador.");
+        setMessage("⚠ Comprobante Cargado. No Pudo Verificarse Automáticamente y Será Revisado Por El Super Administrador.");
         await load(false, false);
         return;
       }
 
       if (data?.status === "rejected") {
-        setMessage(`✕ ${data.reason || "Comprobante no válido."}`);
+        setMessage(`✕ ${data.reason || "Comprobante No Válido."}`);
         await load(false, false);
         return;
       }
 
-      setMessage("⚠ No se pudo determinar el estado del comprobante. Intentá nuevamente.");
+      setMessage("⚠ No Se Pudo Determinar El Estado Del Comprobante. Intentá Nuevamente.");
     } catch {
       await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-      setMessage("⚠ No se pudo cargar el comprobante. Intentá nuevamente.");
+      setMessage("⚠ No Se Pudo Cargar El Comprobante. Intentá Nuevamente.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -205,17 +205,17 @@ function PlayerPaymentPanel({ player, onClose }) {
   async function copyAlias(value) {
     try {
       await navigator.clipboard.writeText(value);
-      setMessage("✓ Alias copiado.");
+      setMessage("✓ Alias Copiado.");
     } catch {
       setMessage(`Alias: ${value}`);
     }
   }
 
   return (
-    <div className="stable-pay-modal" role="dialog" aria-modal="true" aria-label="Mis pagos">
+    <div className="stable-pay-modal" role="dialog" aria-modal="true" aria-label="Mis Pagos">
       <div className="stable-pay-modal-card stable-pay-player-modal">
         <div className="stable-pay-modal-head">
-          <div><span>💳</span><div><h2>Mis pagos</h2><p>{player.full_name}</p></div></div>
+          <div><span>💳</span><div><h2>Mis Pagos</h2><p>{player.full_name}</p></div></div>
           {!embedded && <button type="button" onClick={onClose} aria-label="Cerrar">×</button>}
         </div>
 
@@ -226,7 +226,7 @@ function PlayerPaymentPanel({ player, onClose }) {
           <b className={`stable-pay-state ${currentState.cls}`}>{currentState.label}</b>
         </section>
 
-        <p className="stable-pay-help">Los comprobantes descargados de Mercado Pago se leen automáticamente buscando la fecha del mes en curso y el CVU oficial. Si el archivo no puede leerse con seguridad, queda pendiente de revisión manual. El pagador puede ser otra persona.</p>
+        <p className="stable-pay-help">Los Comprobantes Descargados De Mercado Pago Se Leen Automáticamente Buscando La Fecha Del Mes En Curso y El CVU Oficial. Si El Archivo No Puede Leerse Con Seguridad, Queda Pendiente De Revisión Manual. El Pagador Puede Ser Otra Persona.</p>
 
         {current?.validation_reason && current.validation_status !== "validated" && (
           <div className="stable-pay-note">{current.validation_reason}</div>
@@ -235,19 +235,19 @@ function PlayerPaymentPanel({ player, onClose }) {
         <div className="stable-pay-actions">
           <input ref={inputRef} hidden type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => upload(e.target.files?.[0])} />
           <button type="button" className="primary" disabled={uploading || verifying} onClick={() => inputRef.current?.click()}>
-            {uploading ? "⏳ Cargando..." : verifying ? "⏳ Verificación en curso" : current ? "📎 Reemplazar comprobante" : "📎 Adjuntar comprobante"}
+            {uploading ? "⏳ Cargando..." : verifying ? "⏳ Verificación En Curso" : current ? "📎 Reemplazar Comprobante" : "📎 Adjuntar Comprobante"}
           </button>
-          {current?.receipt_path && <button type="button" onClick={() => openReceipt(current.receipt_path, setMessage)}>👁 Ver comprobante</button>}
+          {current?.receipt_path && <button type="button" onClick={() => openReceipt(current.receipt_path, setMessage)}>👁 Ver Comprobante</button>}
         </div>
 
         {message && <div className="stable-pay-message">{message}</div>}
 
         <section className="stable-pay-history">
           <h3>Historial</h3>
-          {loading ? <p>Cargando pagos...</p> : payments.length ? payments.map((row) => {
+          {loading ? <p>Cargando Pagos...</p> : payments.length ? payments.map((row) => {
             const s = stateOf(row);
             return <div className="stable-pay-history-row" key={row.id}><span><b>{periodLabel(row.period_month)}</b><small>{money(row.amount_due)}</small></span><b className={`stable-pay-state ${s.cls}`}>{s.label}</b>{row.receipt_path && <button type="button" onClick={() => openReceipt(row.receipt_path, setMessage)}>Ver</button>}</div>;
-          }) : <p>Todavía no hay comprobantes cargados.</p>}
+          }) : <p>Todavía No Hay Comprobantes Cargados.</p>}
         </section>
       </div>
     </div>
@@ -277,7 +277,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
         supabase.from("players").select("id,full_name,monthly_fee,category_id,team,active").eq("active", true).order("full_name"),
         supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_provider").eq("period_month", period),
       ]);
-      if (p.error || pay.error) setMessage("No se pudieron cargar los pagos.");
+      if (p.error || pay.error) setMessage("No Se Pudieron Cargar Los Pagos.");
       if (!p.error) setPlayers(p.data || []);
       if (!pay.error) setPayments(pay.data || []);
     } finally {
@@ -323,7 +323,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
     if (role !== "super_admin") return;
     const fee = Number(value);
     const { error } = await supabase.from("players").update({ monthly_fee: fee }).eq("id", playerId);
-    if (error) setMessage("No se pudo modificar la cuota.");
+    if (error) setMessage("No Se Pudo Modificar La Cuota.");
     else setPlayers((prev) => prev.map((p) => p.id === playerId ? { ...p, monthly_fee: fee } : p));
   }
 
@@ -334,9 +334,9 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
     const { data, error } = await supabase.functions.invoke("review-payment-receipt", {
       body: { payment_id: paymentId, decision },
     });
-    if (error || !data?.ok) setMessage("No se pudo resolver el comprobante.");
+    if (error || !data?.ok) setMessage("No Se Pudo Resolver El Comprobante.");
     else {
-      setMessage(decision === "validated" ? "✓ Comprobante aprobado." : "✓ Comprobante rechazado.");
+      setMessage(decision === "validated" ? "✓ Comprobante Aprobado." : "✓ Comprobante Rechazado.");
       await load(false, false);
     }
     setReviewing("");
@@ -345,7 +345,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
   async function approveAllReceipts() {
     if (role !== "super_admin" || bulkReviewing || unvalidatedReceiptsCount === 0) return;
     const label = periodLabel(period);
-    const confirmed = window.confirm(`Vas a aprobar todos los comprobantes cargados de ${label}. ¿Querés continuar?`);
+    const confirmed = window.confirm(`Vas A Aprobar Todos Los Comprobantes Cargados De ${Label}. ¿Querés Continuar?`);
     if (!confirmed) return;
 
     setBulkReviewing(true);
@@ -355,12 +355,12 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
         body: { action: "bulk_validate", period_month: period },
       });
       if (error || !data?.ok) {
-        setMessage("No se pudieron aprobar todos los comprobantes.");
+        setMessage("No Se Pudieron Aprobar Todos Los Comprobantes.");
       } else {
         const count = Number(data.updated_count || 0);
         setMessage(count > 0
           ? `✓ Se aprobaron ${count} comprobante${count === 1 ? "" : "s"} de ${label}.`
-          : `✓ Todos los comprobantes de ${label} ya estaban aprobados.`);
+          : `✓ Todos Los Comprobantes De ${Label} Ya Estaban Aprobados.`);
         await load(false, false);
       }
     } finally {
@@ -370,7 +370,7 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
 
   async function revokePayment(paymentId, playerName) {
     if (role !== "super_admin" || reviewing) return;
-    const confirmed = window.confirm(`Vas a revocar la aprobación del comprobante de ${playerName}. Quedará pendiente de revisión. ¿Querés continuar?`);
+    const confirmed = window.confirm(`Vas A Revocar La Aprobación Del Comprobante De ${PlayerName}. Quedará Pendiente De Revisión. ¿Querés Continuar?`);
     if (!confirmed) return;
 
     setReviewing(paymentId);
@@ -380,9 +380,9 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
         body: { action: "revoke", payment_id: paymentId },
       });
       if (error || !data?.ok) {
-        setMessage("No se pudo revocar la aprobación del comprobante.");
+        setMessage("No Se Pudo Revocar La Aprobación Del Comprobante.");
       } else {
-        setMessage(`↩ Aprobación revocada para ${playerName}. El comprobante quedó pendiente de revisión.`);
+        setMessage(`↩ Aprobación Revocada Para ${PlayerName}. El Comprobante Quedó Pendiente De Revisión.`);
         await load(false, false);
       }
     } finally {
@@ -391,17 +391,17 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
   }
 
   return (
-    <div className={embedded ? "stable-pay-admin-page" : "stable-pay-modal"} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : "true"} aria-label="Administración de pagos">
+    <div className={embedded ? "stable-pay-admin-page" : "stable-pay-modal"} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : "true"} aria-label="Administración De Pagos">
       <div className={embedded ? "stable-pay-admin-page-card stable-pay-admin-modal" : "stable-pay-modal-card stable-pay-admin-modal"}>
         <div className="stable-pay-modal-head">
-          <div><span>💳</span><div><h2>Pagos</h2><p>{periodLabel(period)} · {role === "super_admin" ? "Vista del club" : "Tus categorías autorizadas"}</p></div></div>
+          <div><span>💳</span><div><h2>Pagos</h2><p>{periodLabel(period)} · {role === "super_admin" ? "Vista Del Club" : "Tus Categorías Autorizadas"}</p></div></div>
           <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
         </div>
 
         <div className="stable-pay-summary">
           <div><span>Esperado</span><b>{money(expected)}</b></div>
           <div><span>Validados</span><b>{validated}</b></div>
-          <div><span>En revisión</span><b>{review}</b></div>
+          <div><span>En Revisión</span><b>{review}</b></div>
           <div><span>Validado</span><b>{money(received)}</b></div>
         </div>
 
@@ -411,8 +411,8 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
             <option value="all">Todos</option>
             <option value="validated">Validados</option>
             <option value="pending_validation">Verificando</option>
-            <option value="manual_review">Pendientes de revisión</option>
-            <option value="pending">Sin comprobante</option>
+            <option value="manual_review">Pendientes De Revisión</option>
+            <option value="pending">Sin Comprobante</option>
             <option value="rejected">Rechazados</option>
           </select>
         </div>
@@ -432,30 +432,30 @@ export function AdminPaymentPanel({ role, onClose, embedded = false }) {
         {message && <div className="stable-pay-message">{message}</div>}
 
         <div className="stable-pay-admin-list">
-          {loading ? <p>Cargando pagos...</p> : rows.length ? rows.map((player) => {
+          {loading ? <p>Cargando Pagos...</p> : rows.length ? rows.map((player) => {
             const payment = paymentByPlayer[player.id];
             const state = stateOf(payment);
             return (
               <article className="stable-pay-admin-row" key={player.id}>
-                <div className="stable-pay-person"><b>{player.full_name}</b><small>{player.team ? `Equipo ${player.team}` : "Sin equipo"}</small>{payment?.validation_reason && <small>{payment.validation_reason}</small>}</div>
+                <div className="stable-pay-person"><b>{player.full_name}</b><small>{player.team ? `Equipo ${player.team}` : "Sin Equipo"}</small>{payment?.validation_reason && <small>{payment.validation_reason}</small>}</div>
                 <div className="stable-pay-fee">
                   <span>Cuota</span>
                   {role === "super_admin" ? <select value={player.monthly_fee || 20000} onChange={(e) => updateFee(player.id, e.target.value)}>{FEES.map((fee) => <option key={fee} value={fee}>{money(fee)}</option>)}</select> : <b>{money(player.monthly_fee)}</b>}
                 </div>
                 <b className={`stable-pay-state ${state.cls}`}>{state.label}</b>
                 <div className="stable-pay-row-actions">
-                  {payment?.receipt_path ? <button type="button" onClick={() => openReceipt(payment.receipt_path, setMessage)}>👁 Ver</button> : <span>Sin archivo</span>}
+                  {payment?.receipt_path ? <button type="button" onClick={() => openReceipt(payment.receipt_path, setMessage)}>👁 Ver</button> : <span>Sin Archivo</span>}
                   {role === "super_admin" && payment?.receipt_path && ["manual_review", "pending_validation", "rejected"].includes(payment.validation_status) && <>
                     <button type="button" className="approve" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "validated")}>✓ Aprobar</button>
                     {payment.validation_status !== "rejected" && <button type="button" className="reject" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "rejected")}>✕ Rechazar</button>}
                   </>}
                   {role === "super_admin" && payment?.validation_status === "validated" && (
-                    <button type="button" className="revoke" disabled={reviewing === payment.id || bulkReviewing} onClick={() => revokePayment(payment.id, player.full_name)}>↩ Revocar aprobación</button>
+                    <button type="button" className="revoke" disabled={reviewing === payment.id || bulkReviewing} onClick={() => revokePayment(payment.id, player.full_name)}>↩ Revocar Aprobación</button>
                   )}
                 </div>
               </article>
             );
-          }) : <p>No hay registros para este filtro.</p>}
+          }) : <p>No Hay Registros Para Este Filtro.</p>}
         </div>
       </div>
     </div>
@@ -552,8 +552,8 @@ export default function PaymentHubStable() {
   const playerBanner = playerMode && !open ? (
     <aside className="stable-pay-player-banner">
       <div><span>💳 CUOTA · {periodLabel(currentPeriod())}</span><strong>{OFFICIAL_PAYMENT.alias}</strong></div>
-      <button type="button" onClick={copyAlias}>{copied ? "✓ Copiado" : "📋 Copiar alias"}</button>
-      <button type="button" className="primary" onClick={() => setOpen(true)}>Ver pagos</button>
+      <button type="button" onClick={copyAlias}>{copied ? "✓ Copiado" : "📋 Copiar Alias"}</button>
+      <button type="button" className="primary" onClick={() => setOpen(true)}>Ver Pagos</button>
     </aside>
   ) : null;
 

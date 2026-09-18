@@ -6,50 +6,50 @@ const DAYS = [
     key: "lunes",
     label: "Lunes",
     rows: [
-      ["18:00 a 19:15 HS", "SUB 14 MASC", "SUB 12 A FEM", "SUB 12 B FEM"],
-      ["19:15 a 20:30 HS", "SUB 16 MASC", "SUB 14 A FEM", "SUB 14 B FEM"],
-      ["20:30 a 21:45 HS", "SUB 18 MASC", "SUB 16 A FEM", "MASTER A FEM"],
-      ["21:45 a 23:00 HS", "PRIMERA MASC", "PRIMERA A FEM", "(Libre)"],
+      ["18:00 A 19:15 HS", "SUB 14 MASC", "SUB 12 A FEM", "SUB 12 B FEM"],
+      ["19:15 A 20:30 HS", "SUB 16 MASC", "SUB 14 A FEM", "SUB 14 B FEM"],
+      ["20:30 A 21:45 HS", "SUB 18 MASC", "SUB 16 A FEM", "MASTER A FEM"],
+      ["21:45 A 23:00 HS", "PRIMERA MASC", "PRIMERA A FEM", "(Libre)"],
     ],
   },
   {
     key: "martes",
     label: "Martes",
     rows: [
-      ["18:00 a 19:15 HS", "(Libre)", "(Libre)", "SUB 16 B FEM"],
-      ["19:15 a 20:30 HS", "(Libre)", "(Libre)", "SUB 18 B FEM"],
-      ["20:30 a 21:45 HS", "(Libre)", "SUB 18 A FEM", "PRIMERA B FEM"],
-      ["21:45 a 23:00 HS", "(Libre)", "MASTER B FEM", "(Libre)"],
+      ["18:00 A 19:15 HS", "(Libre)", "(Libre)", "SUB 16 B FEM"],
+      ["19:15 A 20:30 HS", "(Libre)", "(Libre)", "SUB 18 B FEM"],
+      ["20:30 A 21:45 HS", "(Libre)", "SUB 18 A FEM", "PRIMERA B FEM"],
+      ["21:45 A 23:00 HS", "(Libre)", "MASTER B FEM", "(Libre)"],
     ],
   },
   {
     key: "miercoles",
     label: "Miércoles",
     rows: [
-      ["18:00 a 19:15 HS", "SUB 14 MASC", "SUB 12 A FEM", "SUB 12 B FEM"],
-      ["19:15 a 20:30 HS", "SUB 16 MASC", "SUB 14 A FEM", "SUB 18 A FEM"],
-      ["20:30 a 21:45 HS", "SUB 18 MASC", "SUB 16 A FEM", "MASTER A FEM"],
-      ["21:45 a 23:00 HS", "PRIMERA MASC", "PRIMERA A FEM", "(Libre)"],
+      ["18:00 A 19:15 HS", "SUB 14 MASC", "SUB 12 A FEM", "SUB 12 B FEM"],
+      ["19:15 A 20:30 HS", "SUB 16 MASC", "SUB 14 A FEM", "SUB 18 A FEM"],
+      ["20:30 A 21:45 HS", "SUB 18 MASC", "SUB 16 A FEM", "MASTER A FEM"],
+      ["21:45 A 23:00 HS", "PRIMERA MASC", "PRIMERA A FEM", "(Libre)"],
     ],
   },
   {
     key: "jueves",
     label: "Jueves",
     rows: [
-      ["18:00 a 19:15 HS", "(Libre)", "SUB 12 A FEM", "(Libre)"],
-      ["19:15 a 20:30 HS", "SUB 16 A FEM", "SUB 14 B FEM", "SUB 18 B FEM"],
-      ["20:30 a 21:45 HS", "SUB 18 A FEM", "SUB 16 B FEM", "PRIMERA B FEM"],
-      ["21:45 a 23:00 HS", "(Libre)", "MASTER B FEM", "(Libre)"],
+      ["18:00 A 19:15 HS", "(Libre)", "SUB 12 A FEM", "(Libre)"],
+      ["19:15 A 20:30 HS", "SUB 16 A FEM", "SUB 14 B FEM", "SUB 18 B FEM"],
+      ["20:30 A 21:45 HS", "SUB 18 A FEM", "SUB 16 B FEM", "PRIMERA B FEM"],
+      ["21:45 A 23:00 HS", "(Libre)", "MASTER B FEM", "(Libre)"],
     ],
   },
   {
     key: "viernes",
     label: "Viernes",
     rows: [
-      ["18:00 a 19:15 HS", "SUB 14 MASC", "HOCKEY", "HOCKEY"],
-      ["19:15 a 20:30 HS", "SUB 16 MASC", "SUB 14 A FEM", "(Libre)"],
-      ["20:30 a 21:45 HS", "SUB 18 MASC", "PRIMERA A FEM", "(Libre)"],
-      ["21:45 a 23:00 HS", "PRIMERA MASC", "(Libre)", "(Libre)"],
+      ["18:00 A 19:15 HS", "SUB 14 MASC", "HOCKEY", "HOCKEY"],
+      ["19:15 A 20:30 HS", "SUB 16 MASC", "SUB 14 A FEM", "(Libre)"],
+      ["20:30 A 21:45 HS", "SUB 18 MASC", "PRIMERA A FEM", "(Libre)"],
+      ["21:45 A 23:00 HS", "PRIMERA MASC", "(Libre)", "(Libre)"],
     ],
   },
 ];
@@ -76,14 +76,14 @@ export default function TrainingSchedule({ playerMode = false }) {
     <section className={`training-schedule ${playerMode ? "training-schedule-player" : ""}`}>
       <div className="training-schedule-head">
         <div>
-          <span className="training-schedule-eyebrow">🏐 Municipalidad de San Martín - VOLEY</span>
+          <span className="training-schedule-eyebrow">🏐 Municipalidad De San Martín - VOLEY</span>
           <h1>Horarios</h1>
-          <p>Horarios de entrenamiento por día, cancha y categoría.</p>
+          <p>Horarios De Entrenamiento Por Día, Cancha y Categoría.</p>
         </div>
         <div className="training-schedule-badge">#VamosElPoli</div>
       </div>
 
-      <div className="training-day-tabs" role="tablist" aria-label="Días de entrenamiento">
+      <div className="training-day-tabs" role="tablist" aria-label="Días De Entrenamiento">
         {DAYS.map((day) => (
           <button
             key={day.key}
