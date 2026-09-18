@@ -1,4 +1,5 @@
 import ReactDOM from 'react-dom/client'
+import { useEffect, useState } from 'react'
 import App from './App'
 import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
 import PhotoSourcePicker from './PhotoSourcePicker'
@@ -60,12 +61,29 @@ import './mgsm-player-dynamic-counter.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <>
-    <App />
+function AuthenticatedEnhancers() {
+  const [active, setActive] = useState(() => !!document.querySelector('main.app, main.player-dashboard, .player-dashboard'))
+  useEffect(() => {
+    let frame = 0
+    const sync = () => {
+      frame = 0
+      const next = !!document.querySelector('main.app, main.player-dashboard, .player-dashboard')
+      setActive(current => current === next ? current : next)
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(sync)
+    }
+    sync()
+    const observer = new MutationObserver(schedule)
+    observer.observe(document.getElementById('root'), { childList: true, subtree: true })
+    return () => {
+      observer.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [])
+  if (!active) return null
+  return <>
     <DualRoleSelfEnrollment />
-    <PhotoSourcePicker />
-    <StorageSafetyEnhancer />
     <ProfessorDeleteManager />
     <WorkflowCore />
     <PermissionsEnhancement />
@@ -79,14 +97,23 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <FeatureTabManager />
     <PlayerTabVisibilityGuard />
     <PlayerInstitutionalFooter />
-    <PasswordVisibilityEnhancer />
     <AdminHeaderPaymentPolish />
     <CategoryAdminManager />
     <RegistrationApprovalManager />
-    <PendingApprovalGate />
-    <RegistrationTurnstile />
     <SuperAdminPlayerEmail />
     <PlayerDynamicCounter />
     <AppPolish />
+  </>
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <>
+    <App />
+    <PhotoSourcePicker />
+    <StorageSafetyEnhancer />
+    <PasswordVisibilityEnhancer />
+    <RegistrationTurnstile />
+    <PendingApprovalGate />
+    <AuthenticatedEnhancers />
   </>
 )
