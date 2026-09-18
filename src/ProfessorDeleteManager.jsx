@@ -19,6 +19,10 @@ export default function ProfessorDeleteManager() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({ firstName: "", lastName: "", email: "", password: "" });
+  const [creatingProfessor, setCreatingProfessor] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -68,6 +72,39 @@ export default function ProfessorDeleteManager() {
       document.body.style.overflow = previous;
     };
   }, [selectedProfessor]);
+
+  async function createProfessor(event) {
+    event.preventDefault();
+    setCreateError("");
+    const firstName = createForm.firstName.trim();
+    const lastName = createForm.lastName.trim();
+    const email = createForm.email.trim().toLowerCase();
+    const password = createForm.password;
+    if (!firstName || !lastName || !email || !password) return setCreateError("Completá todos los datos.");
+    if (password.length < 8) return setCreateError("La contraseña debe tener al menos 8 caracteres.");
+
+    setCreatingProfessor(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-professor", {
+        body: { first_name: firstName, last_name: lastName, email, password },
+      });
+      if (error) {
+        let detail = error.message || "No se pudo crear la cuenta del Profe.";
+        try { const body = await error.context?.json?.(); if (body?.error) detail = body.error; } catch (_) {}
+        throw new Error(detail);
+      }
+      if (!data?.ok) throw new Error(data?.error || "No se pudo crear la cuenta del Profe.");
+      const professor = data.professor;
+      setAdmins((current) => [...current, professor].sort((a, b) => (a.full_name || "").localeCompare(b.full_name || "", "es")));
+      setCreateForm({ firstName: "", lastName: "", email: "", password: "" });
+      setCreating(false);
+      setMessage(`✓ Cuenta de ${professor.full_name} creada, aprobada y lista para ingresar.`);
+    } catch (error) {
+      setCreateError(error?.message || "No se pudo crear la cuenta del Profe.");
+    } finally {
+      setCreatingProfessor(false);
+    }
+  }
 
   async function loadAdmins() {
     setMessage("");
@@ -222,7 +259,18 @@ export default function ProfessorDeleteManager() {
 
   const listPortal = createPortal(
     <div className="card professor-unified-card">
-      <div className="card-head"><div><h2>Gestión de Profes</h2><span>Control exclusivo del Super Administrador.</span></div></div>
+      <div className="card-head professor-management-head"><div><h2>Gestión de Profes</h2><span>Control exclusivo del Super Administrador.</span></div><button type="button" className="primary professor-create-open" onClick={() => { setCreating((value) => !value); setCreateError(""); }}>{creating ? "Cancelar alta" : "＋ Crear cuenta de Profe"}</button></div>
+      {creating && <form className="professor-create-form" onSubmit={createProfessor}>
+        <div className="professor-create-intro"><b>Alta directa de Profe</b><span>La cuenta quedará activa, aprobada y con el correo confirmado administrativamente. El Profe podrá ingresar inmediatamente con el correo y contraseña que le entregues.</span></div>
+        {createError && <div className="message">{createError}</div>}
+        <div className="professor-create-grid">
+          <label>Nombre<input value={createForm.firstName} onChange={(event) => setCreateForm((current) => ({ ...current, firstName: event.target.value }))} autoComplete="off" required /></label>
+          <label>Apellido<input value={createForm.lastName} onChange={(event) => setCreateForm((current) => ({ ...current, lastName: event.target.value }))} autoComplete="off" required /></label>
+          <label>Correo electrónico<input type="email" value={createForm.email} onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))} autoComplete="off" required /></label>
+          <label>Contraseña inicial<input type="password" minLength={8} value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} autoComplete="new-password" required /><small>Mínimo 8 caracteres. Entregásela al Profe de forma privada.</small></label>
+        </div>
+        <div className="form-actions"><button type="button" onClick={() => { setCreating(false); setCreateError(""); }}>Cancelar</button><button type="submit" className="primary" disabled={creatingProfessor}>{creatingProfessor ? "Creando cuenta..." : "Crear y habilitar cuenta"}</button></div>
+      </form>}
       <p className="professor-status-note">Tocá el nombre de un Profe para ver su ficha completa, correo de cuenta y modificar sus datos.</p>
       {message && <div className="message">{message}</div>}
       <div className="professor-unified-list">
