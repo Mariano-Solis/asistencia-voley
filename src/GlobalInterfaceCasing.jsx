@@ -1,115 +1,88 @@
 import { useEffect } from "react";
 
-const LETTER_RE = /\p{L}/u;
-const ONLY_Y_RE = /^[^\p{L}]*y[^\p{L}]*$/iu;
-const SKIP_TAGS = new Set(["SCRIPT","STYLE","TEXTAREA","CODE","PRE"]);
+const SKIP_TAGS = new Set(["SCRIPT","STYLE","TEXTAREA","CODE","PRE","INPUT","SELECT","OPTION"]);
 const ATTRIBUTES = ["placeholder","title","aria-label"];
+const Y_TOKEN = /^[^\p{L}]*y[^\p{L}]*$/iu;
 
-function formatHashtag(token) {
-  const match = token.match(/^(#)([\p{L}\p{N}_]+)(.*)$/u);
-  if (!match) return null;
-  const [, hash, body, suffix] = match;
-  if (body.toLocaleLowerCase("es-AR") === "vamoselpoli") return hash + "VamosElPoli" + suffix;
-  return null;
+function titleToken(token) {
+  if (/^#vamoselpoli$/iu.test(token)) return "#VamosElPoli";
+  if (Y_TOKEN.test(token)) return token.replace(/y/iu,"y");
+  return token.replace(/\p{L}/u, letter => letter.toLocaleUpperCase("es-AR"));
 }
 
-export function formatInterfaceText(value = "") {
-  return String(value).replace(/\S+/gu, token => {
-    const hashtag = formatHashtag(token);
-    if (hashtag) return hashtag;
-    if (ONLY_Y_RE.test(token)) {
-      return token.replace(/y/iu, "y");
-    }
-    const index = token.search(LETTER_RE);
-    if (index < 0) return token;
-    return token.slice(0, index) + token[index].toLocaleUpperCase("es-AR") + token.slice(index + 1);
-  });
+export function formatInterfaceText(value="") {
+  return String(value).replace(/\S+/gu, titleToken);
 }
 
-function shouldSkip(element) {
-  if (!element) return true;
-  if (SKIP_TAGS.has(element.tagName)) return true;
-  if (element.closest?.("[contenteditable='true'], [data-preserve-case='true']")) return true;
-  return false;
+function excluded(el) {
+  return !el || SKIP_TAGS.has(el.tagName) || !!el.closest?.("[contenteditable='true'],[data-preserve-case='true']");
 }
 
-function normalizeTextNode(node) {
-  const parent = node.parentElement;
-  if (!parent || shouldSkip(parent)) return;
-  const current = node.nodeValue || "";
-  const next = formatInterfaceText(current);
-  if (next !== current) node.nodeValue = next;
-}
+function applyText(root=document.body) {
+  if (!root) return;
+  const scope = root.nodeType === Node.TEXT_NODE ? root.parentElement : root;
+  if (!scope || excluded(scope)) return;
 
-function normalizeElement(root) {
-  if (!(root instanceof Element) || shouldSkip(root)) return;
-  for (const attr of ATTRIBUTES) {
-    if (!root.hasAttribute(attr)) continue;
-    const current = root.getAttribute(attr) || "";
-    const next = formatInterfaceText(current);
-    if (next !== current) root.setAttribute(attr, next);
+  if (root.nodeType === Node.TEXT_NODE) {
+    const next=formatInterfaceText(root.nodeValue||"");
+    if(next!==root.nodeValue) root.nodeValue=next;
+    return;
   }
-  root.querySelectorAll?.(ATTRIBUTES.map(a => `[${a}]`).join(",")).forEach(el => {
-    if (shouldSkip(el)) return;
+
+  if (root instanceof Element) {
     for (const attr of ATTRIBUTES) {
-      if (!el.hasAttribute(attr)) continue;
-      const current = el.getAttribute(attr) || "";
-      const next = formatInterfaceText(current);
-      if (next !== current) el.setAttribute(attr, next);
+      if(root.hasAttribute(attr)) {
+        const current=root.getAttribute(attr)||"";
+        const next=formatInterfaceText(current);
+        if(next!==current) root.setAttribute(attr,next);
+      }
     }
-  });
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  }
+
+  const walker=document.createTreeWalker(scope,NodeFilter.SHOW_TEXT);
   let node;
-  while ((node = walker.nextNode())) normalizeTextNode(node);
+  while((node=walker.nextNode())){
+    if(excluded(node.parentElement)) continue;
+    const next=formatInterfaceText(node.nodeValue||"");
+    if(next!==node.nodeValue) node.nodeValue=next;
+  }
 }
 
-export default function GlobalInterfaceCasing() {
-  useEffect(() => {
-    let frame = 0;
-    const pending = new Set();
-
-    const flush = () => {
-      frame = 0;
-      const items = Array.from(pending);
-      pending.clear();
-      for (const item of items) {
-        if (item.nodeType === Node.TEXT_NODE) normalizeTextNode(item);
-        else if (item instanceof Element) normalizeElement(item);
-      }
-    };
-
-    const schedule = node => {
-      if (!node) return;
-      pending.add(node);
-      if (!frame) frame = requestAnimationFrame(flush);
-    };
-
-    normalizeElement(document.body);
-
-    const observer = new MutationObserver(records => {
-      for (const record of records) {
-        if (record.type === "characterData") schedule(record.target);
-        else {
-          record.addedNodes.forEach(schedule);
-          if (record.type === "attributes") schedule(record.target);
+export default function GlobalInterfaceCasing(){
+  useEffect(()=>{
+    let queued=false;
+    const normalizeAll=()=>{
+      queued=false;
+      applyText(document.body);
+      document.querySelectorAll(ATTRIBUTES.map(a=>`[${a}]`).join(",")).forEach(el=>{
+        if(excluded(el)) return;
+        for(const attr of ATTRIBUTES){
+          if(!el.hasAttribute(attr)) continue;
+          const current=el.getAttribute(attr)||"";
+          const next=formatInterfaceText(current);
+          if(next!==current) el.setAttribute(attr,next);
         }
-      }
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ATTRIBUTES,
-    });
-
-    return () => {
-      observer.disconnect();
-      pending.clear();
-      if (frame) cancelAnimationFrame(frame);
+      });
     };
-  }, []);
+    const schedule=()=>{
+      if(queued) return;
+      queued=true;
+      requestAnimationFrame(normalizeAll);
+    };
 
+    normalizeAll();
+    const observer=new MutationObserver(schedule);
+    observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+    window.addEventListener("pageshow",schedule);
+    window.addEventListener("focus",schedule);
+    document.addEventListener("visibilitychange",schedule);
+
+    return()=>{
+      observer.disconnect();
+      window.removeEventListener("pageshow",schedule);
+      window.removeEventListener("focus",schedule);
+      document.removeEventListener("visibilitychange",schedule);
+    };
+  },[]);
   return null;
 }
