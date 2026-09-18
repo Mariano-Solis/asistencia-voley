@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { isAuthSession, isLegacySession, readStoredPlayer, removeStoredPlayer, storeLegacyPlayer } from "./sessionSafety";
 import { CONFLICT_MESSAGE, attendanceWriteError, attendanceFingerprint, readAttendance } from "./attendanceSafety";
 import TrainingSchedule from "./TrainingSchedule";
+import ProfessorTrainingHub from "./ProfessorTrainingHub";
 import { AdminPaymentPanel } from "./PaymentHubStable";
 import officialLogo from "../Logo.jpg";
 
@@ -424,7 +425,7 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
   const [msg,setMsg]=useState(""),[savingVisibility,setSavingVisibility]=useState(false),[savingOrder,setSavingOrder]=useState(false),[dragged,setDragged]=useState("");
   useEffect(()=>setVisibilityDraft(disabledTabs),[disabledTabs]);
   useEffect(()=>setOrderDraft(mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label)),[navigationOrder,labels.join("|")]);
-  const visibilityOptions=["Asistencia","Jugador@s","Historial","Horarios","Pagos","Solicitudes","Profes","Categorías","Permisos"];
+  const visibilityOptions=["Asistencia","Jugador@s","Historial","Horarios","Entrenamiento","Pagos","Solicitudes","Profes","Categorías","Permisos"];
 
   function moveLabel(label,direction){
     setOrderDraft(current=>{
@@ -580,12 +581,12 @@ function App() {
     onAuthEnd={()=>{authIntent.current=null;}}
     onAdmin={acceptAdmin}
     onPlayer={acceptPlayer}/>;
-  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['payments','Pagos'],['requests','Solicitudes']];
+  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['training','Entrenamiento'],['payments','Pagos'],['requests','Solicitudes']];
   if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Mi Perfil']);
   if(profile.role==='super_admin')nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
   nav.push(['settings','Solapas']);
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{l}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='payments'&&<AdminPaymentPanel role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>} {tab==='requests'&&<RequestsPage profile={profile}/>} {tab==='admins'&&<AdminUsers profile={profile}/>}  {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>} {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>} </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{l}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='training'&&<ProfessorTrainingHub/>} {tab==='payments'&&<AdminPaymentPanel role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>} {tab==='requests'&&<RequestsPage profile={profile}/>} {tab==='admins'&&<AdminUsers profile={profile}/>}  {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>} {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>} </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
 }
 export default App;
