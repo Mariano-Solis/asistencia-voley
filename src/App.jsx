@@ -218,7 +218,7 @@ function AccountRepair() {
       try { await supabase.rpc("ensure_player_profile"); } catch (_) {}
     };
     supabase.auth.getSession().then(({ data }) => ensure(data?.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => ensure(session));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => { setTimeout(() => ensure(session), 0); });
     return () => { mounted = false; data?.subscription?.unsubscribe(); };
   }, []);
   return null;
@@ -475,7 +475,7 @@ function DualRoleRouter() {
     }
 
     supabase.auth.getSession().then(({ data }) => evaluate(data?.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => evaluate(nextSession));
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => { setTimeout(() => evaluate(nextSession), 0); });
 
     return () => {
       mounted = false;
