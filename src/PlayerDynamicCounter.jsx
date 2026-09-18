@@ -6,9 +6,9 @@ const EMPTY_COUNTS = { total: 0, female: 0, male: 0 };
 
 function findPlayersToolbar() {
   return Array.from(document.querySelectorAll("main.app .toolbar")).find((toolbar) => {
-    const input = toolbar.querySelector('input[placeholder="Buscar por nombre"]');
+    const input = toolbar.querySelector('input[type="search"], input:not([type]), input[type="text"]');
     const select = toolbar.querySelector("select");
-    return input && Array.from(select?.options || []).some((option) => option.textContent?.trim() === "Todas las categorías");
+    return input && Array.from(select?.options || []).some((option) => normalize(option.value) === "all");
   }) || null;
 }
 
@@ -59,7 +59,8 @@ export default function PlayerDynamicCounter() {
         setHost(counterHost);
       }
 
-      const search = normalize(toolbar.querySelector('input[placeholder="Buscar por nombre"]')?.value);
+      const searchInput = toolbar.querySelector('input[type="search"], input:not([type]), input[type="text"]');
+      const search = normalize(searchInput?.value);
       const categoryId = toolbar.querySelector("select")?.value || "all";
       const visible = players.filter((player) =>
         (categoryId === "all" || player.category_id === categoryId) &&
