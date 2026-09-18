@@ -374,7 +374,24 @@ export default function ProfessorDeleteManager() {
         {details && <>
           <div className="professor-account-card">
             <div><span>Correo de cuenta</span><b>{details.accountEmail || "Sin correo asociado"}</b><small>Correo utilizado para crear e ingresar a la cuenta. Solo visible para Super Admin.</small></div>
-            <button type="button" className="primary professor-edit-btn" onClick={() => setEditing((value) => !value)}>{editing ? "Cancelar edición" : "✏️ Modificar datos"}</button>
+            <button type="button" className="primary professor-edit-btn" onClick={() => {
+              if (!editing) {
+                setEditName(details.profile?.full_name || "");
+                setEditEmail(details.accountEmail || "");
+                setEditPassword("");
+                setEditPlayer(details.player ? {
+                  first_name: details.player.first_name || "",
+                  last_name: details.player.last_name || "",
+                  dni: details.player.dni || "",
+                  birth_date: details.player.birth_date || "",
+                  sex: details.player.sex || "female",
+                  team: details.player.team || "",
+                  category_id: details.player.category_id || "",
+                  access_code: details.player.access_code || "",
+                } : null);
+              }
+              setEditing((value) => !value);
+            }}>{editing ? "Cancelar Edición" : "✏️ Modificar Datos"}</button>
           </div>
 
           {editing && <form className="professor-edit-form" onSubmit={saveProfessorEdit}>
