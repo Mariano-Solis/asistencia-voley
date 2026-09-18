@@ -3,10 +3,11 @@ import { supabase } from "./supabase";
 import { isAuthSession, isLegacySession, readStoredPlayer, removeStoredPlayer, storeLegacyPlayer } from "./sessionSafety";
 import { CONFLICT_MESSAGE, attendanceWriteError, attendanceFingerprint, readAttendance } from "./attendanceSafety";
 import TrainingSchedule from "./TrainingSchedule";
+import officialLogo from "../Logo.jpg";
 
 const APP_NAME = "Municipalidad de San Martín - VOLEY";
 const TAGLINE = "#VamosElPoli";
-const LOGO = "/Logo.jpg";
+const LOGO = officialLogo;
 const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
 const TYPES = { training: ["🏐", "Entrenamiento"], match: ["🏆", "Partido"], tournament: ["🥇", "Torneo"] };
 const STATUS = { present: ["✓", "Presente"], late: ["◷", "Tarde"], absent: ["✕", "Ausente"] };
