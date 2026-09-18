@@ -33,7 +33,9 @@ main.app nav button[data-feature-tab="Profes"]::before { content:"👨‍🏫" !
 main.app > nav button[data-feature-tab="Categorías"]::before,
 main.app nav button[data-feature-tab="Categorías"]::before { content:"🏷️" !important; }
 main.app > nav button[data-feature-tab="Permisos"]::before,
-main.app nav button[data-feature-tab="Permisos"]::before { content:"🔒" !important; }
+main.app nav button[data-feature-tab="Permisos"]::before { content:"🔐" !important; }
+main.app > nav button[data-feature-tab="Solicitudes"]::before,
+main.app nav button[data-feature-tab="Solicitudes"]::before { content:"📥" !important; }
 main.app > nav button[data-training-hub-button]::before,
 main.app nav button[data-training-hub-button]::before,
 main.app > nav button[data-feature-tab="Entrenamientos"]::before,
