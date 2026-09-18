@@ -11,14 +11,14 @@ export default function AdminDualTopbarAction() {
     const normalizeBranding = () => {
       document.querySelectorAll(".brand span").forEach((span) => {
         if ((span.textContent || "").trim() === "#VamosElPoli") {
-          span.textContent = "#vamoselpoli";
+          span.textContent = "#VamosElPoli";
         }
       });
 
       document.querySelectorAll("main.app > footer span").forEach((span) => {
         const text = span.textContent || "";
         if (text.includes("#VamosElPoli")) {
-          span.textContent = text.replaceAll("#VamosElPoli", "#vamoselpoli");
+          span.textContent = text.replaceAll("#VamosElPoli", "#VamosElPoli");
         }
       });
     };
