@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { isAuthSession } from "./sessionSafety";
-import { playerPhotoPath, preparePlayerPhoto } from "./playerPhoto";
+import { clearPendingPlayerPhoto, playerPhotoPath, preparePlayerPhoto, readPendingPlayerPhoto } from "./playerPhoto";
 
 export default function RequiredPlayerPhotoGate() {
   const [session, setSession] = useState(null);
@@ -61,6 +61,12 @@ export default function RequiredPlayerPhotoGate() {
 
       if (!mounted) return;
       setPlayer(playerResult.data || null);
+      if (playerResult.data?.selfie_path) {
+        await clearPendingPlayerPhoto(nextSession.user.email).catch(() => {});
+      } else {
+        const pending = await readPendingPlayerPhoto(nextSession.user.email).catch(() => null);
+        if (mounted && pending) setFile(pending);
+      }
       setChecking(false);
     }
 
@@ -119,6 +125,7 @@ export default function RequiredPlayerPhotoGate() {
         throw linked.error || new Error("No Se Pudo Vincular La Foto De Perfil.");
       }
 
+      await clearPendingPlayerPhoto(session.user.email).catch(() => {});
       setPlayer(linked.data);
       setFile(null);
     } catch (error) {
