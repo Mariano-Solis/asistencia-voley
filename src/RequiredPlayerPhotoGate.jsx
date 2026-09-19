@@ -71,7 +71,8 @@ export default function RequiredPlayerPhotoGate() {
     }
 
     supabase.auth.getSession().then(({ data }) => inspect(data?.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED"].includes(event)) return;
       setTimeout(() => inspect(nextSession), 0);
     });
 
