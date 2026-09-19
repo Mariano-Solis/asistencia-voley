@@ -273,7 +273,7 @@ function Empty({ text }) { return <div className="empty">{text}</div>; }
 
 function Players({ profile, players, categories, permissions, refresh }) {
   const editable = categories.filter(c => can(profile, c, permissions, true)); const visible = categories.filter(c => can(profile, c, permissions));
-  const [search, setSearch] = useState(""); const [filter, setFilter] = useState("all"); const [open, setOpen] = useState(null); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState(""); const [filter, setFilter] = useState("all"); const [open, setOpen] = useState(null); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false); const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [form, setForm] = useState({ first: "", last: "", category: editable[0]?.id || "", sex: "female", dni: "", birth: "", team: "", file: null }); const fileRef = useRef(null);
   const list = players.filter(p => { const c = categories.find(x => x.id === p.category_id); const allowed = c ? can(profile, c, permissions) : profile.role === "super_admin"; return allowed && (filter === "all" || p.category_id === filter) && (!search || p.full_name.toLowerCase().includes(search.toLowerCase())); });
   const dynamicCounts = {
@@ -281,7 +281,7 @@ function Players({ profile, players, categories, permissions, refresh }) {
     female: list.filter(p => gender(p.sex) === "female").length,
     male: list.filter(p => gender(p.sex) === "male").length,
   };
-  async function savePlayer(e) { e.preventDefault(); if (!form.first || !form.last || !form.category) return; setSaving(true); try { let categoryId = form.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: form.birth, p_sex: form.sex }); if (!auto.error && auto.data) categoryId = auto.data; const row = { first_name: form.first.trim(), last_name: form.last.trim(), full_name: `${form.last.trim().toUpperCase()} ${form.first.trim()}`, sex: form.sex, dni: clean(form.dni) || null, birth_date: form.birth || null, category_id: categoryId, team: form.team || null, access_code: accessCode(), active: true }; const r = await supabase.from("players").insert(row); if (r.error) throw r.error; setForm(f => ({...f, first: "", last: "", dni: "", birth: "", team: "", file: null})); setMsg("✓ Jugador@ Agregado."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
+  async function savePlayer(e) { e.preventDefault(); if (!form.first || !form.last || !form.category) return; setSaving(true); try { let categoryId = form.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: form.birth, p_sex: form.sex }); if (!auto.error && auto.data) categoryId = auto.data; const row = { first_name: form.first.trim(), last_name: form.last.trim(), full_name: `${form.last.trim().toUpperCase()} ${form.first.trim()}`, sex: form.sex, dni: clean(form.dni) || null, birth_date: form.birth || null, category_id: categoryId, team: form.team || null, access_code: accessCode(), active: true }; const r = await supabase.from("players").insert(row); if (r.error) throw r.error; setForm(f => ({...f, first: "", last: "", dni: "", birth: "", team: "", file: null})); setShowAddPlayer(false); setMsg("✓ Jugador@ Agregado."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
   async function saveEdit(p, data) { setSaving(true); try { let categoryId = data.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: data.birth, p_sex: data.sex }); if (!auto.error && auto.data) categoryId = auto.data; const r = await supabase.from("players").update({ first_name: data.first, last_name: data.last, full_name: `${data.last.toUpperCase()} ${data.first}`, sex: data.sex, dni: data.dni || null, birth_date: data.birth || null, category_id: categoryId, team: data.team || null }).eq("id", p.id); if (r.error) throw r.error; if (data.file) { const path = `${p.user_id || "admin"}/${Date.now()}-${data.file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; const up = await supabase.storage.from("player-selfies").upload(path, data.file, { upsert: true, contentType: data.file.type || "image/jpeg" }); if (up.error) throw up.error; const ur = await supabase.from("players").update({ selfie_path: path }).eq("id", p.id); if (ur.error) throw ur.error; } setOpen(null); setMsg("✓ Datos Actualizados."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
   async function remove(p) { if (!confirm(`¿Eliminar A ${p.full_name}?`)) return; const r = await supabase.from("players").update({active:false}).eq("id", p.id); if (r.error) setMsg(errorText(r.error)); else { setMsg("✓ Jugador@ Eliminado."); await refresh(); } }
   async function share(p) { try { await shareText(`${APP_NAME} · Acceso`, `${APP_NAME}\
@@ -289,7 +289,38 @@ ${TAGLINE}\
 \
 Jugador@: ${p.full_name}\
 Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados."); } catch(e) { if(e?.name !== "AbortError") setMsg(errorText(e)); } }
-  return <section><PageTitle title="Jugador@s" text="Datos Personales, Selfie, Categoría, Equipo y Código De Acceso."/><div className="card add-player-card"><h3>Agregar Jugador@ Desde La Administración</h3><form onSubmit={savePlayer}><div className="three"><input required placeholder="Nombre" value={form.first} onChange={e=>setForm(f=>({...f,first:e.target.value}))}/><input required placeholder="Apellido" value={form.last} onChange={e=>setForm(f=>({...f,last:e.target.value}))}/><select value={form.sex} onChange={e=>setForm(f=>({...f,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select></div><div className="three"><input placeholder="DNI" value={form.dni} onChange={e=>setForm(f=>({...f,dni:e.target.value}))}/><input type="date" value={form.birth} onChange={e=>setForm(f=>({...f,birth:e.target.value}))}/><select value={form.team} onChange={e=>setForm(f=>({...f,team:e.target.value}))}><option value="">Sin Asignar</option><option value="A">Equipo A</option><option value="B">Equipo B</option><option value="C">Equipo C</option><option value="D">Equipo D</option><option value="E">Equipo E</option></select></div><select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>{editable.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><button className="primary" disabled={saving}>+ Agregar Jugador@</button></form></div><div className="toolbar card"><input placeholder="Buscar Por Nombre" value={search} onChange={e=>setSearch(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas Las Categorías</option>{visible.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
+  return <section><PageTitle title="Jugador@s" text="Datos Personales, Selfie, Categoría, Equipo y Código De Acceso."/>
+    <div className={`card add-player-card add-player-collapsible ${showAddPlayer ? "open" : ""}`}>
+      <button
+        type="button"
+        className="add-player-toggle"
+        aria-expanded={showAddPlayer}
+        aria-controls="add-player-form"
+        onClick={()=>setShowAddPlayer(value=>!value)}
+      >
+        <span><b>+ Agregar Jugador@</b><small>{showAddPlayer ? "Ocultar Formulario" : "Cargar Un Nuevo Jugador@"}</small></span>
+        <span className="add-player-toggle-icon" aria-hidden="true">{showAddPlayer ? "⌃" : "⌄"}</span>
+      </button>
+
+      {showAddPlayer && <form id="add-player-form" className="add-player-form" onSubmit={savePlayer}>
+        <div className="three">
+          <input required placeholder="Nombre" value={form.first} onChange={e=>setForm(f=>({...f,first:e.target.value}))}/>
+          <input required placeholder="Apellido" value={form.last} onChange={e=>setForm(f=>({...f,last:e.target.value}))}/>
+          <select value={form.sex} onChange={e=>setForm(f=>({...f,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select>
+        </div>
+        <div className="three">
+          <input placeholder="DNI" value={form.dni} onChange={e=>setForm(f=>({...f,dni:e.target.value}))}/>
+          <label className="admin-birth-field"><span>Fecha De Nacimiento</span><input type="date" value={form.birth} onChange={e=>setForm(f=>({...f,birth:e.target.value}))}/></label>
+          <select value={form.team} onChange={e=>setForm(f=>({...f,team:e.target.value}))}><option value="">Sin Asignar</option><option value="A">Equipo A</option><option value="B">Equipo B</option><option value="C">Equipo C</option><option value="D">Equipo D</option><option value="E">Equipo E</option></select>
+        </div>
+        <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>{editable.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select>
+        <div className="add-player-form-actions">
+          <button type="button" onClick={()=>setShowAddPlayer(false)}>Cancelar</button>
+          <button className="primary" disabled={saving}>{saving ? "Agregando..." : "+ Agregar Jugador@"}</button>
+        </div>
+      </form>}
+    </div>
+    <div className="toolbar card"><input placeholder="Buscar Por Nombre" value={search} onChange={e=>setSearch(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas Las Categorías</option>{visible.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
 }
 function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
   const [detailOpen,setDetailOpen]=useState(false);
