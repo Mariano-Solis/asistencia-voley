@@ -4,6 +4,8 @@ import AppNew from "./AppNew";
 import ProfessorSelfSignup from "./ProfessorSelfSignup";
 import TrainingSchedule from "./TrainingSchedule";
 import { supabase } from "./supabase";
+import PhotoSourcePicker from "./PhotoSourcePicker";
+import RequiredPlayerPhotoGate from "./RequiredPlayerPhotoGate";
 
 const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
 const APP_NAME = "Municipalidad De San Martín - VOLEY";
@@ -522,5 +524,5 @@ function DualRoleRouter() {
 }
 
 export default function App() {
-  return <><AuthRecovery /><AccountRepair /><MediaPickerEnhancer /><DualRoleRouter /></>;
+  return <><AuthRecovery /><AccountRepair /><MediaPickerEnhancer /><PhotoSourcePicker /><RequiredPlayerPhotoGate /><DualRoleRouter /></>;
 }
