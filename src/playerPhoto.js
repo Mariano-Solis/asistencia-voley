@@ -77,3 +77,75 @@ export function playerPhotoPath(userId, file) {
   const safe = (file?.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
   return `${userId}/${Date.now()}-${safe}`;
 }
+
+
+const PENDING_DB = "mgsm-player-onboarding";
+const PENDING_STORE = "pending-photos";
+
+function openPendingDb() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) return reject(new Error("IndexedDB No Disponible."));
+    const request = indexedDB.open(PENDING_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PENDING_STORE)) db.createObjectStore(PENDING_STORE, { keyPath:"email" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("No Se Pudo Abrir El Almacenamiento Local."));
+  });
+}
+
+export async function savePendingPlayerPhoto(email, file) {
+  const key = String(email || "").trim().toLowerCase();
+  if (!key || !file) return;
+  const db = await openPendingDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, "readwrite");
+    tx.objectStore(PENDING_STORE).put({
+      email:key,
+      blob:file,
+      name:file.name || "foto.jpg",
+      type:file.type || "image/jpeg",
+      lastModified:file.lastModified || Date.now(),
+      savedAt:Date.now(),
+    });
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("No Se Pudo Guardar La Foto Temporal."));
+  });
+  db.close();
+}
+
+export async function readPendingPlayerPhoto(email) {
+  const key = String(email || "").trim().toLowerCase();
+  if (!key) return null;
+  const db = await openPendingDb();
+  const record = await new Promise((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, "readonly");
+    const request = tx.objectStore(PENDING_STORE).get(key);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error("No Se Pudo Leer La Foto Temporal."));
+  });
+  db.close();
+  if (!record?.blob) return null;
+  if (record.savedAt && Date.now() - record.savedAt > 7 * 24 * 60 * 60 * 1000) {
+    await clearPendingPlayerPhoto(key).catch(() => {});
+    return null;
+  }
+  return new File([record.blob], record.name || "foto.jpg", {
+    type:record.type || record.blob.type || "image/jpeg",
+    lastModified:record.lastModified || Date.now(),
+  });
+}
+
+export async function clearPendingPlayerPhoto(email) {
+  const key = String(email || "").trim().toLowerCase();
+  if (!key || !("indexedDB" in window)) return;
+  const db = await openPendingDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, "readwrite");
+    tx.objectStore(PENDING_STORE).delete(key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("No Se Pudo Limpiar La Foto Temporal."));
+  });
+  db.close();
+}
