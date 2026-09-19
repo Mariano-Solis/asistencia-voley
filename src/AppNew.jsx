@@ -78,9 +78,9 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
       } else if (mode === "admin") {
         const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw error; await onAdmin(data.session);
       } else {
-        if (!first.trim() || !last.trim() || !email.trim() || !birth || !dni.trim() || !selfie) throw new Error("Completá Todos Los Datos Obligatorios, Incluida La Foto De Perfil.");
+        if (!first.trim() || !last.trim() || !email.trim() || !birth || !dni.trim()) throw new Error("Completá Todos Los Datos Obligatorios.");
         if (password.length < 6) throw new Error("La Contraseña Debe Tener Al Menos 6 Caracteres.");
-        const preparedSelfie = await preparePlayerPhoto(selfie);
+        const preparedSelfie = selfie ? await preparePlayerPhoto(selfie) : null;
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -98,12 +98,12 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
           }
         });
         if (error) throw error;
-        if (!data.session) { await savePendingPlayerPhoto(email, preparedSelfie).catch(() => {}); setMessage("✓ Cuenta Creada. Revisá Tu Correo Para Confirmarla. Tu Foto Quedará Lista Para Completar El Perfil Al Primer Ingreso."); setMode("player"); return; }
+        if (!data.session) { if (preparedSelfie) await savePendingPlayerPhoto(email, preparedSelfie).catch(() => {}); setMessage("✓ Cuenta Creada. Revisá Tu Correo Para Confirmarla y Luego Ingresá Como Jugador@."); setMode("player"); return; }
         if (!isAuthSession(data.session)) throw new Error("La Sesión No Es Válida. Volvé A Ingresar.");
         const uid = data.session.user.id;
         const playerRow = await supabase.from("players").select("*").eq("user_id", uid).single();
         if (playerRow.error) throw playerRow.error;
-        if (selfie) { const prepared = preparedSelfie; const path = playerPhotoPath(uid, prepared); const up = await supabase.storage.from("player-selfies").upload(path, prepared, { upsert: false, contentType: prepared.type || "image/jpeg" }); if (up.error) throw up.error; const linked = await supabase.from("players").update({ selfie_path: path }).eq("id", playerRow.data.id).select("id,selfie_path").single(); if (linked.error || linked.data?.selfie_path !== path) { await supabase.storage.from("player-selfies").remove([path]); throw linked.error || new Error("No Se Pudo Vincular La Foto De Perfil."); } }
+        if (preparedSelfie) { const prepared = preparedSelfie; const path = playerPhotoPath(uid, prepared); const up = await supabase.storage.from("player-selfies").upload(path, prepared, { upsert: false, contentType: prepared.type || "image/jpeg" }); if (up.error) throw up.error; const linked = await supabase.from("players").update({ selfie_path: path }).eq("id", playerRow.data.id).select("id,selfie_path").single(); if (linked.error || linked.data?.selfie_path !== path) { await supabase.storage.from("player-selfies").remove([path]); throw linked.error || new Error("No Se Pudo Vincular La Foto De Perfil."); } }
         await supabase.auth.signOut({ scope: "local" });
         setMessage("✓ Cuenta Creada Correctamente. Queda Pendiente De Aprobación. Cuando Un Profe Autorizado O El Super Administrador La Apruebe, Podrás Ingresar.");
         setMode("player");

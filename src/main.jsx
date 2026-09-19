@@ -55,6 +55,7 @@ import './mgsm-superadmin-player-email.css'
 import './mgsm-superadmin-professor-management.css'
 import './mgsm-player-dynamic-counter.css'
 import './mgsm-wow-polish.css'
+import './mgsm-mobile-nav-stability.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
