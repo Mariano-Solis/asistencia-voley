@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { isAuthSession } from "./sessionSafety";
-
-const MAX_BYTES = 2 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+import { playerPhotoPath, preparePlayerPhoto } from "./playerPhoto";
 
 export default function RequiredPlayerPhotoGate() {
   const [session, setSession] = useState(null);
@@ -86,14 +84,9 @@ export default function RequiredPlayerPhotoGate() {
       setFile(null);
       return;
     }
-    if (!ALLOWED_TYPES.has(selected.type)) {
+    if (!String(selected.type || "").startsWith("image/")) {
       setFile(null);
-      setMessage("Usá Una Imagen JPG, PNG O WebP.");
-      return;
-    }
-    if (selected.size > MAX_BYTES) {
-      setFile(null);
-      setMessage("La Foto Debe Pesar Menos De 2 MB.");
+      setMessage("Seleccioná Una Imagen Para La Foto De Perfil.");
       return;
     }
     setFile(selected);
@@ -104,13 +97,13 @@ export default function RequiredPlayerPhotoGate() {
     setSaving(true);
     setMessage("");
     const uid = session.user.id;
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `${uid}/${Date.now()}-${safeName}`;
 
     try {
+      const prepared = await preparePlayerPhoto(file);
+      const path = playerPhotoPath(uid, prepared);
       const upload = await supabase.storage
         .from("player-selfies")
-        .upload(path, file, { upsert: false, contentType: file.type });
+        .upload(path, prepared, { upsert: false, contentType: prepared.type });
       if (upload.error) throw upload.error;
 
       const linked = await supabase
@@ -152,7 +145,7 @@ export default function RequiredPlayerPhotoGate() {
         <label className="selfie-field required-photo-field">
           <span>Foto De Perfil</span>
           <span className="file-button" role="button" tabIndex={0}>📷 Agregar Foto / Selfie</span>
-          <input className="hidden-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectFile} />
+          <input className="hidden-file" type="file" accept="image/*" onChange={selectFile} />
           {file && <span className="file-name">✓ Foto Seleccionada: {file.name}</span>}
         </label>
 
