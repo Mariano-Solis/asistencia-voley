@@ -283,7 +283,7 @@ function Players({ profile, players, categories, permissions, refresh }) {
   };
   async function savePlayer(e) { e.preventDefault(); if (!form.first || !form.last || !form.category) return; setSaving(true); try { let categoryId = form.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: form.birth, p_sex: form.sex }); if (!auto.error && auto.data) categoryId = auto.data; const row = { first_name: form.first.trim(), last_name: form.last.trim(), full_name: `${form.last.trim().toUpperCase()} ${form.first.trim()}`, sex: form.sex, dni: clean(form.dni) || null, birth_date: form.birth || null, category_id: categoryId, team: form.team || null, access_code: accessCode(), active: true }; const r = await supabase.from("players").insert(row); if (r.error) throw r.error; setForm(f => ({...f, first: "", last: "", dni: "", birth: "", team: "", file: null})); setMsg("✓ Jugador@ Agregado."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
   async function saveEdit(p, data) { setSaving(true); try { let categoryId = data.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: data.birth, p_sex: data.sex }); if (!auto.error && auto.data) categoryId = auto.data; const r = await supabase.from("players").update({ first_name: data.first, last_name: data.last, full_name: `${data.last.toUpperCase()} ${data.first}`, sex: data.sex, dni: data.dni || null, birth_date: data.birth || null, category_id: categoryId, team: data.team || null }).eq("id", p.id); if (r.error) throw r.error; if (data.file) { const path = `${p.user_id || "admin"}/${Date.now()}-${data.file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; const up = await supabase.storage.from("player-selfies").upload(path, data.file, { upsert: true, contentType: data.file.type || "image/jpeg" }); if (up.error) throw up.error; const ur = await supabase.from("players").update({ selfie_path: path }).eq("id", p.id); if (ur.error) throw ur.error; } setOpen(null); setMsg("✓ Datos Actualizados."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
-  async function remove(p) { if (!confirm(`¿Eliminar A ${P.full_name}?`)) return; const r = await supabase.from("players").update({active:false}).eq("id", p.id); if (r.error) setMsg(errorText(r.error)); else { setMsg("✓ Jugador@ Eliminado."); await refresh(); } }
+  async function remove(p) { if (!confirm(`¿Eliminar A ${p.full_name}?`)) return; const r = await supabase.from("players").update({active:false}).eq("id", p.id); if (r.error) setMsg(errorText(r.error)); else { setMsg("✓ Jugador@ Eliminado."); await refresh(); } }
   async function share(p) { try { await shareText(`${APP_NAME} · Acceso`, `${APP_NAME}\
 ${TAGLINE}\
 \
@@ -291,7 +291,71 @@ Jugador@: ${p.full_name}\
 Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados."); } catch(e) { if(e?.name !== "AbortError") setMsg(errorText(e)); } }
   return <section><PageTitle title="Jugador@s" text="Datos Personales, Selfie, Categoría, Equipo y Código De Acceso."/><div className="card add-player-card"><h3>Agregar Jugador@ Desde La Administración</h3><form onSubmit={savePlayer}><div className="three"><input required placeholder="Nombre" value={form.first} onChange={e=>setForm(f=>({...f,first:e.target.value}))}/><input required placeholder="Apellido" value={form.last} onChange={e=>setForm(f=>({...f,last:e.target.value}))}/><select value={form.sex} onChange={e=>setForm(f=>({...f,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select></div><div className="three"><input placeholder="DNI" value={form.dni} onChange={e=>setForm(f=>({...f,dni:e.target.value}))}/><input type="date" value={form.birth} onChange={e=>setForm(f=>({...f,birth:e.target.value}))}/><select value={form.team} onChange={e=>setForm(f=>({...f,team:e.target.value}))}><option value="">Sin Asignar</option><option value="A">Equipo A</option><option value="B">Equipo B</option><option value="C">Equipo C</option><option value="D">Equipo D</option><option value="E">Equipo E</option></select></div><select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>{editable.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><button className="primary" disabled={saving}>+ Agregar Jugador@</button></form></div><div className="toolbar card"><input placeholder="Buscar Por Nombre" value={search} onChange={e=>setSearch(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas Las Categorías</option>{visible.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
 }
-function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) { const cat=categories.find(c=>c.id===player.category_id); return <article className="player-card card"><div className="player-card-top"><Avatar player={player}/><div className="grow"><h3>{player.full_name}</h3><p>{cat ? `${genderText(cat.gender)} · ${cat.name}` : "Sin Categoría"}</p></div><span className="team-badge">{player.team ? `Equipo ${player.team}` : "Sin Asignar"}</span></div><div className="player-data"><span><b>DNI</b>{player.dni || "—"}</span><span><b>Edad</b>{ageOf(player.birth_date)}</span><span><b>Acceso</b>{player.access_code}</span>{player.account_email !== undefined && <span><b>Correo De Cuenta</b>{player.account_email || "Sin Cuenta Asociada"}</span>}</div><div className="player-actions"><button onClick={onShare}>📤 Compartir</button><button onClick={() => copyText(player.access_code).catch(()=>{})}>📋 Código</button>{canEdit && <><button onClick={onEdit}>✏️ Modificar</button><button className="danger" onClick={onDelete}>🗑️ Eliminar</button></>}</div></article>; }
+function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
+  const [detailOpen,setDetailOpen]=useState(false);
+  const cat=categories.find(c=>c.id===player.category_id);
+  const branch=cat ? genderText(cat.gender) : genderText(player.sex);
+  const category=cat?.name || "Sin Categoría";
+  const team=player.team ? `Equipo ${player.team}` : "Sin Asignar";
+
+  function closeDetail(){ setDetailOpen(false); }
+  function editPlayer(){ closeDetail(); onEdit(); }
+  function deletePlayer(){ closeDetail(); onDelete(); }
+
+  return <>
+    <article
+      className="player-card player-card-compact card"
+      role="button"
+      tabIndex={0}
+      aria-label={`Ver Información De ${player.full_name}`}
+      onClick={()=>setDetailOpen(true)}
+      onKeyDown={e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); setDetailOpen(true); } }}
+    >
+      <div className="player-card-summary">
+        <Avatar player={player}/>
+        <div className="player-card-summary-main">
+          <h3>{player.full_name}</h3>
+          <p>{branch} · {category} · {team}</p>
+          <div className="player-card-access"><span>Código De Acceso</span><b>{player.access_code || "—"}</b></div>
+        </div>
+        <span className="player-card-open" aria-hidden="true">›</span>
+      </div>
+    </article>
+
+    {detailOpen && <div className="modal player-detail-modal" onClick={closeDetail}>
+      <section className="modal-card player-detail-card" onClick={e=>e.stopPropagation()}>
+        <div className="modal-head">
+          <div><span className="eyebrow">Información Del Jugador@</span><h2>{player.full_name}</h2></div>
+          <button type="button" onClick={closeDetail} aria-label="Cerrar">×</button>
+        </div>
+
+        <div className="player-detail-hero">
+          <Avatar player={player}/>
+          <div>
+            <h3>{player.full_name}</h3>
+            <p>{branch} · {category} · {team}</p>
+          </div>
+        </div>
+
+        <div className="player-detail-data">
+          <div><span>DNI</span><b>{player.dni || "—"}</b></div>
+          <div><span>Edad</span><b>{ageOf(player.birth_date)}</b></div>
+          <div><span>Código De Acceso</span><b>{player.access_code || "—"}</b></div>
+          {player.account_email !== undefined && <div className="player-detail-email"><span>Correo De Cuenta</span><b>{player.account_email || "Sin Cuenta Asociada"}</b></div>}
+        </div>
+
+        <div className="player-detail-actions">
+          <button type="button" onClick={onShare}>📤 Compartir</button>
+          <button type="button" onClick={() => copyText(player.access_code).catch(()=>{})}>📋 Código</button>
+          {canEdit && <>
+            <button type="button" onClick={editPlayer}>✏️ Modificar</button>
+            <button type="button" className="danger" onClick={deletePlayer}>🗑️ Eliminar</button>
+          </>}
+        </div>
+      </section>
+    </div>}
+  </>;
+}
 function PlayerEdit({player,categories,onClose,onSave,saving}) { const parts=player.full_name.split(/\s+/); const [data,setData]=useState({first:player.first_name||parts.slice(1).join(" "),last:player.last_name||parts[0]||"",sex:player.sex||"female",dni:player.dni||"",birth:player.birth_date||"",team:player.team||"",category:player.category_id||categories[0]?.id||"",file:null}); const fileRef=useRef(null); return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Modificar Jugador@</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={e=>{e.preventDefault();onSave(player,data)}}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><select value={data.team} onChange={e=>setData(d=>({...d,team:e.target.value}))}><option value="">Sin Asignar</option>{["A","B","C","D","E"].map(x=><option key={x} value={x}>Equipo {x}</option>)}</select><select value={data.category} onChange={e=>setData(d=>({...d,category:e.target.value}))}>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cambiar Selfie</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>Guardar</button></div></form></div></div>; }
 
 function History({profile,categories,permissions,players,refresh}) {
