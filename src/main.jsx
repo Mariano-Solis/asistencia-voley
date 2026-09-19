@@ -1,7 +1,6 @@
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import DualRoleSelfEnrollment from './DualRoleSelfEnrollment'
-import PhotoSourcePicker from './PhotoSourcePicker'
 import StorageSafetyEnhancer from './StorageSafetyEnhancer'
 import ProfessorDeleteManager from './ProfessorDeleteManager'
 import WorkflowCore from './WorkflowCore'
@@ -55,6 +54,7 @@ import './mgsm-history-session-actions.css'
 import './mgsm-superadmin-player-email.css'
 import './mgsm-superadmin-professor-management.css'
 import './mgsm-player-dynamic-counter.css'
+import './mgsm-wow-polish.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
