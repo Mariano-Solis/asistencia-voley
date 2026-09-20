@@ -604,6 +604,7 @@ function App() {
   const [disabledTabs,setDisabledTabs]=useState([]),[navigationOrder,setNavigationOrder]=useState([]);
   const [dualPlayerAvailable,setDualPlayerAvailable]=useState(false),[dualPlayerMode,setDualPlayerMode]=useState(false);
   const [pendingRequestCount,setPendingRequestCount]=useState(0);
+  const [tabRefreshVersion,setTabRefreshVersion]=useState(0),[tabRefreshing,setTabRefreshing]=useState(false);
   const authIntent = useRef(null), authEpoch = useRef(0);
   function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); setDisabledTabs([]); setNavigationOrder([]); setDualPlayerAvailable(false); setDualPlayerMode(false); setPendingRequestCount(0); }
   async function applySession(current) {
@@ -692,6 +693,16 @@ function App() {
     };
   },[session,profile?.id,profile?.role]);
   const refresh=()=>isAuthSession(session)?applySession(session):Promise.resolve();
+  async function refreshCurrentTab(){
+    if(tabRefreshing)return;
+    setTabRefreshing(true);
+    try{
+      await refresh();
+      setTabRefreshVersion(v=>v+1);
+    }finally{
+      setTabRefreshing(false);
+    }
+  }
 
 
   const logout=async()=>{authEpoch.current++;removeStoredPlayer(localStorage);clearIdentity();await supabase.auth.signOut({scope:'local'});};
@@ -739,6 +750,24 @@ function App() {
   nav.push(['settings','Solapas']);
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">{tab==='home'&&<Attendance profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='players'&&<Players profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='history'&&<History profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>} {tab==='schedule'&&<TrainingSchedule/>} {tab==='training'&&<ProfessorTrainingHub/>} {tab==='payments'&&<AdminPaymentPanel role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>} {tab==='requests'&&<RequestsPage profile={profile}/>} {tab==='admins'&&<AdminUsers profile={profile}/>}  {tab==='categories'&&<Categories profile={profile} categories={categories} refresh={refresh}/>} {tab==='permissions'&&<Permissions profile={profile} categories={categories}/>} {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>} </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
+    {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
+      <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
+        <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
+        {tabRefreshing?"Actualizando...":"Actualizar"}
+      </button>
+    </div>}
+    {tab==='home'&&<Attendance key={`home:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
+    {tab==='players'&&<Players key={`players:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
+    {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
+    {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
+    {tab==='training'&&<ProfessorTrainingHub/>}
+    {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
+    {tab==='requests'&&<RequestsPage profile={profile}/>}
+    {tab==='admins'&&<AdminUsers key={`admins:${tabRefreshVersion}`} profile={profile}/>}
+    {tab==='categories'&&<Categories key={`categories:${tabRefreshVersion}`} profile={profile} categories={categories} refresh={refresh}/>}
+    {tab==='permissions'&&<Permissions key={`permissions:${tabRefreshVersion}`} profile={profile} categories={categories}/>}
+    {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>}
+  </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
 }
 export default App;
