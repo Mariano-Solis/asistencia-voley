@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 
 const BUCKET = "payment-receipts";
+const PAYMENT_START_PERIOD = "2026-10-01";
 const FEES = [10000, 15000, 20000];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "application/pdf"]);
@@ -97,8 +98,10 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const period = currentPeriod();
+  const paymentsStarted = period >= PAYMENT_START_PERIOD;
 
   async function load(clearMessage = false, showLoading = false) {
+    if (!paymentsStarted) { setPayments([]); setLoading(false); return; }
     if (!player?.id || refreshInFlightRef.current) return;
     refreshInFlightRef.current = true;
     if (showLoading) setLoading(true);
@@ -131,6 +134,7 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   }, [verifying, player?.id]);
 
   async function upload(file) {
+    if (!paymentsStarted) { setMessage("Los Pagos Comienzan En Octubre De 2026."); return; }
     if (!file || !player?.monthly_fee || verifying) return;
     if (!ALLOWED_TYPES.has(file.type)) {
       setMessage("El Comprobante Debe Ser JPG, PNG O PDF.");
@@ -219,6 +223,11 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
           {!embedded && <button type="button" onClick={onClose} aria-label="Cerrar">×</button>}
         </div>
 
+        {!paymentsStarted ? <section className="stable-pay-start-notice">
+          <span>📅</span>
+          <h3>Pagos A Partir De Octubre</h3>
+          <p>Durante Septiembre Sólo Estamos Creando y Aprobando Cuentas. El Registro De Pagos Comienza En Octubre De 2026.</p>
+        </section> : <>
         <OfficialAccount onCopy={copyAlias} />
 
         <section className={`stable-pay-current ${currentState.cls}`}>
@@ -249,6 +258,7 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
             return <div className="stable-pay-history-row" key={row.id}><span><b>{periodLabel(row.period_month)}</b><small>{money(row.amount_due)}</small></span><b className={`stable-pay-state ${s.cls}`}>{s.label}</b>{row.receipt_path && <button type="button" onClick={() => openReceipt(row.receipt_path, setMessage)}>Ver</button>}</div>;
           }) : <p>Todavía No Hay Comprobantes Cargados.</p>}
         </section>
+        </>}
       </div>
     </div>
   );
@@ -256,6 +266,7 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
 
 export function AdminPaymentPanel({ role, canApprovePayments = role === "super_admin", onClose, embedded = false }) {
   const period = currentPeriod();
+  const paymentsStarted = period >= PAYMENT_START_PERIOD;
   const refreshInFlightRef = useRef(false);
   const [players, setPlayers] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -267,6 +278,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
   const [bulkReviewing, setBulkReviewing] = useState(false);
 
   async function load(clearMessage = false, showLoading = false) {
+    if (!paymentsStarted) { setPlayers([]); setPayments([]); setLoading(false); return; }
     if (refreshInFlightRef.current) return;
     refreshInFlightRef.current = true;
     if (showLoading) setLoading(true);
@@ -398,6 +410,11 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
           <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
         </div>
 
+        {!paymentsStarted ? <section className="stable-pay-start-notice">
+          <span>📅</span>
+          <h3>Pagos A Partir De Octubre</h3>
+          <p>Septiembre No Genera Deuda Ni Registros De Pago. El Primer Período De Pagos Es Octubre De 2026.</p>
+        </section> : <>
         <div className="stable-pay-summary">
           <div><span>Esperado</span><b>{money(expected)}</b></div>
           <div><span>Validados</span><b>{validated}</b></div>
@@ -457,6 +474,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
             );
           }) : <p>No Hay Registros Para Este Filtro.</p>}
         </div>
+        </>}
       </div>
     </div>
   );
@@ -549,7 +567,7 @@ export default function PaymentHubStable() {
 
   if (!playerMode && !adminMode) return null;
 
-  const playerBanner = playerMode && !open ? (
+  const playerBanner = playerMode && currentPeriod() >= PAYMENT_START_PERIOD && !open ? (
     <aside className="stable-pay-player-banner">
       <div><span>💳 CUOTA · {periodLabel(currentPeriod())}</span><strong>{OFFICIAL_PAYMENT.alias}</strong></div>
       <button type="button" onClick={copyAlias}>{copied ? "✓ Copiado" : "📋 Copiar Alias"}</button>
@@ -561,7 +579,7 @@ export default function PaymentHubStable() {
     <>
       {playerHost && playerBanner && createPortal(playerBanner, playerHost)}
 
-      {adminMode && !open && (
+      {adminMode && currentPeriod() >= PAYMENT_START_PERIOD && !open && (
         <button type="button" className="stable-pay-admin-launcher" onClick={() => setOpen(true)}>💳 <span>Pagos</span></button>
       )}
 
