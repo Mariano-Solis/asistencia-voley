@@ -1,0 +1,163 @@
+/* =========================================================
+   MGSM VOLEY · FILTRO MULTICATEGORÍA
+========================================================= */
+.player-filter-toolbar{
+  align-items:stretch!important;
+}
+
+.multi-category-filter{
+  position:relative;
+  min-width:0;
+}
+
+.multi-category-filter>summary{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:0 14px;
+  border:1px solid #dfe2e7;
+  border-radius:13px;
+  background:#fff;
+  color:#24272d;
+  font-size:13px;
+  font-weight:780;
+  cursor:pointer;
+  list-style:none;
+  user-select:none;
+}
+
+.multi-category-filter>summary::-webkit-details-marker{
+  display:none;
+}
+
+.multi-category-filter[open]>summary{
+  border-color:#b5121b;
+  box-shadow:0 0 0 4px rgba(181,18,27,.08);
+}
+
+.multi-category-filter[open]>summary b{
+  transform:rotate(180deg);
+}
+
+.multi-category-filter>summary b{
+  transition:transform .16s ease;
+  color:#757b84;
+}
+
+.multi-category-panel{
+  position:absolute;
+  z-index:500;
+  top:calc(100% + 8px);
+  left:0;
+  right:0;
+  max-height:420px;
+  overflow:auto;
+  padding:12px;
+  border:1px solid #e3e5e8;
+  border-radius:16px;
+  background:#fff;
+  box-shadow:0 18px 46px rgba(28,34,42,.16);
+}
+
+.multi-category-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:10px;
+}
+
+.multi-category-actions button{
+  min-height:34px;
+  padding:7px 10px;
+  border-radius:10px;
+  background:#f3f4f6;
+  color:#4e545c;
+  font-size:10px;
+  font-weight:850;
+}
+
+.multi-category-options{
+  display:grid;
+  gap:7px;
+}
+
+.multi-category-options label{
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 10px;
+  border:1px solid #eceef1;
+  border-radius:11px;
+  background:#fff;
+  cursor:pointer;
+}
+
+.multi-category-options label.selected{
+  border-color:#d9a9ad;
+  background:#fff7f7;
+}
+
+.multi-category-options input{
+  width:18px!important;
+  height:18px!important;
+  min-height:18px!important;
+  margin:0!important;
+  accent-color:#b5121b;
+}
+
+.multi-category-options span{
+  font-size:12px;
+  font-weight:750;
+  color:#34383f;
+}
+
+.multi-category-selection{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid #eceef1;
+}
+
+.multi-category-selection button{
+  min-height:30px;
+  padding:6px 9px;
+  border-radius:999px;
+  background:#fff0f1;
+  color:#9f1119;
+  font-size:9.5px;
+  font-weight:850;
+}
+
+@media(max-width:760px){
+  .player-filter-toolbar{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+  }
+
+  .multi-category-filter{
+    width:100%;
+  }
+
+  .multi-category-panel{
+    position:static;
+    margin-top:8px;
+    max-height:none;
+    box-shadow:none;
+    border-radius:13px;
+    background:#fafafa;
+  }
+
+  .multi-category-options{
+    grid-template-columns:1fr;
+  }
+
+  .multi-category-options label{
+    min-height:44px;
+  }
+}
