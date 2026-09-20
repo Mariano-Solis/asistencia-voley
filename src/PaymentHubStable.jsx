@@ -14,15 +14,55 @@ const OFFICIAL_PAYMENT = {
   provider: "Mercado Pago",
 };
 
-function currentPeriod() {
+function mendozaDateParts() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Argentina/Mendoza",
     year: "numeric",
     month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
-  const year = parts.find((p) => p.type === "year")?.value;
-  const month = parts.find((p) => p.type === "month")?.value;
-  return `${year}-${month}-01`;
+  return {
+    year: Number(parts.find((p) => p.type === "year")?.value || 0),
+    month: Number(parts.find((p) => p.type === "month")?.value || 0),
+    day: Number(parts.find((p) => p.type === "day")?.value || 0),
+  };
+}
+
+function currentPeriod() {
+  const { year, month } = mendozaDateParts();
+  return `${year}-${String(month).padStart(2, "0")}-01`;
+}
+
+function addMonths(period, amount = 1) {
+  const [year, month] = period.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1 + amount, 1, 12));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function maxEligiblePaymentPeriod() {
+  const { year, month, day } = mendozaDateParts();
+  const current = `${year}-${String(month).padStart(2, "0")}-01`;
+  if (current < "2026-09-01") return null;
+  if (current === "2026-09-01") return day >= 25 ? PAYMENT_START_PERIOD : null;
+  if (current < PAYMENT_START_PERIOD) return null;
+  return day >= 25 ? addMonths(current, 1) : current;
+}
+
+function oldestUnpaidPeriod(payments, maxPeriod = maxEligiblePaymentPeriod()) {
+  if (!maxPeriod) return null;
+  const byPeriod = new Map((payments || []).map((row) => [row.period_month, row]));
+  for (let period = PAYMENT_START_PERIOD; period <= maxPeriod; period = addMonths(period, 1)) {
+    const row = byPeriod.get(period);
+    if (!row || row.validation_status !== "validated") return period;
+  }
+  return null;
+}
+
+function availablePaymentPeriods(maxPeriod = maxEligiblePaymentPeriod()) {
+  if (!maxPeriod) return [];
+  const result = [];
+  for (let period = PAYMENT_START_PERIOD; period <= maxPeriod; period = addMonths(period, 1)) result.push(period);
+  return result;
 }
 
 function periodLabel(value) {
@@ -97,8 +137,8 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
-  const period = currentPeriod();
-  const paymentsStarted = period >= PAYMENT_START_PERIOD;
+  const maxEligiblePeriod = maxEligiblePaymentPeriod();
+  const paymentsStarted = !!maxEligiblePeriod;
 
   async function load(clearMessage = false, showLoading = false) {
     if (!paymentsStarted) { setPayments([]); setLoading(false); return; }
@@ -123,8 +163,9 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
 
   useEffect(() => { load(false, true); }, [player?.id]);
 
-  const current = payments.find((row) => row.period_month === period);
-  const currentState = stateOf(current);
+  const period = oldestUnpaidPeriod(payments, maxEligiblePeriod);
+  const current = period ? payments.find((row) => row.period_month === period) : null;
+  const currentState = period ? stateOf(current) : { cls: "paid", label: "✓ Sin Cuotas Pendientes" };
   const verifying = current?.validation_status === "pending_validation";
 
   useEffect(() => {
@@ -134,7 +175,8 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   }, [verifying, player?.id]);
 
   async function upload(file) {
-    if (!paymentsStarted) { setMessage("Los Pagos Comienzan En Octubre De 2026."); return; }
+    if (!paymentsStarted) { setMessage("Los Pagos Se Habilitan El 25 De Septiembre."); return; }
+    if (!period) { setMessage("✓ No Tenés Cuotas Habilitadas Pendientes."); return; }
     if (!file || !player?.monthly_fee || verifying) return;
     if (!ALLOWED_TYPES.has(file.type)) {
       setMessage("El Comprobante Debe Ser JPG, PNG O PDF.");
@@ -226,12 +268,12 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
         {!paymentsStarted ? <section className="stable-pay-start-notice">
           <span>📅</span>
           <h3>Pagos A Partir De Octubre</h3>
-          <p>Durante Septiembre Sólo Estamos Creando y Aprobando Cuentas. El Registro De Pagos Comienza En Octubre De 2026.</p>
+          <p>Durante Septiembre Estamos Creando y Aprobando Cuentas. La Carga De Pagos Se Habilita El 25 De Septiembre Para Abonar Octubre.</p>
         </section> : <>
         <OfficialAccount onCopy={copyAlias} />
 
         <section className={`stable-pay-current ${currentState.cls}`}>
-          <div><span>Mi cuota · {periodLabel(period)}</span><strong>{money(player.monthly_fee)}</strong></div>
+          <div><span>{period ? `Cuota A Pagar · ${periodLabel(period)}` : "Estado De Pagos"}</span><strong>{period ? money(player.monthly_fee) : "Al Día"}</strong></div>
           <b className={`stable-pay-state ${currentState.cls}`}>{currentState.label}</b>
         </section>
 
@@ -243,8 +285,8 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
 
         <div className="stable-pay-actions">
           <input ref={inputRef} hidden type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => upload(e.target.files?.[0])} />
-          <button type="button" className="primary" disabled={uploading || verifying} onClick={() => inputRef.current?.click()}>
-            {uploading ? "⏳ Cargando..." : verifying ? "⏳ Verificación En Curso" : current ? "📎 Reemplazar Comprobante" : "📎 Adjuntar Comprobante"}
+          <button type="button" className="primary" disabled={uploading || verifying || !period} onClick={() => inputRef.current?.click()}>
+            {uploading ? "⏳ Cargando..." : verifying ? "⏳ Verificación En Curso" : !period ? "✓ Sin Cuotas Pendientes" : current ? "📎 Reemplazar Comprobante" : `📎 Adjuntar Comprobante De ${periodLabel(period)}`}
           </button>
           {current?.receipt_path && <button type="button" onClick={() => openReceipt(current.receipt_path, setMessage)}>👁 Ver Comprobante</button>}
         </div>
@@ -265,8 +307,16 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
 }
 
 export function AdminPaymentPanel({ role, canApprovePayments = role === "super_admin", onClose, embedded = false }) {
-  const period = currentPeriod();
-  const paymentsStarted = period >= PAYMENT_START_PERIOD;
+  const maxEligiblePeriod = maxEligiblePaymentPeriod();
+  const paymentPeriods = availablePaymentPeriods(maxEligiblePeriod);
+  const defaultPeriod = (() => {
+    if (!maxEligiblePeriod) return PAYMENT_START_PERIOD;
+    const current = currentPeriod();
+    if (current < PAYMENT_START_PERIOD) return PAYMENT_START_PERIOD;
+    return current <= maxEligiblePeriod ? current : maxEligiblePeriod;
+  })();
+  const [period, setPeriod] = useState(defaultPeriod);
+  const paymentsStarted = !!maxEligiblePeriod;
   const refreshInFlightRef = useRef(false);
   const [players, setPlayers] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -298,7 +348,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
     }
   }
 
-  useEffect(() => { load(false, true); }, []);
+  useEffect(() => { load(false, true); }, [period, paymentsStarted]);
 
   const hasPendingValidation = payments.some((p) => p.validation_status === "pending_validation");
 
@@ -413,8 +463,11 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
         {!paymentsStarted ? <section className="stable-pay-start-notice">
           <span>📅</span>
           <h3>Pagos A Partir De Octubre</h3>
-          <p>Septiembre No Genera Deuda Ni Registros De Pago. El Primer Período De Pagos Es Octubre De 2026.</p>
+          <p>Septiembre No Genera Deuda. La Carga De Comprobantes Se Habilita El 25 De Septiembre Para El Período Octubre De 2026.</p>
         </section> : <>
+        <div className="stable-pay-period-picker">
+          <label><span>Período</span><select value={period} onChange={(e) => setPeriod(e.target.value)}>{paymentPeriods.map((value) => <option key={value} value={value}>{periodLabel(value)}</option>)}</select></label>
+        </div>
         <div className="stable-pay-summary">
           <div><span>Esperado</span><b>{money(expected)}</b></div>
           <div><span>Validados</span><b>{validated}</b></div>
@@ -567,7 +620,7 @@ export default function PaymentHubStable() {
 
   if (!playerMode && !adminMode) return null;
 
-  const playerBanner = playerMode && currentPeriod() >= PAYMENT_START_PERIOD && !open ? (
+  const playerBanner = playerMode && !!maxEligiblePaymentPeriod() && !open ? (
     <aside className="stable-pay-player-banner">
       <div><span>💳 CUOTA · {periodLabel(currentPeriod())}</span><strong>{OFFICIAL_PAYMENT.alias}</strong></div>
       <button type="button" onClick={copyAlias}>{copied ? "✓ Copiado" : "📋 Copiar Alias"}</button>
@@ -579,7 +632,7 @@ export default function PaymentHubStable() {
     <>
       {playerHost && playerBanner && createPortal(playerBanner, playerHost)}
 
-      {adminMode && currentPeriod() >= PAYMENT_START_PERIOD && !open && (
+      {adminMode && !!maxEligiblePaymentPeriod() && !open && (
         <button type="button" className="stable-pay-admin-launcher" onClick={() => setOpen(true)}>💳 <span>Pagos</span></button>
       )}
 
