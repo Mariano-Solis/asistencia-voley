@@ -273,9 +273,9 @@ function Empty({ text }) { return <div className="empty">{text}</div>; }
 
 function Players({ profile, players, categories, permissions, refresh }) {
   const editable = categories.filter(c => can(profile, c, permissions, true)); const visible = categories.filter(c => can(profile, c, permissions));
-  const [search, setSearch] = useState(""); const [filter, setFilter] = useState("all"); const [open, setOpen] = useState(null); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false); const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [search, setSearch] = useState(""); const [selectedCategories, setSelectedCategories] = useState([]); const [open, setOpen] = useState(null); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false); const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [form, setForm] = useState({ first: "", last: "", category: editable[0]?.id || "", sex: "female", dni: "", birth: "", team: "", file: null }); const fileRef = useRef(null);
-  const list = players.filter(p => { const c = categories.find(x => x.id === p.category_id); const allowed = c ? can(profile, c, permissions) : profile.role === "super_admin"; return allowed && (filter === "all" || p.category_id === filter) && (!search || p.full_name.toLowerCase().includes(search.toLowerCase())); });
+  const list = players.filter(p => { const c = categories.find(x => x.id === p.category_id); const allowed = c ? can(profile, c, permissions) : profile.role === "super_admin"; const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(p.category_id); return allowed && categoryMatch && (!search || p.full_name.toLowerCase().includes(search.toLowerCase())); });
   const dynamicCounts = {
     total: list.length,
     female: list.filter(p => gender(p.sex) === "female").length,
@@ -320,7 +320,40 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
         </div>
       </form>}
     </div>
-    <div className="toolbar card"><input placeholder="Buscar Por Nombre" value={search} onChange={e=>setSearch(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas Las Categorías</option>{visible.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
+    <div className="toolbar card player-filter-toolbar">
+      <input placeholder="Buscar Por Nombre" value={search} onChange={e=>setSearch(e.target.value)}/>
+      <details className="multi-category-filter">
+        <summary>
+          <span>{selectedCategories.length === 0 ? "Todas Las Categorías" : selectedCategories.length === 1 ? "1 Categoría Seleccionada" : `${selectedCategories.length} Categorías Seleccionadas`}</span>
+          <b aria-hidden="true">⌄</b>
+        </summary>
+        <div className="multi-category-panel">
+          <div className="multi-category-actions">
+            <button type="button" onClick={()=>setSelectedCategories([])}>Todas</button>
+            {selectedCategories.length > 0 && <button type="button" onClick={()=>setSelectedCategories([])}>Limpiar Selección</button>}
+          </div>
+          <div className="multi-category-options">
+            {visible.map(cat=>{
+              const checked=selectedCategories.includes(cat.id);
+              return <label key={cat.id} className={checked ? "selected" : ""}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={()=>setSelectedCategories(current=>current.includes(cat.id)?current.filter(id=>id!==cat.id):[...current,cat.id])}
+                />
+                <span>{genderText(cat.gender)} · {cat.name}</span>
+              </label>;
+            })}
+          </div>
+          {selectedCategories.length > 0 && <div className="multi-category-selection">
+            {selectedCategories.map(id=>{
+              const cat=visible.find(item=>item.id===id);
+              return cat ? <button type="button" key={id} onClick={()=>setSelectedCategories(current=>current.filter(value=>value!==id))}>× {genderText(cat.gender)} · {cat.name}</button> : null;
+            })}
+          </div>}
+        </div>
+      </details>
+    </div><div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
 }
 function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
   const [detailOpen,setDetailOpen]=useState(false);
