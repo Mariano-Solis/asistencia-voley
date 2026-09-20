@@ -7,3 +7,62 @@
 .stable-pay-history{margin:16px;background:#fff;border-radius:16px;padding:16px}.stable-pay-history h3{margin:0 0 12px}.stable-pay-history-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid #eee}.stable-pay-history-row:first-of-type{border-top:0}.stable-pay-history-row>span{display:flex;flex-direction:column}.stable-pay-history-row small{color:#666}.stable-pay-history-row button{background:#eee}
 .stable-pay-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px}.stable-pay-summary>div{background:#fff;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px}.stable-pay-summary span{font-size:12px;color:#666}.stable-pay-summary b{font-size:22px}.stable-pay-filters{display:grid;grid-template-columns:1fr 220px;gap:10px;padding:0 16px 16px}.stable-pay-filters input,.stable-pay-filters select,.stable-pay-fee select{min-height:44px;border:1px solid #ccc;border-radius:10px;padding:8px 10px;background:#fff}.stable-pay-bulk-actions{margin:0 16px 16px;background:#fff;border:1px solid #d8e9dc;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:14px}.stable-pay-bulk-actions>div{display:flex;flex-direction:column;gap:3px}.stable-pay-bulk-actions small{color:#666}.stable-pay-bulk-actions .approve-all{background:#dff4e6;color:#12662e;white-space:nowrap}.stable-pay-bulk-actions .approve-all:disabled,.stable-pay-row-actions button:disabled{opacity:.55;cursor:not-allowed}.stable-pay-admin-list{padding:0 16px 18px}.stable-pay-admin-row{background:#fff;border-radius:14px;padding:13px;display:grid;grid-template-columns:minmax(220px,1.4fr) 160px 180px minmax(180px,auto);gap:12px;align-items:center;margin-bottom:10px}.stable-pay-person{display:flex;flex-direction:column;gap:3px;min-width:0}.stable-pay-person small{color:#666;line-height:1.35}.stable-pay-fee{display:flex;flex-direction:column;gap:4px}.stable-pay-fee span{font-size:11px;color:#666}.stable-pay-row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}.stable-pay-row-actions button{background:#ececec}.stable-pay-row-actions .approve{background:#dff4e6;color:#12662e}.stable-pay-row-actions .reject{background:#fde2e2;color:#8b1010}.stable-pay-row-actions .revoke{background:#fff0bf;color:#725600}
 @media(max-width:900px){.stable-pay-player-banner{width:100%;grid-template-columns:1fr auto;margin:0 0 14px}.stable-pay-player-banner button.primary{grid-column:1/-1}.stable-pay-admin-launcher{right:12px;bottom:76px}.stable-pay-modal{padding:8px}.stable-pay-modal-card{max-height:calc(100vh - 16px);border-radius:16px}.stable-pay-summary{grid-template-columns:repeat(2,1fr)}.stable-pay-filters{grid-template-columns:1fr}.stable-pay-bulk-actions{align-items:stretch;flex-direction:column}.stable-pay-bulk-actions .approve-all{white-space:normal;width:100%}.stable-pay-admin-row{grid-template-columns:1fr}.stable-pay-row-actions{justify-content:flex-start}.stable-pay-alias{font-size:20px}.stable-pay-account{grid-template-columns:1fr}.stable-pay-account button{grid-column:1}.stable-pay-current{align-items:flex-start;flex-direction:column}}
+
+
+/* =========================================================
+   PAGOS EMBEBIDOS EN PERFIL JUGADOR@
+========================================================= */
+.stable-pay-player-page{
+  width:100%;
+  min-width:0;
+  display:block;
+}
+
+.stable-pay-player-page-card{
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+  background:#f7f7f7;
+  border:1px solid #e4e4e4;
+  border-radius:20px;
+  box-shadow:0 8px 26px rgba(0,0,0,.06);
+}
+
+.stable-pay-player-page .stable-pay-modal-head{
+  position:static;
+  border-radius:0;
+}
+
+.stable-pay-player-page .stable-pay-actions button{
+  min-height:44px;
+}
+
+@media(max-width:900px){
+  .stable-pay-player-page-card{
+    border-radius:16px;
+  }
+
+  .stable-pay-player-page .stable-pay-account,
+  .stable-pay-player-page .stable-pay-current,
+  .stable-pay-player-page .stable-pay-help,
+  .stable-pay-player-page .stable-pay-note,
+  .stable-pay-player-page .stable-pay-message,
+  .stable-pay-player-page .stable-pay-actions,
+  .stable-pay-player-page .stable-pay-history{
+    margin-left:12px;
+    margin-right:12px;
+  }
+
+  .stable-pay-player-page .stable-pay-modal-head{
+    padding:14px;
+  }
+
+  .stable-pay-player-page .stable-pay-actions{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .stable-pay-player-page .stable-pay-actions button{
+    width:100%;
+  }
+}
