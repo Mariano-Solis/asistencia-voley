@@ -58,6 +58,7 @@ import './mgsm-wow-polish.css'
 import './mgsm-mobile-nav-stability.css'
 import './mgsm-player-cards-compact.css'
 import './mgsm-add-player-collapsible.css'
+import './mgsm-tab-refresh.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
