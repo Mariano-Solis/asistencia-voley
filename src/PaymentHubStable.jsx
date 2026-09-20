@@ -89,7 +89,7 @@ function OfficialAccount({ onCopy }) {
   );
 }
 
-function PlayerPaymentPanel({ player, onClose }) {
+export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   const inputRef = useRef(null);
   const refreshInFlightRef = useRef(false);
   const [payments, setPayments] = useState([]);
@@ -212,8 +212,8 @@ function PlayerPaymentPanel({ player, onClose }) {
   }
 
   return (
-    <div className="stable-pay-modal" role="dialog" aria-modal="true" aria-label="Mis Pagos">
-      <div className="stable-pay-modal-card stable-pay-player-modal">
+    <div className={embedded ? "stable-pay-player-page" : "stable-pay-modal"} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : "true"} aria-label="Mis Pagos">
+      <div className={embedded ? "stable-pay-player-page-card stable-pay-player-modal" : "stable-pay-modal-card stable-pay-player-modal"}>
         <div className="stable-pay-modal-head">
           <div><span>💳</span><div><h2>Mis Pagos</h2><p>{player.full_name}</p></div></div>
           {!embedded && <button type="button" onClick={onClose} aria-label="Cerrar">×</button>}
