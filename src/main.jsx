@@ -59,6 +59,7 @@ import './mgsm-mobile-nav-stability.css'
 import './mgsm-player-cards-compact.css'
 import './mgsm-add-player-collapsible.css'
 import './mgsm-tab-refresh.css'
+import './mgsm-multi-category-filter.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
