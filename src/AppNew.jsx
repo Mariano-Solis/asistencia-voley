@@ -268,7 +268,45 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
     </div>}
   </section>;
 }
-function Avatar({ player }) { if (player?.selfie_path) { const { data } = supabase.storage.from("player-selfies").getPublicUrl(player.selfie_path); return <img className="avatar photo" src={data.publicUrl} alt=""/>; } return <div className="avatar">{player?.full_name?.charAt(0)?.toUpperCase() || "J"}</div>; }
+const selfieUrlCache = new Map();
+function Avatar({ player }) {
+  const path = player?.selfie_path || "";
+  const initial = player?.full_name?.charAt(0)?.toUpperCase() || "J";
+  const [src,setSrc]=useState(()=> {
+    const cached=selfieUrlCache.get(path);
+    return cached && cached.expiresAt>Date.now() ? cached.url : "";
+  });
+  const [failed,setFailed]=useState(false);
+
+  useEffect(()=>{
+    let active=true;
+    setFailed(false);
+    if(!path){ setSrc(""); return ()=>{active=false}; }
+
+    const cached=selfieUrlCache.get(path);
+    if(cached && cached.expiresAt>Date.now()){
+      setSrc(cached.url);
+      return ()=>{active=false};
+    }
+
+    setSrc("");
+    supabase.storage.from("player-selfies").createSignedUrl(path, 3600).then(({data,error})=>{
+      if(!active)return;
+      if(error || !data?.signedUrl){
+        setFailed(true);
+        setSrc("");
+        return;
+      }
+      selfieUrlCache.set(path,{url:data.signedUrl,expiresAt:Date.now()+50*60*1000});
+      setSrc(data.signedUrl);
+    });
+
+    return ()=>{active=false};
+  },[path]);
+
+  if(path && src && !failed) return <img className="avatar photo" src={src} alt="" onError={()=>{selfieUrlCache.delete(path);setFailed(true);setSrc("");}}/>;
+  return <div className="avatar">{initial}</div>;
+}
 function PageTitle({ title, text, action }) { return <div className="page-title"><div><h1>{title}</h1><p>{text}</p></div>{action}</div>; }
 function Empty({ text }) { return <div className="empty">{text}</div>; }
 
