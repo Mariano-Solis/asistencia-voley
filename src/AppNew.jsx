@@ -7,6 +7,7 @@ import ProfessorTrainingHub from "./ProfessorTrainingHub";
 import { AdminPaymentPanel, PlayerPaymentPanel } from "./PaymentHubStable";
 import officialLogo from "../Logo.jpg";
 import { playerPhotoPath, preparePlayerPhoto, savePendingPlayerPhoto } from "./playerPhoto";
+import { exportCategoryWorkbook } from "./xlsxCategoryExport";
 
 const APP_NAME = "Municipalidad De San Martín - VOLEY";
 const TAGLINE = "#VamosElPoli";
@@ -38,23 +39,6 @@ async function copyText(text) {
 async function shareText(title, text) {
   if (navigator.share) { await navigator.share({ title, text }); return; }
   await copyText(text);
-}
-function csvCell(value) {
-  const text = String(value ?? "");
-  return `"${text.replace(/"/g, '""')}"`;
-}
-function downloadCsv(filename, rows) {
-  const csv = "\uFEFF" + rows.map(row => row.map(csvCell).join(";")).join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function ageOf(birth) { if (!birth) return "—"; const b = new Date(`${birth}T12:00:00`), n = new Date(); let a = n.getFullYear() - b.getFullYear(); if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--; return a; }
 function categoryName(categories, id) { return categories.find(c => c.id === id)?.name || "Sin Categoría"; }
@@ -318,22 +302,18 @@ function Players({ profile, players, categories, permissions, refresh }) {
     const selectionText = selectedCategories.length === 0
       ? "Todas Las Categorías"
       : includedCategories.map(category => `${genderText(category.gender)} · ${category.name}`).join(" | ");
-    const rows = [
-      [APP_NAME],
-      ["Resumen De Jugador@s Por Categoría"],
-      ["Fecha De Exportación", new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Mendoza" })],
-      ["Categorías Incluidas", selectionText],
-      [],
-      ["Concepto", "Cantidad"],
-      ["Total De Jugador@s", exportPlayers.length],
-      ["Femenino", exportPlayers.filter(player => gender(player.sex) === "female").length],
-      ["Masculino", exportPlayers.filter(player => gender(player.sex) === "male").length],
-      [],
-      ["Rama", "Categoría", "Cantidad"],
-      ...categoryRows,
-      ...(unassignedCount > 0 ? [["—", "Sin Categoría", unassignedCount]] : []),
-    ];
-    downloadCsv(`resumen-jugadores-categorias-${today()}.csv`, rows);
+
+    exportCategoryWorkbook({
+      appName: APP_NAME,
+      exportDate: new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Mendoza" }),
+      selectionText,
+      total: exportPlayers.length,
+      female: exportPlayers.filter(player => gender(player.sex) === "female").length,
+      male: exportPlayers.filter(player => gender(player.sex) === "male").length,
+      categoryRows,
+      unassignedCount,
+      filename: `resumen-jugadores-categorias-${today()}.xlsx`,
+    });
   }
   async function savePlayer(e) { e.preventDefault(); if (!form.first || !form.last || !form.category) return; setSaving(true); try { let categoryId = form.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: form.birth, p_sex: form.sex }); if (!auto.error && auto.data) categoryId = auto.data; const row = { first_name: form.first.trim(), last_name: form.last.trim(), full_name: `${form.last.trim().toUpperCase()} ${form.first.trim()}`, sex: form.sex, dni: clean(form.dni) || null, birth_date: form.birth || null, category_id: categoryId, team: form.team || null, access_code: accessCode(), active: true }; const r = await supabase.from("players").insert(row); if (r.error) throw r.error; setForm(f => ({...f, first: "", last: "", dni: "", birth: "", team: "", file: null})); setShowAddPlayer(false); setMsg("✓ Jugador@ Agregado."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
   async function saveEdit(p, data) { setSaving(true); try { let categoryId = data.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: data.birth, p_sex: data.sex }); if (!auto.error && auto.data) categoryId = auto.data; const r = await supabase.from("players").update({ first_name: data.first, last_name: data.last, full_name: `${data.last.toUpperCase()} ${data.first}`, sex: data.sex, dni: data.dni || null, birth_date: data.birth || null, category_id: categoryId, team: data.team || null }).eq("id", p.id); if (r.error) throw r.error; if (data.file) { const path = `${p.user_id || "admin"}/${Date.now()}-${data.file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; const up = await supabase.storage.from("player-selfies").upload(path, data.file, { upsert: true, contentType: data.file.type || "image/jpeg" }); if (up.error) throw up.error; const ur = await supabase.from("players").update({ selfie_path: path }).eq("id", p.id); if (ur.error) throw ur.error; } setOpen(null); setMsg("✓ Datos Actualizados."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
