@@ -39,6 +39,23 @@ async function shareText(title, text) {
   if (navigator.share) { await navigator.share({ title, text }); return; }
   await copyText(text);
 }
+function csvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+function downloadCsv(filename, rows) {
+  const csv = "\uFEFF" + rows.map(row => row.map(csvCell).join(";")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 function ageOf(birth) { if (!birth) return "—"; const b = new Date(`${birth}T12:00:00`), n = new Date(); let a = n.getFullYear() - b.getFullYear(); if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--; return a; }
 function categoryName(categories, id) { return categories.find(c => c.id === id)?.name || "Sin Categoría"; }
 function mergeNavigationOrder(items, savedOrder = []) {
@@ -281,6 +298,43 @@ function Players({ profile, players, categories, permissions, refresh }) {
     female: list.filter(p => gender(p.sex) === "female").length,
     male: list.filter(p => gender(p.sex) === "male").length,
   };
+  const exportPlayers = players.filter(p => {
+    const category = categories.find(item => item.id === p.category_id);
+    const allowed = category ? can(profile, category, permissions) : profile.role === "super_admin";
+    return allowed && (selectedCategories.length === 0 || selectedCategories.includes(p.category_id));
+  });
+  function exportCategorySummary() {
+    const includedCategories = selectedCategories.length
+      ? visible.filter(category => selectedCategories.includes(category.id))
+      : visible;
+    const categoryRows = includedCategories.map(category => [
+      genderText(category.gender),
+      category.name,
+      exportPlayers.filter(player => player.category_id === category.id).length,
+    ]);
+    const unassignedCount = selectedCategories.length === 0
+      ? exportPlayers.filter(player => !player.category_id || !categories.some(category => category.id === player.category_id)).length
+      : 0;
+    const selectionText = selectedCategories.length === 0
+      ? "Todas Las Categorías"
+      : includedCategories.map(category => `${genderText(category.gender)} · ${category.name}`).join(" | ");
+    const rows = [
+      [APP_NAME],
+      ["Resumen De Jugador@s Por Categoría"],
+      ["Fecha De Exportación", new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Mendoza" })],
+      ["Categorías Incluidas", selectionText],
+      [],
+      ["Concepto", "Cantidad"],
+      ["Total De Jugador@s", exportPlayers.length],
+      ["Femenino", exportPlayers.filter(player => gender(player.sex) === "female").length],
+      ["Masculino", exportPlayers.filter(player => gender(player.sex) === "male").length],
+      [],
+      ["Rama", "Categoría", "Cantidad"],
+      ...categoryRows,
+      ...(unassignedCount > 0 ? [["—", "Sin Categoría", unassignedCount]] : []),
+    ];
+    downloadCsv(`resumen-jugadores-categorias-${today()}.csv`, rows);
+  }
   async function savePlayer(e) { e.preventDefault(); if (!form.first || !form.last || !form.category) return; setSaving(true); try { let categoryId = form.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: form.birth, p_sex: form.sex }); if (!auto.error && auto.data) categoryId = auto.data; const row = { first_name: form.first.trim(), last_name: form.last.trim(), full_name: `${form.last.trim().toUpperCase()} ${form.first.trim()}`, sex: form.sex, dni: clean(form.dni) || null, birth_date: form.birth || null, category_id: categoryId, team: form.team || null, access_code: accessCode(), active: true }; const r = await supabase.from("players").insert(row); if (r.error) throw r.error; setForm(f => ({...f, first: "", last: "", dni: "", birth: "", team: "", file: null})); setShowAddPlayer(false); setMsg("✓ Jugador@ Agregado."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
   async function saveEdit(p, data) { setSaving(true); try { let categoryId = data.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: data.birth, p_sex: data.sex }); if (!auto.error && auto.data) categoryId = auto.data; const r = await supabase.from("players").update({ first_name: data.first, last_name: data.last, full_name: `${data.last.toUpperCase()} ${data.first}`, sex: data.sex, dni: data.dni || null, birth_date: data.birth || null, category_id: categoryId, team: data.team || null }).eq("id", p.id); if (r.error) throw r.error; if (data.file) { const path = `${p.user_id || "admin"}/${Date.now()}-${data.file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; const up = await supabase.storage.from("player-selfies").upload(path, data.file, { upsert: true, contentType: data.file.type || "image/jpeg" }); if (up.error) throw up.error; const ur = await supabase.from("players").update({ selfie_path: path }).eq("id", p.id); if (ur.error) throw ur.error; } setOpen(null); setMsg("✓ Datos Actualizados."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
   async function remove(p) { if (!confirm(`¿Eliminar A ${p.full_name}?`)) return; const r = await supabase.from("players").update({active:false}).eq("id", p.id); if (r.error) setMsg(errorText(r.error)); else { setMsg("✓ Jugador@ Eliminado."); await refresh(); } }
@@ -353,7 +407,14 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
           </div>}
         </div>
       </details>
-    </div><div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
+    </div>
+    <div className="player-export-row">
+      <button type="button" className="player-export-button" onClick={exportCategorySummary}>
+        📊 Exportar Planilla
+      </button>
+      <span>{selectedCategories.length === 0 ? "Incluye Todas Las Categorías" : `Incluye ${selectedCategories.length} Categoría${selectedCategories.length === 1 ? "" : "s"} Seleccionada${selectedCategories.length === 1 ? "" : "s"}`}</span>
+    </div>
+    <div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
 }
 function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
   const [detailOpen,setDetailOpen]=useState(false);
