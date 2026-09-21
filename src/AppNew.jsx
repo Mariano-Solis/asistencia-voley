@@ -208,7 +208,7 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
     }
     load();
     return ()=>{cancelled=true;};
-  },[date,categoryId,type,reloadCounter]);
+  },[date,categoryId,type,reloadCounter,permissions]);
   function reportConflict() {
     draftRef.current=true;setDirty(true);setConflict(true);setMsg(CONFLICT_MESSAGE);
   }
