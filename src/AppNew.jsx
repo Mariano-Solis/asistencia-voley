@@ -130,6 +130,9 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
   const [date, setDate] = useState(today()); const [categoryId, setCategoryId] = useState(""); const [type, setType] = useState("training"); const [open, setOpen] = useState(true);
   const [att, setAtt] = useState({}); const [details, setDetails] = useState({ opponent: "", location: "", start: today(), end: today(), dates: [today()] }); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
   const [attendanceRoster, setAttendanceRoster] = useState([]);
+  const [guestCategoryIds, setGuestCategoryIds] = useState([]);
+  const [openGuestCategories, setOpenGuestCategories] = useState({});
+  const [guestPicker, setGuestPicker] = useState("");
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const savingRef = useRef(false);
@@ -186,6 +189,25 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
       };
     });
   }, [players, attendanceRoster, categoryId]);
+  const homeList = useMemo(() => list.filter(player => player.category_id === categoryId), [list, categoryId]);
+  const guestCategoryOptions = useMemo(() => categories.filter(category =>
+    category.id !== categoryId &&
+    attendanceRoster.some(player => player.category_id === category.id) &&
+    !guestCategoryIds.includes(category.id)
+  ), [categories, attendanceRoster, categoryId, guestCategoryIds]);
+  const guestGroups = useMemo(() => guestCategoryIds.map(id => ({
+    category: categories.find(category => category.id === id),
+    players: list.filter(player => player.category_id === id),
+  })).filter(group => group.category && group.players.length), [guestCategoryIds, categories, list]);
+  function addGuestCategory() {
+    if (!guestPicker || guestCategoryIds.includes(guestPicker)) return;
+    setGuestCategoryIds(current => [...current, guestPicker]);
+    setOpenGuestCategories(current => ({ ...current, [guestPicker]: true }));
+    setGuestPicker("");
+  }
+  function toggleGuestCategory(id) {
+    setOpenGuestCategories(current => ({ ...current, [id]: current[id] === false }));
+  }
   useEffect(() => {
     let cancelled = false;
     setLoading(true); setConflict(false); baselineRef.current = null;
@@ -198,7 +220,15 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
         ]);
         if (cancelled) return;
         if (rosterResult.error) throw rosterResult.error;
-        setAttendanceRoster(Array.isArray(rosterResult.data) ? rosterResult.data : []);
+        const roster = Array.isArray(rosterResult.data) ? rosterResult.data : [];
+        setAttendanceRoster(roster);
+        const loadedGuestIds = [...new Set(loaded.rows.map(row => {
+          const player = roster.find(item => item.id === row.player_id);
+          return player && !player.is_home_category ? player.category_id : null;
+        }).filter(Boolean))];
+        setGuestCategoryIds(loadedGuestIds);
+        setOpenGuestCategories(Object.fromEntries(loadedGuestIds.map(id => [id, true])));
+        setGuestPicker("");
         const session = loaded.session;
         baselineRef.current = loaded; setLoadedAt(loaded.loadedAt);
         setAtt(Object.fromEntries(loaded.rows.map(row=>[row.player_id,row.status])));
@@ -280,8 +310,33 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
       </>}
     </div>
     {categoryId && <div className="card attendance-card">
-      <div className="card-head"><h3>{plural(categories.find(c => c.id === categoryId)?.gender)} · {categoryName(categories, categoryId)}</h3><span>{list.length} Jugador@s</span></div>
-      {list.length ? list.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.attendance_guest ? `Asistencia · ${p.attendance_category_name || "Otra Categoría"}` : (p.team ? `Equipo ${p.team}` : "Sin Asignar")}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>) : <Empty text="No Hay Jugador@s En Esta Categoría."/>}
+      <div className="card-head"><h3>{plural(categories.find(c => c.id === categoryId)?.gender)} · {categoryName(categories, categoryId)}</h3><span>{homeList.length} Jugador@s</span></div>
+      {homeList.length ? homeList.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.team ? `Equipo ${p.team}` : "Sin Asignar"}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>) : <Empty text="No Hay Jugador@s En Esta Categoría."/>}
+
+      {(guestCategoryOptions.length > 0 || guestGroups.length > 0) && <div className="card" style={{marginTop:16,padding:14}}>
+        <div className="card-head"><div><h3>Agregar Jugador@s De Otra Categoría</h3><small>Sólo aparecen categorías permitidas, de la misma rama, línea y nivel inferior.</small></div></div>
+        {guestCategoryOptions.length > 0 && <div className="two">
+          <select value={guestPicker} disabled={saving || loading} onChange={e=>setGuestPicker(e.target.value)}>
+            <option value="">Seleccione Categoría</option>
+            {guestCategoryOptions.map(category => <option key={category.id} value={category.id}>{genderText(category.gender)} · {category.name}</option>)}
+          </select>
+          <button type="button" className="primary" disabled={!guestPicker || saving || loading} onClick={addGuestCategory}>+ Agregar Categoría</button>
+        </div>}
+        {guestGroups.map(group => {
+          const isOpen = openGuestCategories[group.category.id] !== false;
+          const selectedCount = group.players.filter(player => att[player.id]).length;
+          return <div className="card" key={group.category.id} style={{marginTop:12,padding:12}}>
+            <button type="button" className="wide" disabled={saving} onClick={()=>toggleGuestCategory(group.category.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <b>{group.category.name}</b>
+              <span>{selectedCount} Marcad@{selectedCount===1?"":"s"} · {isOpen?"▲":"▼"}</span>
+            </button>
+            {isOpen && <div style={{marginTop:8}}>
+              {group.players.map(p => <div className="attendance-row" key={p.id}><div className="avatar">{p.full_name?.charAt(0)?.toUpperCase() || "J"}</div><div className="grow"><b>{p.full_name}</b><small>Invitad@ · {group.category.name}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>)}
+            </div>}
+          </div>;
+        })}
+      </div>}
+
       <button className="primary wide" disabled={saving || loading || conflict || !open || !list.length} onClick={save}>{saving ? "Guardando..." : "Guardar / Modificar Registro"}</button>
       {msg && <div className="message" role="status">{msg}</div>}
       {conflict && <button type="button" className="attendance-review" disabled={saving} onClick={reviewChanges}>Revisar Cambios Guardados</button>}
