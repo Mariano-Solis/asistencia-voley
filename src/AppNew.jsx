@@ -562,13 +562,13 @@ function History({profile,categories,permissions,players,refresh}) {
 }
 
 function AdminUsers({ profile }) {
-  const [admins,setAdmins]=useState([]),[first,setFirst]=useState(""),[last,setLast]=useState(""),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[msg,setMsg]=useState(""),[saving,setSaving]=useState(false);
+  const [admins,setAdmins]=useState([]),[first,setFirst]=useState(""),[last,setLast]=useState(""),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[msg,setMsg]=useState(""),[saving,setSaving]=useState(false),[showCreate,setShowCreate]=useState(false),[detailAdmin,setDetailAdmin]=useState(null);
   const [editing,setEditing]=useState(null),[editName,setEditName]=useState(""),[editEmail,setEditEmail]=useState(""),[editPassword,setEditPassword]=useState(""),[editActive,setEditActive]=useState(true),[editCanApprovePayments,setEditCanApprovePayments]=useState(false);
   async function load(){const r=await supabase.rpc("get_superadmin_professor_accounts");if(!r.error)setAdmins(Array.isArray(r.data)?r.data:[]);}
   useEffect(()=>{if(profile.role==='super_admin')load()},[profile.role]);
   if(profile.role!=="super_admin")return null;
-  async function create(e){e.preventDefault();setMsg("");if(!first.trim()||!last.trim()||!email.trim()||password.length<8){setMsg("Completá Nombre, Apellido, Correo y Una Contraseña De Al Menos 8 Caracteres.");return;}setSaving(true);try{const {data,error}=await supabase.functions.invoke("create-professor",{body:{first_name:first.trim(),last_name:last.trim(),email:email.trim(),password}});if(error||!data?.ok)throw error||new Error(data?.error||"No Se Pudo Crear La Cuenta.");setFirst("");setLast("");setEmail("");setPassword("");setMsg("✓ Cuenta De Profe Creada, Aprobada y Lista Para Ingresar.");await load();}catch(e){setMsg(errorText(e));}finally{setSaving(false)}}
-  function beginEdit(a){setEditing(a);setEditName(a.full_name||"");setEditEmail(a.email||"");setEditPassword("");setEditActive(a.active!==false);setEditCanApprovePayments(a.can_approve_payments===true);setMsg("");}
+  async function create(e){e.preventDefault();setMsg("");if(!first.trim()||!last.trim()||!email.trim()||password.length<8){setMsg("Completá Nombre, Apellido, Correo y Una Contraseña De Al Menos 8 Caracteres.");return;}setSaving(true);try{const {data,error}=await supabase.functions.invoke("create-professor",{body:{first_name:first.trim(),last_name:last.trim(),email:email.trim(),password}});if(error||!data?.ok)throw error||new Error(data?.error||"No Se Pudo Crear La Cuenta.");setFirst("");setLast("");setEmail("");setPassword("");setShowCreate(false);setMsg("✓ Cuenta De Profe Creada, Aprobada y Lista Para Ingresar.");await load();}catch(e){setMsg(errorText(e));}finally{setSaving(false)}}
+  function beginEdit(a){setDetailAdmin(null);setEditing(a);setEditName(a.full_name||"");setEditEmail(a.email||"");setEditPassword("");setEditActive(a.active!==false);setEditCanApprovePayments(a.can_approve_payments===true);setMsg("");}
   async function saveEdit(e){
     e.preventDefault(); if(!editing)return; setSaving(true);setMsg("");
     try{
@@ -588,23 +588,114 @@ function AdminUsers({ profile }) {
       const r=await supabase.rpc("superadmin_update_professor",{p_professor_id:a.professor_id,p_full_name:a.full_name||"Profe",p_active:nextActive});
       if(r.error)throw r.error;
       setMsg(nextActive?"✓ Profe Activado Correctamente.":"✓ Profe Inactivado Correctamente.");
+      setDetailAdmin(current=>current?.professor_id===a.professor_id?{...current,active:nextActive}:current);
       await load();
     }catch(e){setMsg(errorText(e));}finally{setSaving(false);}
   }
   async function removeAdmin(a){
     if(!window.confirm(`¿Eliminar Definitivamente A ${a.full_name||"Este Profe"}? Esta Acción Elimina Su Cuenta De Acceso.`))return;
     setSaving(true);setMsg("");
-    try{const r=await supabase.functions.invoke("delete-professor",{body:{user_id:a.professor_id}});if(r.error||!r.data?.ok)throw r.error||new Error(r.data?.error||"No Se Pudo Eliminar El Profe.");setMsg("✓ Profe Eliminado Correctamente.");if(editing?.professor_id===a.professor_id)setEditing(null);await load();}catch(e){setMsg(errorText(e));}finally{setSaving(false);}
+    try{const r=await supabase.functions.invoke("delete-professor",{body:{user_id:a.professor_id}});if(r.error||!r.data?.ok)throw r.error||new Error(r.data?.error||"No Se Pudo Eliminar El Profe.");setMsg("✓ Profe Eliminado Correctamente.");if(editing?.professor_id===a.professor_id)setEditing(null);if(detailAdmin?.professor_id===a.professor_id)setDetailAdmin(null);await load();}catch(e){setMsg(errorText(e));}finally{setSaving(false);}
   }
   return <section>
     <PageTitle title="Profes" text="Creá, Consultá, Modificá y Eliminá Las Cuentas De Los Profes."/>
-    <div className="card admin-create-card"><div className="card-head"><div><h2>Nuevo Profe</h2><span>La Cuenta Queda Activa Inmediatamente.</span></div></div><form onSubmit={create}><div className="two"><input required placeholder="Nombre" value={first} onChange={e=>setFirst(e.target.value)}/><input required placeholder="Apellido" value={last} onChange={e=>setLast(e.target.value)}/></div><div className="two"><input required type="email" placeholder="Correo Electrónico" value={email} onChange={e=>setEmail(e.target.value)}/><input required minLength={8} type="password" placeholder="Contraseña Inicial" value={password} onChange={e=>setPassword(e.target.value)}/></div><button className="primary" disabled={saving}>{saving?"Creando...":"+ Crear Cuenta De Profe"}</button></form></div>
+
+    <div className={`card professor-create-collapsible ${showCreate?"open":""}`}>
+      <button
+        type="button"
+        className="professor-create-toggle"
+        aria-expanded={showCreate}
+        aria-controls="professor-create-form"
+        onClick={()=>setShowCreate(value=>!value)}
+      >
+        <span>
+          <b>+ Crear Cuenta De Profe</b>
+          <small>{showCreate?"Ocultar Formulario":"Crear Una Cuenta Nueva"}</small>
+        </span>
+        <span className="professor-create-toggle-icon" aria-hidden="true">{showCreate?"⌃":"⌄"}</span>
+      </button>
+
+      {showCreate&&<form id="professor-create-form" className="professor-create-form" onSubmit={create}>
+        <div className="two">
+          <input required placeholder="Nombre" value={first} onChange={e=>setFirst(e.target.value)}/>
+          <input required placeholder="Apellido" value={last} onChange={e=>setLast(e.target.value)}/>
+        </div>
+        <div className="two">
+          <input required type="email" placeholder="Correo Electrónico" value={email} onChange={e=>setEmail(e.target.value)}/>
+          <input required minLength={8} type="password" placeholder="Contraseña Inicial" value={password} onChange={e=>setPassword(e.target.value)}/>
+        </div>
+        <div className="professor-create-actions">
+          <button type="button" onClick={()=>setShowCreate(false)}>Cancelar</button>
+          <button className="primary" disabled={saving}>{saving?"Creando...":"+ Crear Cuenta De Profe"}</button>
+        </div>
+      </form>}
+    </div>
+
     {msg&&<div className="message">{msg}</div>}
-    <div className="professor-management-grid">{admins.length?admins.map(a=><article className="card professor-account-card" key={a.professor_id}>
-      <div className="professor-account-head"><div className="professor-account-avatar">👨‍🏫</div><div className="grow"><h3>{a.full_name||"Profe"}</h3><p>{a.email||"Sin Correo Asociado"}</p></div><button type="button" className={`professor-status professor-status-toggle ${a.active&&a.approval_status==="approved"?"active":"inactive"}`} disabled={saving} onClick={()=>toggleActive(a)} title={a.active?"Presioná Para Inactivar":"Presioná Para Activar"}>{a.active?"Activo":"Inactivo"}</button></div>
-      <div className="professor-account-details"><div><span>Correo De Cuenta</span><b>{a.email||"—"}</b></div><div><span>Estado</span><b>{a.active?"Activo":"Inactivo"}</b></div><div><span>Aprobación</span><b>{a.approval_status||"—"}</b></div><div><span>Aprobar Pagos</span><b>{a.can_approve_payments?"Sí":"No"}</b></div></div>
-      <div className="professor-account-actions"><button type="button" onClick={()=>beginEdit(a)}>✏️ Modificar</button><button type="button" className="danger" disabled={saving} onClick={()=>removeAdmin(a)}>🗑️ Eliminar</button></div>
-    </article>):<Empty text="Todavía No Hay Profes Creados."/>}</div>
+
+    <div className="professor-list-heading">
+      <div><b>{admins.length}</b><span>{admins.length===1?"Profe":"Profes"}</span></div>
+      <small>Tocá Un Profe Para Ver Sus Datos</small>
+    </div>
+
+    <div className="professor-management-grid professor-compact-grid">
+      {admins.length?admins.map(a=><article
+        className="card professor-account-card professor-account-compact"
+        key={a.professor_id}
+        role="button"
+        tabIndex={0}
+        aria-label={`Ver Datos De ${a.full_name||"Profe"}`}
+        onClick={()=>setDetailAdmin(a)}
+        onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setDetailAdmin(a);}}}
+      >
+        <div className="professor-compact-summary">
+          <div className="professor-account-avatar">👨‍🏫</div>
+          <div className="professor-compact-main">
+            <h3>{a.full_name||"Profe"}</h3>
+            <p>{a.email||"Sin Correo Asociado"}</p>
+          </div>
+          <span className={`professor-status ${a.active&&a.approval_status==="approved"?"active":"pending"}`}>{a.active?"Activo":"Inactivo"}</span>
+          <span className="professor-card-open" aria-hidden="true">›</span>
+        </div>
+      </article>):<Empty text="Todavía No Hay Profes Creados."/>}
+    </div>
+
+    {detailAdmin&&<div className="modal professor-detail-modal" onClick={()=>setDetailAdmin(null)}>
+      <section className="modal-card professor-detail-card" onClick={e=>e.stopPropagation()}>
+        <div className="modal-head">
+          <div><span className="eyebrow">Información Del Profe</span><h2>{detailAdmin.full_name||"Profe"}</h2></div>
+          <button type="button" onClick={()=>setDetailAdmin(null)} aria-label="Cerrar">×</button>
+        </div>
+
+        <div className="professor-detail-hero">
+          <div className="professor-account-avatar">👨‍🏫</div>
+          <div>
+            <h3>{detailAdmin.full_name||"Profe"}</h3>
+            <p>{detailAdmin.email||"Sin Correo Asociado"}</p>
+          </div>
+          <span className={`professor-status ${detailAdmin.active&&detailAdmin.approval_status==="approved"?"active":"pending"}`}>{detailAdmin.active?"Activo":"Inactivo"}</span>
+        </div>
+
+        <div className="professor-detail-data">
+          <div className="professor-detail-email"><span>Correo De Cuenta</span><b>{detailAdmin.email||"—"}</b></div>
+          <div><span>Estado</span><b>{detailAdmin.active?"Activo":"Inactivo"}</b></div>
+          <div><span>Aprobación</span><b>{detailAdmin.approval_status||"—"}</b></div>
+          <div><span>Puede Aprobar Pagos</span><b>{detailAdmin.can_approve_payments?"Sí":"No"}</b></div>
+        </div>
+
+        <div className="professor-detail-actions">
+          <button
+            type="button"
+            className={detailAdmin.active?"professor-toggle active":"professor-toggle inactive"}
+            disabled={saving}
+            onClick={()=>toggleActive(detailAdmin)}
+          >{detailAdmin.active?"⏸️ Inactivar":"▶️ Activar"}</button>
+          <button type="button" onClick={()=>beginEdit(detailAdmin)}>✏️ Modificar</button>
+          <button type="button" className="danger" disabled={saving} onClick={()=>removeAdmin(detailAdmin)}>🗑️ Eliminar</button>
+        </div>
+      </section>
+    </div>}
+
     {editing&&<div className="modal"><div className="modal-card professor-edit-modal"><div className="modal-head"><div><h2>Modificar Profe</h2><small>{editing.full_name}</small></div><button type="button" onClick={()=>setEditing(null)}>×</button></div><form onSubmit={saveEdit}>
       <label className="field-label">Nombre y Apellido<input required value={editName} onChange={e=>setEditName(e.target.value)}/></label>
       <label className="field-label">Correo Electrónico<input required type="email" value={editEmail} onChange={e=>setEditEmail(e.target.value)}/></label>
