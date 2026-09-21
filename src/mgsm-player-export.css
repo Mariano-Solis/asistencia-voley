@@ -1,0 +1,62 @@
+/* =========================================================
+   MGSM VOLEY · EXPORTACIÓN DE RESUMEN POR CATEGORÍAS
+========================================================= */
+.player-export-row{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:12px 0;
+  padding:12px 14px;
+  border:1px solid #e4e6ea;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 6px 18px rgba(28,34,42,.05);
+}
+
+.player-export-button{
+  min-height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:9px 15px;
+  border:0;
+  border-radius:12px;
+  background:linear-gradient(180deg,#c21d27,#b5121b);
+  color:#fff;
+  box-shadow:0 8px 20px rgba(181,18,27,.16);
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.player-export-button:hover{
+  transform:translateY(-1px);
+}
+
+.player-export-row>span{
+  color:#7a8089;
+  font-size:10.5px;
+  font-weight:700;
+  text-align:right;
+}
+
+@media(max-width:760px){
+  .player-export-row{
+    align-items:stretch;
+    flex-direction:column;
+    margin:10px 0;
+    padding:11px;
+  }
+
+  .player-export-button{
+    width:100%;
+    min-height:46px;
+  }
+
+  .player-export-row>span{
+    text-align:center;
+    font-size:10px;
+  }
+}
