@@ -190,15 +190,22 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
     });
   }, [players, attendanceRoster, categoryId]);
   const homeList = useMemo(() => list.filter(player => player.category_id === categoryId), [list, categoryId]);
-  const guestCategoryOptions = useMemo(() => categories.filter(category =>
-    category.id !== categoryId &&
-    attendanceRoster.some(player => player.category_id === category.id) &&
+  const attendanceGuestCategories = useMemo(() => {
+    const map = new Map();
+    attendanceRoster.forEach(player => {
+      if (!player.is_home_category && player.category_id && !map.has(player.category_id)) {
+        map.set(player.category_id, { id: player.category_id, name: player.category_name || "Otra Categoría" });
+      }
+    });
+    return [...map.values()];
+  }, [attendanceRoster]);
+  const guestCategoryOptions = useMemo(() => attendanceGuestCategories.filter(category =>
     !guestCategoryIds.includes(category.id)
-  ), [categories, attendanceRoster, categoryId, guestCategoryIds]);
+  ), [attendanceGuestCategories, guestCategoryIds]);
   const guestGroups = useMemo(() => guestCategoryIds.map(id => ({
-    category: categories.find(category => category.id === id),
+    category: attendanceGuestCategories.find(category => category.id === id),
     players: list.filter(player => player.category_id === id),
-  })).filter(group => group.category && group.players.length), [guestCategoryIds, categories, list]);
+  })).filter(group => group.category && group.players.length), [guestCategoryIds, attendanceGuestCategories, list]);
   function addGuestCategory() {
     if (!guestPicker || guestCategoryIds.includes(guestPicker)) return;
     setGuestCategoryIds(current => [...current, guestPicker]);
@@ -318,7 +325,7 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
         {guestCategoryOptions.length > 0 && <div className="two">
           <select value={guestPicker} disabled={saving || loading} onChange={e=>setGuestPicker(e.target.value)}>
             <option value="">Seleccione Categoría</option>
-            {guestCategoryOptions.map(category => <option key={category.id} value={category.id}>{genderText(category.gender)} · {category.name}</option>)}
+            {guestCategoryOptions.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
           <button type="button" className="primary" disabled={!guestPicker || saving || loading} onClick={addGuestCategory}>+ Agregar Categoría</button>
         </div>}
