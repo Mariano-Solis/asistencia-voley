@@ -129,6 +129,7 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
   const editable = useMemo(() => categories.filter(c => can(profile, c, permissions, true)), [categories, profile, permissions]);
   const [date, setDate] = useState(today()); const [categoryId, setCategoryId] = useState(""); const [type, setType] = useState("training"); const [open, setOpen] = useState(true);
   const [att, setAtt] = useState({}); const [details, setDetails] = useState({ opponent: "", location: "", start: today(), end: today(), dates: [today()] }); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
+  const [attendanceRoster, setAttendanceRoster] = useState([]);
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const savingRef = useRef(false);
@@ -169,15 +170,35 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
   }
   function editDetails(update) { markDirty(); setDetails(update); }
   useEffect(() => { if (categoryId && !editable.some(c => c.id === categoryId)) setCategoryId(""); }, [editable, categoryId]);
-  const list = players.filter(p => p.category_id === categoryId);
+  const list = useMemo(() => {
+    const fullById = Object.fromEntries(players.map(player => [player.id, player]));
+    if (!attendanceRoster.length) return players.filter(player => player.category_id === categoryId);
+    return attendanceRoster.map(row => {
+      const full = fullById[row.id];
+      if (full) return { ...full, attendance_guest: !row.is_home_category, attendance_category_name: row.category_name };
+      return {
+        id: row.id,
+        full_name: row.full_name,
+        category_id: row.category_id,
+        category_name: row.category_name,
+        attendance_guest: !row.is_home_category,
+        attendance_category_name: row.category_name,
+      };
+    });
+  }, [players, attendanceRoster, categoryId]);
   useEffect(() => {
     let cancelled = false;
     setLoading(true); setConflict(false); baselineRef.current = null;
     async function load() {
       try {
         if (!date || !categoryId) return;
-        const loaded = await readAttendance(supabase,date,categoryId,type);
+        const [loaded, rosterResult] = await Promise.all([
+          readAttendance(supabase,date,categoryId,type),
+          supabase.rpc("get_attendance_roster", { p_session_category_id: categoryId }),
+        ]);
         if (cancelled) return;
+        if (rosterResult.error) throw rosterResult.error;
+        setAttendanceRoster(Array.isArray(rosterResult.data) ? rosterResult.data : []);
         const session = loaded.session;
         baselineRef.current = loaded; setLoadedAt(loaded.loadedAt);
         setAtt(Object.fromEntries(loaded.rows.map(row=>[row.player_id,row.status])));
@@ -260,7 +281,7 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
     </div>
     {categoryId && <div className="card attendance-card">
       <div className="card-head"><h3>{plural(categories.find(c => c.id === categoryId)?.gender)} · {categoryName(categories, categoryId)}</h3><span>{list.length} Jugador@s</span></div>
-      {list.length ? list.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.team ? `Equipo ${p.team}` : "Sin Asignar"}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>) : <Empty text="No Hay Jugador@s En Esta Categoría."/>}
+      {list.length ? list.map(p => <div className="attendance-row" key={p.id}><Avatar player={p}/><div className="grow"><b>{p.full_name}</b><small>{p.attendance_guest ? `Asistencia · ${p.attendance_category_name || "Otra Categoría"}` : (p.team ? `Equipo ${p.team}` : "Sin Asignar")}</small></div><StatusButtons value={att[p.id]} disabled={saving || loading} onChange={v => { markDirty(); setAtt(a => ({...a, [p.id]: v})); }}/></div>) : <Empty text="No Hay Jugador@s En Esta Categoría."/>}
       <button className="primary wide" disabled={saving || loading || conflict || !open || !list.length} onClick={save}>{saving ? "Guardando..." : "Guardar / Modificar Registro"}</button>
       {msg && <div className="message" role="status">{msg}</div>}
       {conflict && <button type="button" className="attendance-review" disabled={saving} onClick={reviewChanges}>Revisar Cambios Guardados</button>}
@@ -552,12 +573,20 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
 function PlayerEdit({player,categories,onClose,onSave,saving}) { const parts=player.full_name.split(/\s+/); const [data,setData]=useState({first:player.first_name||parts.slice(1).join(" "),last:player.last_name||parts[0]||"",sex:player.sex||"female",dni:player.dni||"",birth:player.birth_date||"",team:player.team||"",category:player.category_id||categories[0]?.id||"",file:null}); const fileRef=useRef(null); return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Modificar Jugador@</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={e=>{e.preventDefault();onSave(player,data)}}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><select value={data.team} onChange={e=>setData(d=>({...d,team:e.target.value}))}><option value="">Sin Asignar</option>{["A","B","C","D","E"].map(x=><option key={x} value={x}>Equipo {x}</option>)}</select><select value={data.category} onChange={e=>setData(d=>({...d,category:e.target.value}))}>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cambiar Selfie</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>Guardar</button></div></form></div></div>; }
 
 function History({profile,categories,permissions,players,refresh}) {
-  const [sessions,setSessions]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[filter,setFilter]=useState("all"),[msg,setMsg]=useState("");
+  const [sessions,setSessions]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[filter,setFilter]=useState("all"),[msg,setMsg]=useState(""),[historyRoster,setHistoryRoster]=useState({});
   async function load(){ let q=supabase.from("training_sessions").select("*, categories(id,name,gender)").order("session_date",{ascending:false}); if(filter!=="all") q=q.eq("category_id",filter); const r=await q; if(r.error)setMsg(errorText(r.error)); else setSessions(r.data||[]); }
   useEffect(()=>{load()},[filter]);
-  async function openSession(s){ const a=await supabase.from("attendance").select("player_id,status").eq("session_id",s.id); setRows(a.data||[]); setSelected(s); }
+  async function openSession(s){
+    const [a, roster] = await Promise.all([
+      supabase.from("attendance").select("player_id,status").eq("session_id",s.id),
+      supabase.rpc("get_attendance_roster", { p_session_category_id: s.category_id }),
+    ]);
+    setRows(a.data||[]);
+    setHistoryRoster(Object.fromEntries((roster.data||[]).map(player=>[player.id,player])));
+    setSelected(s);
+  }
   async function remove(){ if(!selected || !confirm("¿Eliminar Definitivamente Este Registro y Su Asistencia?")) return; await supabase.from("attendance").delete().eq("session_id",selected.id); const r=await supabase.from("training_sessions").delete().eq("id",selected.id); if(r.error)setMsg(errorText(r.error)); else { setSelected(null); await load(); await refresh(); setMsg("✓ Registro Eliminado."); } }
-  if(selected) return <section><div className="back-row"><button className="back-btn" onClick={()=>setSelected(null)}>← Volver Al Historial</button><span>{dateText(selected.session_date)}</span></div><div className="card session-detail"><div className="detail-head"><div><span className="eyebrow">{TYPES[selected.activity_type]?.[1]}</span><h2>{TYPES[selected.activity_type]?.[0]} {selected.categories?.name}</h2><p>{selected.activity_type === "match" ? `Vs. ${selected.opponent || "—"}${selected.event_location ? ` · ${selected.event_location}` : ""}` : selected.activity_type === "tournament" ? `${selected.tournament_location || selected.event_location || "—"} · ${dateText(selected.tournament_start_date || selected.session_date)} → ${dateText(selected.tournament_end_date || selected.session_date)}` : "Registro De Entrenamiento"}</p></div><div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div></div><div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id);return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={!can(profile, selected.categories, permissions, true)} onChange={async status=>{const u=await supabase.from("attendance").update({status}).eq("session_id",selected.id).eq("player_id",r.player_id);if(!u.error)setRows(x=>x.map(y=>y.player_id===r.player_id?{...y,status}:y));}}/></div>})}</div></div>{msg&&<div className="message">{msg}</div>}</section>;
+  if(selected) return <section><div className="back-row"><button className="back-btn" onClick={()=>setSelected(null)}>← Volver Al Historial</button><span>{dateText(selected.session_date)}</span></div><div className="card session-detail"><div className="detail-head"><div><span className="eyebrow">{TYPES[selected.activity_type]?.[1]}</span><h2>{TYPES[selected.activity_type]?.[0]} {selected.categories?.name}</h2><p>{selected.activity_type === "match" ? `Vs. ${selected.opponent || "—"}${selected.event_location ? ` · ${selected.event_location}` : ""}` : selected.activity_type === "tournament" ? `${selected.tournament_location || selected.event_location || "—"} · ${dateText(selected.tournament_start_date || selected.session_date)} → ${dateText(selected.tournament_end_date || selected.session_date)}` : "Registro De Entrenamiento"}</p></div><div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div></div><div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={!can(profile, selected.categories, permissions, true)} onChange={async status=>{const u=await supabase.from("attendance").update({status}).eq("session_id",selected.id).eq("player_id",r.player_id);if(!u.error)setRows(x=>x.map(y=>y.player_id===r.player_id?{...y,status}:y));}}/></div>})}</div></div>{msg&&<div className="message">{msg}</div>}</section>;
   return <section><PageTitle title="Historial" text="Entrá A Cada Sesión Para Ver O Modificar Su Asistencia."/><div className="card toolbar"><label>Categoría</label><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas</option>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="session-list">{sessions.length ? sessions.map(s=><button key={s.id} className="session-card card" onClick={()=>openSession(s)}><span className="session-icon">{TYPES[s.activity_type]?.[0]}</span><div className="grow"><b>{dateText(s.session_date)} · {s.categories?.name}</b><span>{TYPES[s.activity_type]?.[1]}{s.opponent ? ` · Vs. ${s.opponent}` : ""}</span></div><span>→</span></button>) : <Empty text="No Hay Registros."/>}</div></section>;
 }
 
@@ -759,10 +788,10 @@ function Permissions({profile,categories}) {
   const [admins,setAdmins]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({});
   useEffect(()=>{async function load(){const a=await supabase.from("profiles").select("id,full_name").eq("role","admin").order("full_name");setAdmins(a.data||[]);const p=await supabase.from("admin_category_permissions").select("*");setPerms(Object.fromEntries((p.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])))}void load();},[]);
   if(profile.role!=="super_admin")return null;
-  async function setP(c,field,value){if(!selected)return;const key=`${selected}:${c.id}`,cur=perms[key]||{can_view:false,can_edit:false},next={...cur,[field]:value};if(next.can_edit)next.can_view=true;const r=!next.can_view&&!next.can_edit?await supabase.from("admin_category_permissions").delete().eq("admin_id",selected).eq("category_id",c.id):await supabase.from("admin_category_permissions").upsert({admin_id:selected,category_id:c.id,can_view:next.can_view,can_edit:next.can_edit},{onConflict:"admin_id,category_id"});if(!r.error)setPerms(p=>({...p,[key]:next}));}
-  return <section><PageTitle title="Permisos" text="Definí Qué Categorías Puede Ver y Editar Cada Profe."/>
+  async function setP(c,field,value){if(!selected)return;const key=`${selected}:${c.id}`,cur=perms[key]||{can_view:false,can_edit:false,can_attendance:false},next={...cur,[field]:value};if(next.can_edit)next.can_view=true;const r=!next.can_view&&!next.can_edit&&!next.can_attendance?await supabase.from("admin_category_permissions").delete().eq("admin_id",selected).eq("category_id",c.id):await supabase.from("admin_category_permissions").upsert({admin_id:selected,category_id:c.id,can_view:next.can_view,can_edit:next.can_edit,can_attendance:next.can_attendance},{onConflict:"admin_id,category_id"});if(!r.error)setPerms(p=>({...p,[key]:next}));}
+  return <section><PageTitle title="Permisos" text="Definí Qué Categorías Puede Ver, Editar O Usar Sólo Para Asistencia Cada Profe."/>
     <div className="card permission-professor-picker"><label>Profe<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Seleccione Profe</option>{admins.map(a=><option key={a.id} value={a.id}>{a.full_name}</option>)}</select></label></div>
-    {!selected?<div className="card empty permission-empty">Seleccione Profe Para Configurar Sus Permisos.</div>:<div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label></div>})}</div>}
+    {!selected?<div className="card empty permission-empty">Seleccione Profe Para Configurar Sus Permisos.</div>:<div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>}
   </section>;
 }
 function RequestsPage({ profile }) {
@@ -877,7 +906,7 @@ function App() {
     if (!['admin','super_admin'].includes(p.data.role)) { clearIdentity(); return; }
     const [c, pe, ps, ui, pref] = await Promise.all([
       supabase.from('categories').select('*').eq('active',true).order('gender').order('name'),
-      supabase.from('admin_category_permissions').select('category_id,can_view,can_edit').eq('admin_id',current.user.id),
+      supabase.from('admin_category_permissions').select('category_id,can_view,can_edit,can_attendance').eq('admin_id',current.user.id),
       supabase.from('players').select('*').eq('active',true).order('full_name'),
       supabase.from('app_ui_settings').select('disabled_tabs').eq('id','global').maybeSingle(),
       supabase.from('user_ui_preferences').select('navigation_order').eq('user_id',current.user.id).maybeSingle()
