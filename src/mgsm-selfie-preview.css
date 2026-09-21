@@ -1,0 +1,108 @@
+/* =========================================================
+   MGSM VOLEY · VISTA AMPLIADA DE SELFIES
+========================================================= */
+.avatar-photo-button{
+  padding:0!important;
+  border:0!important;
+  overflow:hidden;
+  background:#202020;
+  cursor:zoom-in;
+}
+
+.avatar-photo-button:focus-visible{
+  outline:3px solid rgba(181,18,27,.28);
+  outline-offset:3px;
+}
+
+.avatar-photo-image{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  border-radius:inherit;
+}
+
+.selfie-preview{
+  position:fixed;
+  inset:0;
+  z-index:30000;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(10,12,16,.86);
+  backdrop-filter:blur(7px);
+  -webkit-backdrop-filter:blur(7px);
+}
+
+.selfie-preview-card{
+  position:relative;
+  width:min(94vw,620px);
+  max-height:92dvh;
+  display:grid;
+  justify-items:center;
+  gap:12px;
+}
+
+.selfie-preview-image{
+  width:auto;
+  max-width:100%;
+  max-height:82dvh;
+  display:block;
+  object-fit:contain;
+  border-radius:18px;
+  background:#111;
+  box-shadow:0 24px 70px rgba(0,0,0,.45);
+}
+
+.selfie-preview-close{
+  position:absolute;
+  z-index:2;
+  top:10px;
+  right:10px;
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.35);
+  border-radius:50%;
+  background:rgba(17,17,17,.76);
+  color:#fff;
+  font-size:28px;
+  line-height:1;
+  cursor:pointer;
+  backdrop-filter:blur(4px);
+}
+
+.selfie-preview-name{
+  max-width:90vw;
+  padding:8px 14px;
+  border-radius:999px;
+  background:rgba(0,0,0,.48);
+  color:#fff;
+  font-size:12px;
+  font-weight:850;
+  text-align:center;
+  overflow-wrap:anywhere;
+}
+
+@media(max-width:760px){
+  .selfie-preview{
+    padding:10px;
+  }
+
+  .selfie-preview-card{
+    width:100%;
+    max-height:94dvh;
+  }
+
+  .selfie-preview-image{
+    max-width:100%;
+    max-height:84dvh;
+    border-radius:14px;
+  }
+
+  .selfie-preview-close{
+    top:8px;
+    right:8px;
+  }
+}
