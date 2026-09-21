@@ -505,6 +505,38 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
     </div>
     <div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
 }
+function PlayerAttendanceSummary({playerId}) {
+  const [rows,setRows]=useState([]);
+  const [filter,setFilter]=useState("all");
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{
+    let cancelled=false;
+    setLoading(true);
+    supabase.from("attendance")
+      .select("status,training_sessions(session_date,activity_type,category_id,categories(id,name,gender))")
+      .eq("player_id",playerId)
+      .then(({data})=>{if(!cancelled){setRows(data||[]);setLoading(false);}});
+    return()=>{cancelled=true;};
+  },[playerId]);
+  const cats=useMemo(()=>{
+    const map=new Map();
+    rows.forEach(row=>{const cat=row.training_sessions?.categories;if(cat?.id)map.set(cat.id,cat);});
+    return [...map.values()];
+  },[rows]);
+  const shown=filter==="all"?rows:rows.filter(row=>row.training_sessions?.category_id===filter);
+  const counts={
+    present:shown.filter(row=>row.status==="present").length,
+    late:shown.filter(row=>row.status==="late").length,
+    absent:shown.filter(row=>row.status==="absent").length,
+  };
+  return <div className="card" style={{marginTop:16}}>
+    <div className="card-head"><div><h3>Asistencia Por Categoría De Entrenamiento</h3><span>La Categoría Oficial Del Jugador@ No Cambia.</span></div></div>
+    <label className="field-label">Categoría<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas</option>{cats.map(cat=><option key={cat.id} value={cat.id}>{genderText(cat.gender)} · {cat.name}</option>)}</select></label>
+    <div className="stats"><div><b>{counts.present}</b><span>Presentes</span></div><div><b>{counts.late}</b><span>Tardanzas</span></div><div><b>{counts.absent}</b><span>Ausencias</span></div></div>
+    {loading?<div className="empty">Cargando Asistencia...</div>:shown.length?<div className="simple-list">{shown.map((row,index)=>{const s=row.training_sessions||{};return <div className="history-row" key={String(s.session_date||"fecha")+":"+String(s.category_id||"cat")+":"+index}><div className="grow"><b>{dateText(s.session_date)}</b><span>{s.categories?.name||"Sin Categoría"} · {TYPES[s.activity_type]?.[1]||"Actividad"}</span></div><span className={"badge "+row.status}>{STATUS[row.status]?.[1]||row.status}</span></div>;})}</div>:<div className="empty">No Hay Asistencias Registradas Para Este Filtro.</div>}
+  </div>;
+}
+
 function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
   const [detailOpen,setDetailOpen]=useState(false);
   const cat=categories.find(c=>c.id===player.category_id);
@@ -558,6 +590,8 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
           {player.account_email !== undefined && <div className="player-detail-email"><span>Correo De Cuenta</span><b>{player.account_email || "Sin Cuenta Asociada"}</b></div>}
         </div>
 
+        <PlayerAttendanceSummary playerId={player.id}/>
+
         <div className="player-detail-actions">
           <button type="button" onClick={onShare}>📤 Compartir</button>
           <button type="button" onClick={() => copyText(player.access_code).catch(()=>{})}>📋 Código</button>
@@ -579,7 +613,7 @@ function History({profile,categories,permissions,players,refresh}) {
   async function openSession(s){
     const [a, roster] = await Promise.all([
       supabase.from("attendance").select("player_id,status").eq("session_id",s.id),
-      supabase.rpc("get_attendance_roster", { p_session_category_id: s.category_id }),
+      supabase.rpc("get_attendance_session_roster", { p_session_id: s.id }),
     ]);
     setRows(a.data||[]);
     setHistoryRoster(Object.fromEntries((roster.data||[]).map(player=>[player.id,player])));
