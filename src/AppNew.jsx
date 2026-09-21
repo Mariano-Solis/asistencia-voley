@@ -277,10 +277,12 @@ function Avatar({ player }) {
     return cached && cached.expiresAt>Date.now() ? cached.url : "";
   });
   const [failed,setFailed]=useState(false);
+  const [previewOpen,setPreviewOpen]=useState(false);
 
   useEffect(()=>{
     let active=true;
     setFailed(false);
+    setPreviewOpen(false);
     if(!path){ setSrc(""); return ()=>{active=false}; }
 
     const cached=selfieUrlCache.get(path);
@@ -304,7 +306,55 @@ function Avatar({ player }) {
     return ()=>{active=false};
   },[path]);
 
-  if(path && src && !failed) return <img className="avatar photo" src={src} alt="" onError={()=>{selfieUrlCache.delete(path);setFailed(true);setSrc("");}}/>;
+  useEffect(()=>{
+    if(!previewOpen)return;
+    function onKeyDown(event){
+      if(event.key==="Escape")setPreviewOpen(false);
+    }
+    window.addEventListener("keydown",onKeyDown);
+    return ()=>window.removeEventListener("keydown",onKeyDown);
+  },[previewOpen]);
+
+  function openPreview(event){
+    event?.stopPropagation?.();
+    setPreviewOpen(true);
+  }
+
+  function closePreview(event){
+    event?.stopPropagation?.();
+    setPreviewOpen(false);
+  }
+
+  if(path && src && !failed) return <>
+    <button
+      type="button"
+      className="avatar photo avatar-photo-button"
+      aria-label={`Ver Foto De ${player?.full_name || "Jugador@"}`}
+      onClick={openPreview}
+      onKeyDown={event=>event.stopPropagation()}
+    >
+      <img
+        className="avatar-photo-image"
+        src={src}
+        alt={`Foto De ${player?.full_name || "Jugador@"}`}
+        onError={()=>{selfieUrlCache.delete(path);setFailed(true);setSrc("");}}
+      />
+    </button>
+    {previewOpen && <div
+      className="selfie-preview"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Foto De ${player?.full_name || "Jugador@"}`}
+      onClick={closePreview}
+    >
+      <div className="selfie-preview-card" onClick={event=>event.stopPropagation()}>
+        <button type="button" className="selfie-preview-close" onClick={closePreview} aria-label="Cerrar Foto">×</button>
+        <img className="selfie-preview-image" src={src} alt={`Foto De ${player?.full_name || "Jugador@"}`}/>
+        <div className="selfie-preview-name">{player?.full_name || "Jugador@"}</div>
+      </div>
+    </div>}
+  </>;
+
   return <div className="avatar">{initial}</div>;
 }
 function PageTitle({ title, text, action }) { return <div className="page-title"><div><h1>{title}</h1><p>{text}</p></div>{action}</div>; }
