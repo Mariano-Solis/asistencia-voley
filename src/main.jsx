@@ -61,6 +61,7 @@ import './mgsm-add-player-collapsible.css'
 import './mgsm-tab-refresh.css'
 import './mgsm-multi-category-filter.css'
 import './mgsm-player-export.css'
+import './mgsm-selfie-preview.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
