@@ -26,7 +26,7 @@ export default function PermissionsEnhancement(){
   ]).then(([a,c])=>{setAdmins(a.data||[]);setCategories(c.data||[])})},[host]);
 
   useEffect(()=>{setBranch("");setCat("");setPerm({can_view:false,can_edit:false,can_attendance:false});setMsg("")},[prof]);
-  useEffect(()=>{setCat("");setPerm({can_view:false,can_edit:false});setMsg("")},[branch]);
+  useEffect(()=>{setCat("");setPerm({can_view:false,can_edit:false,can_attendance:false});setMsg("")},[branch]);
   useEffect(()=>{(async()=>{if(!prof||!cat)return;const r=await supabase.from("admin_category_permissions").select("can_view,can_edit,can_attendance").eq("admin_id",prof).eq("category_id",cat).maybeSingle();setPerm(r.data||{can_view:false,can_edit:false,can_attendance:false})})()},[prof,cat]);
 
   async function save(next){
