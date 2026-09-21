@@ -908,6 +908,65 @@ function App() {
     return ()=>{mounted=false;authEpoch.current++;subscription.unsubscribe();};
   },[]);
   useEffect(()=>{
+    let stopped = false;
+    let channel = null;
+    let timer = null;
+
+    const syncAccess = () => {
+      if (stopped) return;
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const { data } = await supabase.auth.getSession();
+        const current = data?.session;
+        if (stopped || !isAuthSession(current)) return;
+        await applySession(current);
+      }, 50);
+    };
+
+    const bindRealtime = async () => {
+      const { data } = await supabase.auth.getSession();
+      const current = data?.session;
+      if (stopped || !isAuthSession(current)) return;
+
+      const userId = current.user.id;
+      channel = supabase
+        .channel(`access-sync:${userId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        }, syncAccess)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'admin_category_permissions',
+        }, syncAccess)
+        .subscribe();
+    };
+
+    void bindRealtime();
+
+    const syncOnFocus = () => syncAccess();
+    const syncOnOnline = () => syncAccess();
+    const syncOnVisibility = () => {
+      if (document.visibilityState === 'visible') syncAccess();
+    };
+
+    window.addEventListener('focus', syncOnFocus);
+    window.addEventListener('online', syncOnOnline);
+    document.addEventListener('visibilitychange', syncOnVisibility);
+
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener('focus', syncOnFocus);
+      window.removeEventListener('online', syncOnOnline);
+      document.removeEventListener('visibilitychange', syncOnVisibility);
+      if (channel) void supabase.removeChannel(channel);
+    };
+  },[]);
+  useEffect(()=>{
     if(!isAuthSession(session)||!['admin','super_admin'].includes(profile?.role)){
       setPendingRequestCount(0);
       return undefined;
