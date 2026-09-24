@@ -1,0 +1,135 @@
+/* =========================================================
+   SUPER ADMIN · VISTAS JUGADOR / PROFE
+========================================================= */
+.professor-preview-admin-bar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:8px 12px;
+  background:#fff7f7;
+  border-bottom:1px solid #efd6d8;
+  color:#7f1d24;
+  font-size:10px;
+  font-weight:850;
+}
+
+.professor-preview-admin-bar button{
+  min-height:34px;
+  padding:0 11px;
+  border-radius:10px;
+  background:#fff;
+  color:#9f1820;
+  border:1px solid #e6c4c7;
+  font-size:10px;
+  font-weight:850;
+}
+
+.professor-preview-admin-bar span{
+  text-align:center;
+}
+
+.professor-preview-change{
+  color:#4f555d!important;
+  border-color:#dfe3e7!important;
+}
+
+.professor-preview-picker{
+  max-width:620px;
+  margin:0 auto;
+}
+
+.professor-preview-picker-card{
+  padding:18px!important;
+}
+
+.professor-preview-picker-card label{
+  display:grid;
+  gap:7px;
+  color:#4f555d;
+  font-size:10px;
+  font-weight:850;
+}
+
+.professor-preview-picker-card select{
+  width:100%;
+  min-height:48px;
+  padding:0 12px;
+  border:1px solid #dfe3e8;
+  border-radius:12px;
+  background:#fff;
+  color:#262a30;
+  font-size:13px;
+  font-weight:750;
+}
+
+.professor-preview-picker-card p{
+  margin:12px 0 0;
+  color:#7d838c;
+  font-size:10px;
+  line-height:1.45;
+}
+
+.professor-preview-nav,
+.player-profile-nav{
+  position:relative;
+}
+
+.professor-preview-nav::after,
+.player-profile-nav::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:4px;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#b5121b;
+  transform:translateX(-50%);
+  opacity:.8;
+}
+
+.training-library-simulation-note{
+  margin-top:10px;
+  padding:9px 11px;
+  border-radius:11px;
+  background:#f5f6f8;
+  color:#747a82;
+  font-size:9px;
+  font-weight:750;
+  text-align:center;
+}
+
+@media(max-width:760px){
+  .professor-preview-admin-bar{
+    gap:7px;
+    padding:7px 8px;
+  }
+
+  .professor-preview-admin-bar button{
+    min-height:32px;
+    padding:0 9px;
+    font-size:9px;
+  }
+
+  .professor-preview-admin-bar span{
+    flex:1 1 150px;
+    font-size:9px;
+  }
+}
+
+@media(max-width:430px){
+  .professor-preview-admin-bar{
+    justify-content:space-between;
+  }
+
+  .professor-preview-admin-bar span{
+    order:-1;
+    flex:1 0 100%;
+  }
+
+  .professor-preview-picker-card{
+    padding:14px!important;
+  }
+}
