@@ -67,6 +67,7 @@ import './mgsm-player-attendance-clean.css'
 import './mgsm-player-modal-centered.css'
 import './mgsm-history-reports.css'
 import './mgsm-training-library.css'
+import './mgsm-superadmin-views.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
