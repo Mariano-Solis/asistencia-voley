@@ -1370,7 +1370,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
           {refreshing?"Actualizando...":"Actualizar"}
         </button>
       </div>}
-      {tab==="home"&&<Attendance key={"preview-home:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview} restrictCategoryIds={restrictCategoryIds}/>}
+      {tab==="home"&&<Attendance key={"preview-home:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={attendanceCategories} permissions={previewPermissions} refresh={refreshPreview} restrictCategoryIds={restrictCategoryIds}/>}
       {tab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
