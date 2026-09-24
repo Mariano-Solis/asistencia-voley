@@ -484,6 +484,32 @@ function Players({ profile, players, categories, permissions, refresh }) {
       ? "Todas Las Categorías"
       : includedCategories.map(category => `${genderText(category.gender)} · ${category.name}`).join(" | ");
 
+    const playerRows = [...exportPlayers]
+      .sort((a, b) => {
+        const categoryA = categories.find(category => category.id === a.category_id);
+        const categoryB = categories.find(category => category.id === b.category_id);
+        const labelA = `${genderText(categoryA?.gender || a.sex)} · ${categoryA?.name || "Sin Categoría"} · ${a.full_name || ""}`;
+        const labelB = `${genderText(categoryB?.gender || b.sex)} · ${categoryB?.name || "Sin Categoría"} · ${b.full_name || ""}`;
+        return labelA.localeCompare(labelB, "es", { numeric: true, sensitivity: "base" });
+      })
+      .map(player => {
+        const category = categories.find(item => item.id === player.category_id);
+        const fallbackParts = String(player.full_name || "").trim().split(/\s+/);
+        const fallbackLast = fallbackParts.shift() || "";
+        return {
+          lastName: player.last_name || fallbackLast,
+          firstName: player.first_name || fallbackParts.join(" "),
+          dni: player.dni || "",
+          branch: category ? genderText(category.gender) : genderText(player.sex),
+          category: category?.name || "Sin Categoría",
+          team: player.team ? `Equipo ${player.team}` : "Sin Asignar",
+          accessCode: player.access_code || "",
+          createdAt: player.created_at
+            ? new Date(player.created_at).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Mendoza" })
+            : "—",
+        };
+      });
+
     exportCategoryWorkbook({
       appName: APP_NAME,
       exportDate: new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Mendoza" }),
@@ -492,8 +518,9 @@ function Players({ profile, players, categories, permissions, refresh }) {
       female: exportPlayers.filter(player => gender(player.sex) === "female").length,
       male: exportPlayers.filter(player => gender(player.sex) === "male").length,
       categoryRows,
+      playerRows,
       unassignedCount,
-      filename: `resumen-jugadores-categorias-${today()}.xlsx`,
+      filename: `jugadores-por-categorias-${today()}.xlsx`,
     });
   }
   async function savePlayer(e) { e.preventDefault(); if (!form.first || !form.last || !form.category) return; setSaving(true); try { let categoryId = form.category; const auto = await supabase.rpc("calculate_player_category", { p_birth_date: form.birth, p_sex: form.sex }); if (!auto.error && auto.data) categoryId = auto.data; const row = { first_name: form.first.trim(), last_name: form.last.trim(), full_name: `${form.last.trim().toUpperCase()} ${form.first.trim()}`, sex: form.sex, dni: clean(form.dni) || null, birth_date: form.birth || null, category_id: categoryId, team: form.team || null, access_code: accessCode(), active: true }; const r = await supabase.from("players").insert(row); if (r.error) throw r.error; setForm(f => ({...f, first: "", last: "", dni: "", birth: "", team: "", file: null})); setShowAddPlayer(false); setMsg("✓ Jugador@ Agregado."); await refresh(); } catch(e) { setMsg(errorText(e)); } finally { setSaving(false); } }
@@ -573,7 +600,7 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
       <button type="button" className="player-export-button" onClick={exportCategorySummary}>
         📊 Exportar Planilla
       </button>
-      <span>{selectedCategories.length === 0 ? "Incluye Todas Las Categorías" : `Incluye ${selectedCategories.length} Categoría${selectedCategories.length === 1 ? "" : "s"} Seleccionada${selectedCategories.length === 1 ? "" : "s"}`}</span>
+      <span>{selectedCategories.length === 0 ? "Incluye Todas Las Categorías y Sus Jugador@s" : `Incluye ${selectedCategories.length} Categoría${selectedCategories.length === 1 ? "" : "s"} y Todos Sus Jugador@s`}</span>
     </div>
     <div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
 }
