@@ -27,9 +27,17 @@ const accessCode = () => `${Math.random().toString(36).slice(2, 6).toUpperCase()
 
 function can(profile, category, permissions, edit = false) {
   if (!profile || !category) return false;
-  if (profile.role === "super_admin" || category.admin_id === profile.id) return true;
   const p = permissions?.[category.id];
+  if (profile.permission_strict) return edit ? !!p?.can_edit : !!(p?.can_view || p?.can_edit);
+  if (profile.role === "super_admin" || category.admin_id === profile.id) return true;
   return edit ? !!p?.can_edit : !!p?.can_view;
+}
+function canAttend(profile, category, permissions) {
+  if (!profile || !category) return false;
+  const p = permissions?.[category.id];
+  if (profile.permission_strict) return !!(p?.can_attendance || p?.can_edit);
+  if (profile.role === "super_admin" || category.admin_id === profile.id) return true;
+  return !!(p?.can_attendance || p?.can_edit);
 }
 async function copyText(text) {
   if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
@@ -127,7 +135,7 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
 function StatusButtons({ value, onChange, disabled = false }) { return <div className="status-picker">{Object.entries(STATUS).map(([k, v]) => <button disabled={disabled} type="button" key={k} className={`status ${k} ${value === k ? "active" : ""}`} onClick={() => onChange(k)}><b>{v[0]}</b><span>{v[1]}</span></button>)}</div>; }
 
 function Attendance({ profile, players, categories, permissions, refresh, restrictCategoryIds = null }) {
-  const editable = useMemo(() => categories.filter(c => can(profile, c, permissions, true)), [categories, profile, permissions]);
+  const editable = useMemo(() => categories.filter(c => canAttend(profile, c, permissions)), [categories, profile, permissions]);
   const [date, setDate] = useState(today()); const [categoryId, setCategoryId] = useState(""); const [type, setType] = useState("training"); const [open, setOpen] = useState(true);
   const [att, setAtt] = useState({}); const [details, setDetails] = useState({ opponent: "", location: "", start: today(), end: today(), dates: [today()] }); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
   const [attendanceRoster, setAttendanceRoster] = useState([]);
@@ -1257,7 +1265,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
         .maybeSingle()
     ]);
     const map=Object.fromEntries((pe.data||[]).map(row=>[row.category_id,row]));
-    setPreviewProfile(selected);
+    setPreviewProfile({...selected,role:"admin",permission_strict:true});
     setPreviewPermissions(map);
     setPreviewOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]);
   }
@@ -1275,11 +1283,16 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     ()=>previewProfile?allCategories.filter(category=>can(previewProfile,category,previewPermissions)):[],
     [allCategories,previewProfile,previewPermissions]
   );
+  const attendanceCategories=useMemo(
+    ()=>previewProfile?allCategories.filter(category=>canAttend(previewProfile,category,previewPermissions)):[],
+    [allCategories,previewProfile,previewPermissions]
+  );
   const editableCategoryIds=useMemo(
     ()=>previewProfile?allCategories.filter(category=>can(previewProfile,category,previewPermissions,true)).map(category=>category.id):[],
     [allCategories,previewProfile,previewPermissions]
   );
-  const restrictCategoryIds=useMemo(()=>visibleCategories.map(category=>category.id),[visibleCategories]);
+  const restrictCategoryIds=useMemo(()=>attendanceCategories.map(category=>category.id),[attendanceCategories]);
+  const professorCategoryIds=useMemo(()=>[...new Set([...visibleCategories.map(category=>category.id),...restrictCategoryIds])],[visibleCategories,restrictCategoryIds]);
 
   useEffect(()=>{
     if(!previewProfile){setPendingCount(0);return undefined;}
@@ -1350,14 +1363,14 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     </div>
     <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
     <div className="content"><div className="watermark"/><div className="content-inner">
-      {previewProfile.preview_self&&restrictCategoryIds.length===0&&<div className="professor-preview-no-permissions">Tu Perfil Profe Todavía No Tiene Categorías Asignadas. Volvé A Administración → Permisos y Configurá Las Categorías Que Querés Tener Como Profe.</div>}
+      {previewProfile.preview_self&&professorCategoryIds.length===0&&<div className="professor-preview-no-permissions">Tu Perfil Profe Todavía No Tiene Categorías Asignadas. Volvé A Administración → Permisos y Configurá Las Categorías Que Querés Tener Como Profe.</div>}
       {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
         <button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPreview}>
           <span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>
           {refreshing?"Actualizando...":"Actualizar"}
         </button>
       </div>}
-      {tab==="home"&&<Attendance key={"preview-home:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview} restrictCategoryIds={restrictCategoryIds}/>}
+      {tab==="home"&&<Attendance key={"preview-home:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={attendanceCategories} permissions={previewPermissions} refresh={refreshPreview} restrictCategoryIds={restrictCategoryIds}/>}
       {tab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
@@ -1584,7 +1597,7 @@ function App() {
   nav.push(['settings','Solapas']);
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="playerProfile"&&<span className="nav-role-preview-icon" aria-hidden="true">👤</span>}{k==="professorPreview"&&<span className="nav-role-preview-icon" aria-hidden="true">👨‍🏫</span>}{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
     {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
         <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
