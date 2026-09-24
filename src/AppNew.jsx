@@ -22,6 +22,15 @@ const gender = v => ["female", "femenino", "femenina", "mujer", "f"].includes(cl
 const genderText = g => gender(g) === "female" ? "Femenino" : "Masculino";
 const plural = g => gender(g) === "female" ? "Jugadoras" : "Jugadores";
 const dateText = v => v ? new Date(`${v}T12:00:00`).toLocaleDateString("es-AR") : "—";
+const paymentPeriodLabel = value => {
+  if (!value) return "—";
+  const date = new Date(`${String(value).slice(0,10)}T12:00:00`);
+  return new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "America/Argentina/Mendoza",
+  }).format(date).replace(/^./, letter => letter.toUpperCase());
+};
 const errorText = e => e?.message || "Ocurrió Un Error.";
 const accessCode = () => `${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -469,16 +478,6 @@ function Players({ profile, players, categories, permissions, refresh }) {
     const allowed = category ? can(profile, category, permissions) : profile.role === "super_admin";
     return allowed && (selectedCategories.length === 0 || selectedCategories.includes(p.category_id));
   });
-  function paymentPeriodLabel(value) {
-    if (!value) return "—";
-    const date = new Date(`${String(value).slice(0,10)}T12:00:00`);
-    return new Intl.DateTimeFormat("es-AR", {
-      month: "long",
-      year: "numeric",
-      timeZone: "America/Argentina/Mendoza",
-    }).format(date).replace(/^./, letter => letter.toUpperCase());
-  }
-
   async function exportCategorySummary() {
     const hasCategorySelection = selectedCategories.length > 0;
     const includedCategories = hasCategorySelection
@@ -843,6 +842,20 @@ function History({profile,categories,permissions,players,refresh}) {
       rosterResults.forEach(result=>(result.data||[]).forEach(player=>nameById.set(player.id,player.full_name||"Jugador@")));
 
       const playerIds=[...new Set(attendance.map(row=>row.player_id))].sort((a,b)=>(nameById.get(a)||"").localeCompare(nameById.get(b)||"","es"));
+      let latestPaidByPlayer={};
+      if(playerIds.length){
+        const paymentResult=await supabase
+          .from("monthly_payments")
+          .select("player_id,period_month,validation_status")
+          .in("player_id",playerIds)
+          .eq("validation_status","validated")
+          .order("period_month",{ascending:false});
+        if(paymentResult.error)throw paymentResult.error;
+        latestPaidByPlayer=Object.fromEntries((paymentResult.data||[]).reduce((entries,payment)=>{
+          if(!entries.some(([playerId])=>playerId===payment.player_id))entries.push([payment.player_id,payment.period_month]);
+          return entries;
+        },[]));
+      }
       const statusByKey=new Map(attendance.map(row=>[`${row.session_id}:${row.player_id}`,row.status]));
       const statusLabel={present:"Presente",late:"Tarde",absent:"Ausente"};
       const totals={present:0,late:0,absent:0};
@@ -856,7 +869,7 @@ function History({profile,categories,permissions,players,refresh}) {
           else if(status==="absent"){absent++;totals.absent++;}
           return statusLabel[status]||"—";
         });
-        return {name:nameById.get(playerId)||"Jugador@",statuses,present,late,absent};
+        return {name:nameById.get(playerId)||"Jugador@",payment:paymentPeriodLabel(latestPaidByPlayer[playerId]),statuses,present,late,absent};
       });
 
       const sessionColumns=reportSessions.map(session=>({
