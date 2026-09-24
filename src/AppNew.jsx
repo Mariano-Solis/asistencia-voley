@@ -8,7 +8,7 @@ import ProfessorTrainingHub from "./ProfessorTrainingHub";
 import { AdminPaymentPanel, PlayerPaymentPanel } from "./PaymentHubStable";
 import officialLogo from "../Logo.jpg";
 import { playerPhotoPath, preparePlayerPhoto, savePendingPlayerPhoto } from "./playerPhoto";
-import { exportCategoryWorkbook } from "./xlsxCategoryExport";
+import { exportAttendanceWorkbook, exportCategoryWorkbook } from "./xlsxCategoryExport";
 
 const APP_NAME = "Municipalidad De San Martín - VOLEY";
 const TAGLINE = "#VamosElPoli";
@@ -570,7 +570,6 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
 }
 function PlayerAttendanceSummary({playerId}) {
   const [rows,setRows]=useState([]);
-  const [filter,setFilter]=useState("all");
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
     let cancelled=false;
@@ -581,32 +580,18 @@ function PlayerAttendanceSummary({playerId}) {
       .then(({data})=>{if(!cancelled){setRows(data||[]);setLoading(false);}});
     return()=>{cancelled=true;};
   },[playerId]);
-  const cats=useMemo(()=>{
-    const map=new Map();
-    rows.forEach(row=>{const cat=row.training_sessions?.categories;if(cat?.id)map.set(cat.id,cat);});
-    return [...map.values()];
-  },[rows]);
-  const shown=filter==="all"?rows:rows.filter(row=>row.training_sessions?.category_id===filter);
+
+  const shown=useMemo(()=>[...rows].sort((a,b)=>String(b.training_sessions?.session_date||"").localeCompare(String(a.training_sessions?.session_date||""))),[rows]);
   const counts={
     present:shown.filter(row=>row.status==="present").length,
     late:shown.filter(row=>row.status==="late").length,
     absent:shown.filter(row=>row.status==="absent").length,
   };
-  return <section className="player-attendance-summary">
-    <div className="player-attendance-summary-head">
-      <div>
-        <h3>Asistencia Por Categoría De Entrenamiento</h3>
-        <span>La Categoría Oficial Del Jugador@ No Cambia.</span>
-      </div>
-    </div>
 
-    <label className="player-attendance-filter">
-      <span>Categoría</span>
-      <select value={filter} onChange={e=>setFilter(e.target.value)}>
-        <option value="all">Todas</option>
-        {cats.map(cat=><option key={cat.id} value={cat.id}>{genderText(cat.gender)} · {cat.name}</option>)}
-      </select>
-    </label>
+  return <section className="player-attendance-summary">
+    <div className="player-attendance-summary-head compact">
+      <h3>Asistencia</h3>
+    </div>
 
     <div className="player-attendance-kpis">
       <div><b>{counts.present}</b><span>Presentes</span></div>
@@ -620,7 +605,7 @@ function PlayerAttendanceSummary({playerId}) {
         <span>{branch} · {s.categories?.name||"Sin Categoría"} · {TYPES[s.activity_type]?.[1]||"Actividad"}</span>
       </div>
       <strong className={"player-attendance-status "+row.status}>{STATUS[row.status]?.[1]||row.status}</strong>
-    </div>;})}</div>:<div className="player-attendance-empty">No Hay Asistencias Registradas Para Este Filtro.</div>}
+    </div>;})}</div>:<div className="player-attendance-empty">No Hay Asistencias Registradas.</div>}
   </section>;
 }
 
@@ -702,9 +687,17 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
 function PlayerEdit({player,categories,onClose,onSave,saving}) { const parts=player.full_name.split(/\s+/); const [data,setData]=useState({first:player.first_name||parts.slice(1).join(" "),last:player.last_name||parts[0]||"",sex:player.sex||"female",dni:player.dni||"",birth:player.birth_date||"",team:player.team||"",category:player.category_id||categories[0]?.id||"",file:null}); const fileRef=useRef(null); return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Modificar Jugador@</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={e=>{e.preventDefault();onSave(player,data)}}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><select value={data.team} onChange={e=>setData(d=>({...d,team:e.target.value}))}><option value="">Sin Asignar</option>{["A","B","C","D","E"].map(x=><option key={x} value={x}>Equipo {x}</option>)}</select><select value={data.category} onChange={e=>setData(d=>({...d,category:e.target.value}))}>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cambiar Selfie</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>Guardar</button></div></form></div></div>; }
 
 function History({profile,categories,permissions,players,refresh}) {
-  const [sessions,setSessions]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[filter,setFilter]=useState("all"),[msg,setMsg]=useState(""),[historyRoster,setHistoryRoster]=useState({});
-  async function load(){ let q=supabase.from("training_sessions").select("*, categories(id,name,gender)").order("session_date",{ascending:false}); if(filter!=="all") q=q.eq("category_id",filter); const r=await q; if(r.error)setMsg(errorText(r.error)); else setSessions(r.data||[]); }
-  useEffect(()=>{load()},[filter]);
+  const monthStart=`${today().slice(0,7)}-01`;
+  const [sessions,setSessions]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[selectedCategory,setSelectedCategory]=useState(null),[msg,setMsg]=useState(""),[historyRoster,setHistoryRoster]=useState({});
+  const [showReport,setShowReport]=useState(false),[reportCategory,setReportCategory]=useState(categories[0]?.id||""),[reportFrom,setReportFrom]=useState(monthStart),[reportTo,setReportTo]=useState(today()),[reportBusy,setReportBusy]=useState(false);
+
+  async function load(){
+    const r=await supabase.from("training_sessions").select("*, categories(id,name,gender)").order("session_date",{ascending:false});
+    if(r.error)setMsg(errorText(r.error)); else setSessions(r.data||[]);
+  }
+  useEffect(()=>{void load()},[]);
+  useEffect(()=>{if(!reportCategory&&categories[0]?.id)setReportCategory(categories[0].id)},[categories,reportCategory]);
+
   async function openSession(s){
     const [a, roster] = await Promise.all([
       supabase.from("attendance").select("player_id,status").eq("session_id",s.id),
@@ -714,9 +707,159 @@ function History({profile,categories,permissions,players,refresh}) {
     setHistoryRoster(Object.fromEntries((roster.data||[]).map(player=>[player.id,player])));
     setSelected(s);
   }
-  async function remove(){ if(!selected || !confirm("¿Eliminar Definitivamente Este Registro y Su Asistencia?")) return; await supabase.from("attendance").delete().eq("session_id",selected.id); const r=await supabase.from("training_sessions").delete().eq("id",selected.id); if(r.error)setMsg(errorText(r.error)); else { setSelected(null); await load(); await refresh(); setMsg("✓ Registro Eliminado."); } }
-  if(selected) return <section><div className="back-row"><button className="back-btn" onClick={()=>setSelected(null)}>← Volver Al Historial</button><span>{dateText(selected.session_date)}</span></div><div className="card session-detail"><div className="detail-head"><div><span className="eyebrow">{TYPES[selected.activity_type]?.[1]}</span><h2>{TYPES[selected.activity_type]?.[0]} {selected.categories?.gender ? `${genderText(selected.categories.gender)} · ` : ""}{selected.categories?.name}</h2><p>{selected.activity_type === "match" ? `Vs. ${selected.opponent || "—"}${selected.event_location ? ` · ${selected.event_location}` : ""}` : selected.activity_type === "tournament" ? `${selected.tournament_location || selected.event_location || "—"} · ${dateText(selected.tournament_start_date || selected.session_date)} → ${dateText(selected.tournament_end_date || selected.session_date)}` : "Registro De Entrenamiento"}</p></div><div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div></div><div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={!can(profile, selected.categories, permissions, true)} onChange={async status=>{const u=await supabase.from("attendance").update({status}).eq("session_id",selected.id).eq("player_id",r.player_id);if(!u.error)setRows(x=>x.map(y=>y.player_id===r.player_id?{...y,status}:y));}}/></div>})}</div></div>{msg&&<div className="message">{msg}</div>}</section>;
-  return <section><PageTitle title="Historial" text="Entrá A Cada Sesión Para Ver O Modificar Su Asistencia."/><div className="card toolbar"><label>Categoría</label><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas</option>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="session-list">{sessions.length ? sessions.map(s=><button key={s.id} className="session-card card" onClick={()=>openSession(s)}><span className="session-icon">{TYPES[s.activity_type]?.[0]}</span><div className="grow"><b>{dateText(s.session_date)} · {s.categories?.gender ? `${genderText(s.categories.gender)} · ` : ""}{s.categories?.name}</b><span>{TYPES[s.activity_type]?.[1]}{s.opponent ? ` · Vs. ${s.opponent}` : ""}</span></div><span>→</span></button>) : <Empty text="No Hay Registros."/>}</div></section>;
+
+  async function remove(){
+    if(!selected || !confirm("¿Eliminar Definitivamente Este Registro y Su Asistencia?")) return;
+    await supabase.from("attendance").delete().eq("session_id",selected.id);
+    const r=await supabase.from("training_sessions").delete().eq("id",selected.id);
+    if(r.error)setMsg(errorText(r.error));
+    else { setSelected(null); await load(); await refresh(); setMsg("✓ Registro Eliminado."); }
+  }
+
+  async function exportReport(){
+    setMsg("");
+    if(!reportCategory){setMsg("Seleccioná Una Categoría Para Exportar.");return;}
+    if(!reportFrom||!reportTo){setMsg("Seleccioná La Fecha Desde y Hasta.");return;}
+    if(reportFrom>reportTo){setMsg("La Fecha Desde No Puede Ser Posterior A La Fecha Hasta.");return;}
+
+    setReportBusy(true);
+    try{
+      const category=categories.find(item=>item.id===reportCategory);
+      const sr=await supabase.from("training_sessions")
+        .select("id,session_date,activity_type,opponent,event_location,categories(id,name,gender)")
+        .eq("category_id",reportCategory)
+        .gte("session_date",reportFrom)
+        .lte("session_date",reportTo)
+        .order("session_date",{ascending:true});
+      if(sr.error)throw sr.error;
+      const reportSessions=sr.data||[];
+      if(!reportSessions.length){setMsg("No Hay Registros De Asistencia Para Esa Categoría En El Período Elegido.");return;}
+
+      const sessionIds=reportSessions.map(s=>s.id);
+      const ar=await supabase.from("attendance").select("session_id,player_id,status").in("session_id",sessionIds);
+      if(ar.error)throw ar.error;
+      const attendance=ar.data||[];
+
+      const rosterResults=await Promise.all(reportSessions.map(s=>supabase.rpc("get_attendance_session_roster",{p_session_id:s.id})));
+      const nameById=new Map(players.map(player=>[player.id,player.full_name||"Jugador@"]));
+      rosterResults.forEach(result=>(result.data||[]).forEach(player=>nameById.set(player.id,player.full_name||"Jugador@")));
+
+      const playerIds=[...new Set(attendance.map(row=>row.player_id))].sort((a,b)=>(nameById.get(a)||"").localeCompare(nameById.get(b)||"","es"));
+      const statusByKey=new Map(attendance.map(row=>[`${row.session_id}:${row.player_id}`,row.status]));
+      const statusLabel={present:"Presente",late:"Tarde",absent:"Ausente"};
+      const totals={present:0,late:0,absent:0};
+
+      const playerRows=playerIds.map(playerId=>{
+        let present=0,late=0,absent=0;
+        const statuses=reportSessions.map(session=>{
+          const status=statusByKey.get(`${session.id}:${playerId}`);
+          if(status==="present"){present++;totals.present++;}
+          else if(status==="late"){late++;totals.late++;}
+          else if(status==="absent"){absent++;totals.absent++;}
+          return statusLabel[status]||"—";
+        });
+        return {name:nameById.get(playerId)||"Jugador@",statuses,present,late,absent};
+      });
+
+      const sessionColumns=reportSessions.map(session=>({
+        id:session.id,
+        label:`${dateText(session.session_date)} · ${TYPES[session.activity_type]?.[1]||"Actividad"}`,
+      }));
+      const categoryLabel=category?`${genderText(category.gender)} · ${category.name}`:"Categoría";
+      const safeName=(category?.name||"categoria").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+
+      exportAttendanceWorkbook({
+        appName:APP_NAME,
+        categoryLabel,
+        periodLabel:`${dateText(reportFrom)} → ${dateText(reportTo)}`,
+        exportDate:new Date().toLocaleString("es-AR",{timeZone:"America/Argentina/Mendoza"}),
+        sessionColumns,
+        playerRows,
+        totals,
+        filename:`informe-asistencia-${safeName||"categoria"}-${reportFrom}-a-${reportTo}.xlsx`,
+      });
+      setMsg("✓ Informe Exportado Correctamente.");
+    }catch(e){
+      setMsg(errorText(e));
+    }finally{
+      setReportBusy(false);
+    }
+  }
+
+  if(selected) return <section>
+    <div className="back-row"><button className="back-btn" onClick={()=>setSelected(null)}>← Volver A La Categoría</button><span>{dateText(selected.session_date)}</span></div>
+    <div className="card session-detail">
+      <div className="detail-head">
+        <div>
+          <span className="eyebrow">{TYPES[selected.activity_type]?.[1]}</span>
+          <h2>{TYPES[selected.activity_type]?.[0]} {selected.categories?.gender ? `${genderText(selected.categories.gender)} · ` : ""}{selected.categories?.name}</h2>
+          <p>{selected.activity_type === "match" ? `Vs. ${selected.opponent || "—"}${selected.event_location ? ` · ${selected.event_location}` : ""}` : selected.activity_type === "tournament" ? `${selected.tournament_location || selected.event_location || "—"} · ${dateText(selected.tournament_start_date || selected.session_date)} → ${dateText(selected.tournament_end_date || selected.session_date)}` : "Registro De Entrenamiento"}</p>
+        </div>
+        <div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div>
+      </div>
+      <div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={!can(profile, selected.categories, permissions, true)} onChange={async status=>{const u=await supabase.from("attendance").update({status}).eq("session_id",selected.id).eq("player_id",r.player_id);if(!u.error)setRows(x=>x.map(y=>y.player_id===r.player_id?{...y,status}:y));}}/></div>})}</div>
+    </div>
+    {msg&&<div className="message">{msg}</div>}
+  </section>;
+
+  if(selectedCategory){
+    const category=categories.find(item=>item.id===selectedCategory);
+    const categorySessions=sessions.filter(session=>session.category_id===selectedCategory);
+    return <section className="history-category-view">
+      <div className="back-row">
+        <button className="back-btn" onClick={()=>setSelectedCategory(null)}>← Todas Las Categorías</button>
+        <span>{categorySessions.length} Registro{categorySessions.length===1?"":"s"}</span>
+      </div>
+      <div className="history-category-title">
+        <span>{category?.gender==="female"?"♀":"♂"}</span>
+        <div><h2>{category?genderText(category.gender):"Rama"} · {category?.name||"Categoría"}</h2><p>Todas Las Asistencias Cargadas De Esta Categoría.</p></div>
+      </div>
+      <div className="session-list">
+        {categorySessions.length ? categorySessions.map(s=><button key={s.id} className="session-card card" onClick={()=>openSession(s)}>
+          <span className="session-icon">{TYPES[s.activity_type]?.[0]}</span>
+          <div className="grow"><b>{dateText(s.session_date)}</b><span>{TYPES[s.activity_type]?.[1]}{s.opponent ? ` · Vs. ${s.opponent}` : ""}</span></div>
+          <span>→</span>
+        </button>) : <Empty text="Todavía No Hay Asistencias Cargadas En Esta Categoría."/>}
+      </div>
+    </section>;
+  }
+
+  return <section>
+    <PageTitle title="Historial" text="Consultá Las Asistencias Por Categoría O Exportá Un Informe."/>
+
+    <div className={`card history-report ${showReport?"open":""}`}>
+      <button type="button" className="history-report-toggle" onClick={()=>setShowReport(value=>!value)} aria-expanded={showReport}>
+        <span><b>📊 Exportar Informe</b><small>{showReport?"Ocultar Opciones":"Categoría y Período De Tiempo"}</small></span>
+        <span aria-hidden="true">{showReport?"⌃":"⌄"}</span>
+      </button>
+      {showReport&&<div className="history-report-form">
+        <label><span>Categoría</span><select value={reportCategory} onChange={e=>setReportCategory(e.target.value)}><option value="">Seleccioná Una Categoría</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{genderText(cat.gender)} · {cat.name}</option>)}</select></label>
+        <div className="history-report-dates">
+          <label><span>Desde</span><input type="date" value={reportFrom} max={reportTo||undefined} onChange={e=>setReportFrom(e.target.value)}/></label>
+          <label><span>Hasta</span><input type="date" value={reportTo} min={reportFrom||undefined} onChange={e=>setReportTo(e.target.value)}/></label>
+        </div>
+        <button type="button" className="primary history-export-button" disabled={reportBusy} onClick={exportReport}>{reportBusy?"Generando...":"📥 Exportar XLSX"}</button>
+      </div>}
+    </div>
+
+    {msg&&<div className="message">{msg}</div>}
+
+    <div className="history-categories-heading">
+      <div><h3>Categorías</h3><span>{categories.length} Disponibles</span></div>
+      <small>Entrá A Una Categoría Para Ver Todas Sus Asistencias.</small>
+    </div>
+
+    <div className="history-category-grid">
+      {categories.map(category=>{
+        const count=sessions.filter(session=>session.category_id===category.id).length;
+        return <button type="button" className="card history-category-card" key={category.id} onClick={()=>setSelectedCategory(category.id)}>
+          <span className="history-category-icon">{category.gender==="female"?"♀":"♂"}</span>
+          <div><b>{category.name}</b><span>{genderText(category.gender)} · {count} Registro{count===1?"":"s"}</span></div>
+          <strong>›</strong>
+        </button>;
+      })}
+    </div>
+  </section>;
 }
 
 function AdminUsers({ profile }) {

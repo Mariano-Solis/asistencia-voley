@@ -1,0 +1,300 @@
+/* =========================================================
+   MGSM VOLEY · HISTORIAL POR CATEGORÍAS + EXPORTACIÓN
+========================================================= */
+.player-attendance-summary-head.compact{
+  margin-bottom:8px;
+}
+
+.player-attendance-summary-head.compact h3{
+  margin:0;
+}
+
+.history-report{
+  padding:0!important;
+  overflow:hidden;
+  margin-bottom:14px;
+}
+
+.history-report-toggle{
+  width:100%;
+  min-height:66px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 18px;
+  border:0;
+  background:#fff;
+  color:#24272d;
+  text-align:left;
+  cursor:pointer;
+}
+
+.history-report-toggle>span:first-child{
+  display:grid;
+  gap:3px;
+}
+
+.history-report-toggle b{
+  font-size:15px;
+  font-weight:900;
+}
+
+.history-report-toggle small{
+  color:#838991;
+  font-size:10px;
+  font-weight:650;
+}
+
+.history-report-toggle>span:last-child{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  flex:0 0 34px;
+  border-radius:11px;
+  background:#f3f4f6;
+  color:#686e76;
+  font-size:18px;
+  font-weight:900;
+}
+
+.history-report.open .history-report-toggle{
+  border-bottom:1px solid #eceef1;
+}
+
+.history-report-form{
+  display:grid;
+  gap:12px;
+  padding:16px 18px 18px;
+}
+
+.history-report-form label{
+  display:grid;
+  gap:6px;
+}
+
+.history-report-form label>span{
+  color:#646a73;
+  font-size:10px;
+  font-weight:850;
+}
+
+.history-report-form select,
+.history-report-form input{
+  width:100%;
+  min-height:46px;
+  border:1px solid #dfe3e8;
+  border-radius:12px;
+  background:#fff;
+  padding:0 12px;
+  color:#25292f;
+  font-size:12px;
+  font-weight:700;
+}
+
+.history-report-dates{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+.history-export-button{
+  min-height:48px;
+  border-radius:12px!important;
+  font-weight:900!important;
+}
+
+.history-categories-heading{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin:18px 2px 10px;
+}
+
+.history-categories-heading>div{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+}
+
+.history-categories-heading h3{
+  margin:0;
+  color:#20242a;
+  font-size:20px;
+}
+
+.history-categories-heading span{
+  color:#858b94;
+  font-size:10px;
+  font-weight:750;
+}
+
+.history-categories-heading small{
+  color:#8a9099;
+  font-size:9.5px;
+  font-weight:700;
+  text-align:right;
+}
+
+.history-category-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+
+.history-category-card{
+  min-height:84px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  padding:12px!important;
+  text-align:left;
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+}
+
+.history-category-card:hover{
+  transform:translateY(-1px);
+  border-color:#d7dbe0;
+  box-shadow:0 12px 26px rgba(28,34,42,.08);
+}
+
+.history-category-icon{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:#fff0f1;
+  color:#b5121b;
+  font-size:20px;
+  font-weight:900;
+}
+
+.history-category-card>div{
+  min-width:0;
+}
+
+.history-category-card b{
+  display:block;
+  color:#25292f;
+  font-size:13px;
+  font-weight:900;
+  overflow-wrap:anywhere;
+}
+
+.history-category-card span:not(.history-category-icon){
+  display:block;
+  margin-top:4px;
+  color:#7d838c;
+  font-size:9.5px;
+  font-weight:700;
+}
+
+.history-category-card strong{
+  color:#858b94;
+  font-size:22px;
+  font-weight:500;
+}
+
+.history-category-title{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:8px 0 16px;
+}
+
+.history-category-title>span{
+  width:46px;
+  height:46px;
+  display:grid;
+  place-items:center;
+  border-radius:14px;
+  background:#fff0f1;
+  color:#b5121b;
+  font-size:24px;
+  font-weight:900;
+}
+
+.history-category-title h2{
+  margin:0;
+  color:#20242a;
+  font-size:22px;
+}
+
+.history-category-title p{
+  margin:4px 0 0;
+  color:#7e848d;
+  font-size:10.5px;
+}
+
+@media(max-width:760px){
+  .history-report-toggle{
+    min-height:62px;
+    padding:13px 15px;
+  }
+
+  .history-report-form{
+    padding:14px;
+  }
+
+  .history-category-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .history-category-card{
+    min-height:78px;
+    padding:10px!important;
+  }
+
+  .history-category-icon{
+    width:34px;
+    height:34px;
+    font-size:18px;
+  }
+
+  .history-category-card b{
+    font-size:12px;
+  }
+
+  .history-category-card span:not(.history-category-icon){
+    font-size:8.8px;
+  }
+}
+
+@media(max-width:430px){
+  .history-report-dates{
+    grid-template-columns:1fr;
+  }
+
+  .history-categories-heading small{
+    display:none;
+  }
+
+  .history-category-card{
+    grid-template-columns:32px minmax(0,1fr) 18px;
+    gap:8px;
+  }
+
+  .history-category-icon{
+    width:32px;
+    height:32px;
+    font-size:17px;
+  }
+
+  .history-category-card b{
+    font-size:11.5px;
+  }
+
+  .history-category-card span:not(.history-category-icon){
+    font-size:8.3px;
+  }
+
+  .history-category-title h2{
+    font-size:18px;
+  }
+}
