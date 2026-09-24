@@ -898,7 +898,7 @@ function History({profile,categories,permissions,players,refresh}) {
       </div>
     </div>
     {masterHistoryCategories.length>0&&<div className="history-master-section">
-      <div className="history-master-title"><b>Master</b><span>Luego De Las Categorías Masculinas</span></div>
+      <div className="history-master-title"><b>Master</b></div>
       <div className="history-master-grid">{masterHistoryCategories.map(category=>{
         const count=sessions.filter(session=>session.category_id===category.id).length;
         return <button type="button" className="card history-category-card" key={category.id} onClick={()=>setSelectedCategory(category.id)}>
