@@ -37,16 +37,13 @@ const accessCode = () => `${Math.random().toString(36).slice(2, 6).toUpperCase()
 function can(profile, category, permissions, edit = false) {
   if (!profile || !category) return false;
   const p = permissions?.[category.id];
-  if (profile.permission_strict) return edit ? !!p?.can_edit : !!(p?.can_view || p?.can_edit);
-  if (profile.role === "super_admin" || category.admin_id === profile.id) return true;
-  return edit ? !!p?.can_edit : !!p?.can_view;
+  if (profile.role === "super_admin") return true;
+  return edit ? !!p?.can_edit : !!(p?.can_view || p?.can_edit);
 }
 function canAttend(profile, category, permissions) {
   if (!profile || !category) return false;
-  const p = permissions?.[category.id];
-  if (profile.permission_strict) return !!(p?.can_attendance || p?.can_edit);
-  if (profile.role === "super_admin" || category.admin_id === profile.id) return true;
-  return !!(p?.can_attendance || p?.can_edit);
+  if (profile.role === "super_admin") return true;
+  return !!permissions?.[category.id]?.can_attendance;
 }
 async function copyText(text) {
   if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
@@ -1524,7 +1521,10 @@ function App() {
       }
     }
     const ownPlayer = nextPlayers.find(row=>row.user_id===current.user.id && row.active && row.approval_status==="approved");
-    setPermissions(map); setCategories((c.data||[]).filter(x=>can(p.data,x,map))); setPlayers(nextPlayers); setDisabledTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]); setNavigationOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]); setDualPlayerAvailable(!!ownPlayer);
+    const allowedCategories = (c.data||[]).filter(category =>
+      can(p.data,category,map) || canAttend(p.data,category,map)
+    );
+    setPermissions(map); setCategories(allowedCategories); setPlayers(nextPlayers); setDisabledTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]); setNavigationOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]); setDualPlayerAvailable(!!ownPlayer);
     setPlayerSession(null); setProfile(p.data); setSession(current);
   }
   useEffect(()=>{
