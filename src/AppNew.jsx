@@ -126,7 +126,7 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
 
 function StatusButtons({ value, onChange, disabled = false }) { return <div className="status-picker">{Object.entries(STATUS).map(([k, v]) => <button disabled={disabled} type="button" key={k} className={`status ${k} ${value === k ? "active" : ""}`} onClick={() => onChange(k)}><b>{v[0]}</b><span>{v[1]}</span></button>)}</div>; }
 
-function Attendance({ profile, players, categories, permissions, refresh }) {
+function Attendance({ profile, players, categories, permissions, refresh, restrictCategoryIds = null }) {
   const editable = useMemo(() => categories.filter(c => can(profile, c, permissions, true)), [categories, profile, permissions]);
   const [date, setDate] = useState(today()); const [categoryId, setCategoryId] = useState(""); const [type, setType] = useState("training"); const [open, setOpen] = useState(true);
   const [att, setAtt] = useState({}); const [details, setDetails] = useState({ opponent: "", location: "", start: today(), end: today(), dates: [today()] }); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
@@ -228,7 +228,8 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
         ]);
         if (cancelled) return;
         if (rosterResult.error) throw rosterResult.error;
-        const roster = Array.isArray(rosterResult.data) ? rosterResult.data : [];
+        const rawRoster = Array.isArray(rosterResult.data) ? rosterResult.data : [];
+        const roster = Array.isArray(restrictCategoryIds) ? rawRoster.filter(row=>restrictCategoryIds.includes(row.category_id)) : rawRoster;
         setAttendanceRoster(roster);
         const loadedGuestIds = [...new Set(loaded.rows.map(row => {
           const player = roster.find(item => item.id === row.player_id);
@@ -246,7 +247,7 @@ function Attendance({ profile, players, categories, permissions, refresh }) {
     }
     load();
     return ()=>{cancelled=true;};
-  },[date,categoryId,type,reloadCounter,permissions]);
+  },[date,categoryId,type,reloadCounter,permissions,Array.isArray(restrictCategoryIds)?restrictCategoryIds.join("|"):""]);
   function reportConflict() {
     draftRef.current=true;setDirty(true);setConflict(true);setMsg(CONFLICT_MESSAGE);
   }
@@ -1115,17 +1116,17 @@ function Permissions({profile,categories}) {
     {!selected?<div className="card empty permission-empty">Seleccione Profe Para Configurar Sus Permisos.</div>:<div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>}
   </section>;
 }
-function RequestsPage({ profile }) {
+function RequestsPage({ profile, allowedCategoryIds = null }) {
   const [players,setPlayers]=useState([]),[professors,setProfessors]=useState([]),[loading,setLoading]=useState(true),[msg,setMsg]=useState(""),[busy,setBusy]=useState("");
   const load=async(show=true)=>{if(show)setLoading(true);try{const r=await supabase.rpc("get_registration_requests");if(r.error)throw r.error;setPlayers(Array.isArray(r.data?.players)?r.data.players:[]);setProfessors(Array.isArray(r.data?.professors)?r.data.professors:[]);}catch(e){setMsg(errorText(e));}finally{if(show)setLoading(false);}};
   useEffect(()=>{let stopped=false,timer=null;void load(true);const sync=()=>{if(stopped)return;clearTimeout(timer);timer=setTimeout(()=>{if(!stopped)void load(false)},120)};const channel=supabase.channel(`requests-page:${profile.id}`).on("postgres_changes",{event:"*",schema:"public",table:"players"},sync).on("postgres_changes",{event:"*",schema:"public",table:"profiles"},sync).subscribe();return()=>{stopped=true;clearTimeout(timer);void supabase.removeChannel(channel);};},[profile.id]);
   async function review(kind,id,decision){setBusy(`${kind}:${id}`);setMsg("");try{const r=await supabase.rpc("review_registration_with_reason",{p_target_id:id,p_kind:kind,p_decision:decision,p_reason:null});if(r.error)throw r.error;if(!r.data?.ok)throw new Error(r.data?.message||"No Se Pudo Resolver La Solicitud.");setMsg(decision==="approved"?"✓ Solicitud Aprobada.":"✓ Solicitud Rechazada.");await load(false);}catch(e){setMsg(errorText(e));}finally{setBusy("");}}
-  const pendingPlayers=players.filter(x=>x.approval_status==="pending"), pendingProfessors=professors.filter(x=>x.approval_status==="pending");
+  const pendingPlayers=players.filter(x=>x.approval_status==="pending"&&(!Array.isArray(allowedCategoryIds)||allowedCategoryIds.includes(x.category_id))), pendingProfessors=professors.filter(x=>x.approval_status==="pending");
   const card=(kind,item)=><article className="registration-request-card" key={`${kind}:${item.id}`}><div className="registration-request-info"><strong>{item.full_name||"Sin Nombre"}</strong><span>{kind==="player"?`${item.sex==="male"?"Masculino":"Femenino"} · ${item.category_name||"Sin Categoría"}`:item.email||"Sin Correo"}</span></div><div className="registration-request-actions"><button className="approve" disabled={!!busy} onClick={()=>review(kind,item.id,"approved")}>✓ Aprobar</button><button className="reject" disabled={!!busy} onClick={()=>review(kind,item.id,"rejected")}>✕ Rechazar</button></div></article>;
   return <section className="registration-approval-page"><header className="registration-approval-title"><div><h1>Solicitudes</h1><p>Aprobá Las Cuentas Pendientes Sin Recargar La Página.</p></div><button type="button" onClick={()=>load(true)}>↻ Actualizar</button></header>{msg&&<div className="registration-approval-message">{msg}</div>}{loading?<div className="registration-approval-empty">Cargando Solicitudes...</div>:<>{profile.role==="super_admin"&&<section className="registration-approval-section"><div className="registration-approval-section-head"><h2>👨‍🏫 Profes</h2><span>{pendingProfessors.length} Pendiente{pendingProfessors.length===1?"":"s"}</span></div>{pendingProfessors.length?pendingProfessors.map(x=>card("professor",x)):<div className="registration-approval-empty">No Hay Solicitudes De Profes Pendientes.</div>}</section>}<section className="registration-approval-section"><div className="registration-approval-section-head"><h2>🏐 Jugador@s</h2><span>{pendingPlayers.length} Pendiente{pendingPlayers.length===1?"":"s"}</span></div>{pendingPlayers.length?pendingPlayers.map(x=>card("player",x)):<div className="registration-approval-empty">No Hay Solicitudes De Jugador@s Pendientes.</div>}</section></>}</section>;
 }
 
-function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationItems, navigationOrder, onSavedOrder }) {
+function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationItems, navigationOrder, onSavedOrder, readOnly = false }) {
   const labels = navigationItems.map(([,label])=>label);
   const [visibilityDraft,setVisibilityDraft]=useState(disabledTabs),[orderDraft,setOrderDraft]=useState(()=>mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label));
   const [msg,setMsg]=useState(""),[savingVisibility,setSavingVisibility]=useState(false),[savingOrder,setSavingOrder]=useState(false),[dragged,setDragged]=useState("");
@@ -1159,6 +1160,7 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
     setDragged("");
   }
   async function saveOrder(){
+    if(readOnly)return;
     setSavingOrder(true);setMsg("");
     try{
       const normalizedOrder=normalizeOrder(orderDraft);
@@ -1185,7 +1187,7 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
         <span className="solapas-drag-handle" title={fixedTail.includes(label)?"Posición Fija":"Arrastrar"}>{fixedTail.includes(label)?"🔒":"☰"}</span><b>{label}</b>
         <div className="solapas-order-actions"><button type="button" aria-label={`Subir ${label}`} disabled={fixedTail.includes(label)||index===0} onClick={()=>moveLabel(label,-1)}>↑</button><button type="button" aria-label={`Bajar ${label}`} disabled={fixedTail.includes(label)||index===orderDraft.length-1} onClick={()=>moveLabel(label,1)}>↓</button></div>
       </div>)}</div>
-      <button className="primary wide" type="button" disabled={savingOrder} onClick={saveOrder}>{savingOrder?"Guardando...":"Guardar Orden"}</button>
+      <button className="primary wide" type="button" disabled={savingOrder||readOnly} onClick={saveOrder}>{readOnly?"Vista Previa · Sin Guardar":savingOrder?"Guardando...":"Guardar Orden"}</button>
     </div>
     {profile.role==="super_admin"&&<div className="card solapas-page-card"><div className="card-head"><div><h2>Visibilidad Global</h2><span>Definí Qué Secciones Pueden Ver Los Profes y Jugador@s.</span></div></div><div className="solapas-page-grid">{visibilityOptions.map(label=><label className="solapas-option" key={label}><input type="checkbox" checked={!visibilityDraft.includes(label)} onChange={e=>setVisibilityDraft(cur=>e.target.checked?cur.filter(x=>x!==label):[...cur,label])}/><span>{label}</span></label>)}</div><button className="primary wide" type="button" disabled={savingVisibility} onClick={saveVisibility}>{savingVisibility?"Guardando...":"Guardar Visibilidad"}</button></div>}
     {msg&&<div className="message">{msg}</div>}
