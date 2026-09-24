@@ -249,6 +249,7 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
     cell("A6", "Apellido", 8),
     cell("B6", "Nombre", 8),
     cell("C6", "Categoría", 8),
+    cell("D6", "Pagos", 8),
   ], 30));
 
   let rowNumber = 7;
@@ -258,6 +259,7 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
       cell("A" + rowNumber, player.lastName || "—", styleText),
       cell("B" + rowNumber, player.firstName || "—", styleText),
       cell("C" + rowNumber, player.category || "Sin Categoría", styleText),
+      cell("D" + rowNumber, player.payment || "—", styleText),
     ], 22));
     rowNumber++;
   });
@@ -266,23 +268,24 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
   rows.push(rowXml(totalRow, [
     cell("A" + totalRow, "TOTAL", 13),
     cell("B" + totalRow, "Jugador@s Incluidos", 13),
-    cell("C" + totalRow, playerRows.length, 13, "number"),
+    cell("D" + totalRow, playerRows.length, 13, "number"),
   ], 24));
 
-  const mergeRefs = ["A1:C1", "A2:C2", "B3:C3", "B4:C4"];
+  const mergeRefs = ["A1:D1", "A2:D2", "B3:D3", "B4:D4"];
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <dimension ref="A1:C${totalRow}"/>
+  <dimension ref="A1:D${totalRow}"/>
   <sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
   <sheetFormatPr defaultRowHeight="18"/>
   <cols>
     <col min="1" max="1" width="26" customWidth="1"/>
     <col min="2" max="2" width="24" customWidth="1"/>
     <col min="3" max="3" width="22" customWidth="1"/>
+    <col min="4" max="4" width="20" customWidth="1"/>
   </cols>
   <sheetData>${rows.join("")}</sheetData>
   <mergeCells count="${mergeRefs.length}">${mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("")}</mergeCells>
-  <autoFilter ref="A6:C${Math.max(6, rowNumber - 1)}"/>
+  <autoFilter ref="A6:D${Math.max(6, rowNumber - 1)}"/>
   <pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
   <pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>
 </worksheet>`;
@@ -321,6 +324,7 @@ function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, play
     cell("A5", "Apellido", 8),
     cell("B5", "Nombre", 8),
     cell("C5", "Categoría", 8),
+    cell("D5", "Pagos", 8),
   ], 30));
 
   let rowNumber = 6;
@@ -330,6 +334,7 @@ function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, play
       cell("A" + rowNumber, player.lastName || "—", styleText),
       cell("B" + rowNumber, player.firstName || "—", styleText),
       cell("C" + rowNumber, player.category || categoryLabel || "—", styleText),
+      cell("D" + rowNumber, player.payment || "—", styleText),
     ], 22));
     rowNumber++;
   });
@@ -338,19 +343,19 @@ function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, play
   rows.push(rowXml(totalRow, [
     cell("A" + totalRow, "TOTAL", 13),
     cell("B" + totalRow, "Jugador@s Incluidos", 13),
-    cell("C" + totalRow, playerRows.length, 13, "number"),
+    cell("D" + totalRow, playerRows.length, 13, "number"),
   ], 24));
 
-  const mergeRefs = ["A1:C1", "A2:C2", "B3:C3"];
+  const mergeRefs = ["A1:D1", "A2:D2", "B3:D3"];
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<dimension ref="A1:C' + totalRow + '"/>' +
+    '<dimension ref="A1:D' + totalRow + '"/>' +
     '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
     '<sheetFormatPr defaultRowHeight="18"/>' +
-    '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/></cols>' +
+    '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/><col min="4" max="4" width="20" customWidth="1"/></cols>' +
     '<sheetData>' + rows.join("") + '</sheetData>' +
     '<mergeCells count="' + mergeRefs.length + '">' + mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("") + '</mergeCells>' +
-    '<autoFilter ref="A5:C' + Math.max(5, rowNumber - 1) + '"/>' +
+    '<autoFilter ref="A5:D' + Math.max(5, rowNumber - 1) + '"/>' +
     '<pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>' +
     '<pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>' +
     '</worksheet>';
@@ -367,15 +372,15 @@ export function exportCategoryWorkbook({
   categoryRows,
   playerRows = [],
   categorySheets = [],
+  includePlayerDetails = true,
   unassignedCount = 0,
   filename,
 }) {
   const created = new Date().toISOString();
   resetSharedStrings();
   const sheetXml = buildSheetXml({ appName, title, exportDate, selectionText, total, female, male, categoryRows, unassignedCount });
-  const playerSheetXml = buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, playerRows });
-  const categorySheetNames = uniqueSheetNames(categorySheets.map(sheet => sheet.sheetName || sheet.categoryLabel || "Categoría"));
-  const categorySheetXmls = categorySheets.map((sheet, index) => ({
+  const categorySheetNames = includePlayerDetails ? uniqueSheetNames(categorySheets.map(sheet => sheet.sheetName || sheet.categoryLabel || "Categoría")) : [];
+  const categorySheetXmls = includePlayerDetails ? categorySheets.map((sheet, index) => ({
     name: categorySheetNames[index],
     xml: buildCategoryPlayersSheetXml({
       appName,
@@ -383,13 +388,13 @@ export function exportCategoryWorkbook({
       categoryLabel: sheet.categoryLabel || categorySheetNames[index],
       playerRows: sheet.playerRows || [],
     }),
-  }));
+  })) : [];
+  const sheets = [{ name: "Resumen", xml: sheetXml }];
+  if (includePlayerDetails) {
+    sheets.push({ name: "Jugador@s", xml: buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, playerRows }) });
+    sheets.push(...categorySheetXmls);
+  }
   const stringsXml = sharedStringsXml();
-  const sheets = [
-    { name: "Resumen", xml: sheetXml },
-    { name: "Jugador@s", xml: playerSheetXml },
-    ...categorySheetXmls,
-  ];
   const sheetOverrides = sheets.map((_, index) => '<Override PartName="/xl/worksheets/sheet' + (index + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("");
   const workbookSheets = sheets.map((sheet, index) => '<sheet name="' + xmlEscape(sheet.name) + '" sheetId="' + (index + 1) + '" r:id="rId' + (index + 1) + '"/>').join("");
   const sheetRelationships = sheets.map((_, index) => '<Relationship Id="rId' + (index + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (index + 1) + '.xml"/>').join("");
