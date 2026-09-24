@@ -66,7 +66,7 @@ export async function prepareTrainingLibraryFile(file){
 
   if(file.size>MAX_LIBRARY_FILE_BYTES)throw new Error("El Archivo Supera El Máximo De 12 MB.");
   const ext=String(file.name||"").split(".").pop()?.toLowerCase()||"";
-  const type=file.type||MIME_BY_EXTENSION[ext]||"";
+  const type=(!file.type||file.type==="application/octet-stream")?(MIME_BY_EXTENSION[ext]||""):file.type;
   if(!type)throw new Error("Ese Tipo De Archivo No Es Compatible.");
   return new File([file],file.name,{type,lastModified:file.lastModified||Date.now()});
 }
