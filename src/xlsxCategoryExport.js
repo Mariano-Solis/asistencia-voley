@@ -248,12 +248,7 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
   rows.push(rowXml(6, [
     cell("A6", "Apellido", 8),
     cell("B6", "Nombre", 8),
-    cell("C6", "DNI", 8),
-    cell("D6", "Rama", 8),
-    cell("E6", "Categoría", 8),
-    cell("F6", "Equipo", 8),
-    cell("G6", "Código De Acceso", 8),
-    cell("H6", "Fecha De Creación De Cuenta", 8),
+    cell("C6", "Categoría", 8),
   ], 30));
 
   let rowNumber = 7;
@@ -262,12 +257,7 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
     rows.push(rowXml(rowNumber, [
       cell("A" + rowNumber, player.lastName || "—", styleText),
       cell("B" + rowNumber, player.firstName || "—", styleText),
-      cell("C" + rowNumber, player.dni || "—", styleText),
-      cell("D" + rowNumber, player.branch || "—", styleText),
-      cell("E" + rowNumber, player.category || "Sin Categoría", styleText),
-      cell("F" + rowNumber, player.team || "Sin Asignar", styleText),
-      cell("G" + rowNumber, player.accessCode || "—", styleText),
-      cell("H" + rowNumber, player.createdAt || "—", styleText),
+      cell("C" + rowNumber, player.category || "Sin Categoría", styleText),
     ], 22));
     rowNumber++;
   });
@@ -276,30 +266,25 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
   rows.push(rowXml(totalRow, [
     cell("A" + totalRow, "TOTAL", 13),
     cell("B" + totalRow, "Jugador@s Incluidos", 13),
-    cell("H" + totalRow, playerRows.length, 13, "number"),
+    cell("C" + totalRow, playerRows.length, 13, "number"),
   ], 24));
 
-  const mergeRefs = ["A1:H1", "A2:H2", "B3:H3", "B4:H4"];
+  const mergeRefs = ["A1:C1", "A2:C2", "B3:C3", "B4:C4"];
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <dimension ref="A1:H${totalRow}"/>
+  <dimension ref="A1:C${totalRow}"/>
   <sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
   <sheetFormatPr defaultRowHeight="18"/>
   <cols>
-    <col min="1" max="1" width="24" customWidth="1"/>
+    <col min="1" max="1" width="26" customWidth="1"/>
     <col min="2" max="2" width="24" customWidth="1"/>
-    <col min="3" max="3" width="16" customWidth="1"/>
-    <col min="4" max="4" width="14" customWidth="1"/>
-    <col min="5" max="5" width="20" customWidth="1"/>
-    <col min="6" max="6" width="16" customWidth="1"/>
-    <col min="7" max="7" width="20" customWidth="1"/>
-    <col min="8" max="8" width="25" customWidth="1"/>
+    <col min="3" max="3" width="22" customWidth="1"/>
   </cols>
   <sheetData>${rows.join("")}</sheetData>
   <mergeCells count="${mergeRefs.length}">${mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("")}</mergeCells>
-  <autoFilter ref="A6:H${Math.max(6, rowNumber - 1)}"/>
+  <autoFilter ref="A6:C${Math.max(6, rowNumber - 1)}"/>
   <pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
-  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+  <pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>
 </worksheet>`;
 }
 
@@ -335,9 +320,7 @@ function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, play
   rows.push(rowXml(5, [
     cell("A5", "Apellido", 8),
     cell("B5", "Nombre", 8),
-    cell("C5", "Código Personal", 8),
-    cell("D5", "Categoría", 8),
-    cell("E5", "Fecha De Creación De Cuenta", 8),
+    cell("C5", "Categoría", 8),
   ], 30));
 
   let rowNumber = 6;
@@ -346,9 +329,7 @@ function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, play
     rows.push(rowXml(rowNumber, [
       cell("A" + rowNumber, player.lastName || "—", styleText),
       cell("B" + rowNumber, player.firstName || "—", styleText),
-      cell("C" + rowNumber, player.accessCode || "—", styleText),
-      cell("D" + rowNumber, player.category || categoryLabel || "—", styleText),
-      cell("E" + rowNumber, player.createdAt || "—", styleText),
+      cell("C" + rowNumber, player.category || categoryLabel || "—", styleText),
     ], 22));
     rowNumber++;
   });
@@ -357,21 +338,21 @@ function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, play
   rows.push(rowXml(totalRow, [
     cell("A" + totalRow, "TOTAL", 13),
     cell("B" + totalRow, "Jugador@s Incluidos", 13),
-    cell("E" + totalRow, playerRows.length, 13, "number"),
+    cell("C" + totalRow, playerRows.length, 13, "number"),
   ], 24));
 
-  const mergeRefs = ["A1:E1", "A2:E2", "B3:E3"];
+  const mergeRefs = ["A1:C1", "A2:C2", "B3:C3"];
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<dimension ref="A1:E' + totalRow + '"/>' +
+    '<dimension ref="A1:C' + totalRow + '"/>' +
     '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
     '<sheetFormatPr defaultRowHeight="18"/>' +
-    '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="20" customWidth="1"/><col min="4" max="4" width="22" customWidth="1"/><col min="5" max="5" width="26" customWidth="1"/></cols>' +
+    '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/></cols>' +
     '<sheetData>' + rows.join("") + '</sheetData>' +
     '<mergeCells count="' + mergeRefs.length + '">' + mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("") + '</mergeCells>' +
-    '<autoFilter ref="A5:E' + Math.max(5, rowNumber - 1) + '"/>' +
+    '<autoFilter ref="A5:C' + Math.max(5, rowNumber - 1) + '"/>' +
     '<pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>' +
-    '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+    '<pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>' +
     '</worksheet>';
 }
 
