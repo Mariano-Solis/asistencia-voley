@@ -155,3 +155,61 @@
   line-height:1.45;
   text-align:center;
 }
+
+
+/* =========================================================
+   FIX MOBILE · ICONOS JUGADOR / PROFE DENTRO DEL BOTÓN
+========================================================= */
+.professor-preview-nav::after,
+.player-profile-nav::after{
+  display:none!important;
+}
+
+@media(max-width:760px){
+  .app>nav .player-profile-nav,
+  .app>nav .professor-preview-nav{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:4px!important;
+    min-height:66px!important;
+    padding:7px 12px!important;
+    line-height:1.05!important;
+  }
+
+  .app>nav .player-profile-nav .nav-role-preview-icon,
+  .app>nav .professor-preview-nav .nav-role-preview-icon{
+    width:38px;
+    height:38px;
+    display:grid!important;
+    place-items:center!important;
+    margin:0!important;
+    border-radius:12px;
+    background:#f3f4f6;
+    font-size:20px!important;
+    line-height:1!important;
+    flex:0 0 38px;
+  }
+
+  .app>nav .player-profile-nav,
+  .app>nav .professor-preview-nav{
+    text-align:center!important;
+  }
+}
+
+@media(max-width:380px){
+  .app>nav .player-profile-nav,
+  .app>nav .professor-preview-nav{
+    min-height:62px!important;
+    padding:6px 10px!important;
+  }
+
+  .app>nav .player-profile-nav .nav-role-preview-icon,
+  .app>nav .professor-preview-nav .nav-role-preview-icon{
+    width:34px;
+    height:34px;
+    flex-basis:34px;
+    font-size:18px!important;
+  }
+}
