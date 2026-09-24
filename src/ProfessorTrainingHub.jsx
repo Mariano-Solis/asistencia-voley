@@ -22,7 +22,7 @@ function safeExternalUrl(value){
   }
 }
 
-export default function ProfessorTrainingHub({ profile }) {
+export default function ProfessorTrainingHub({ profile, simulationMode = false }) {
   const [items,setItems]=useState([]);
   const [signedUrls,setSignedUrls]=useState({});
   const [loading,setLoading]=useState(true);
@@ -50,7 +50,8 @@ export default function ProfessorTrainingHub({ profile }) {
       return;
     }
 
-    const next=r.data||[];
+    const raw=r.data||[];
+    const next=simulationMode ? raw.filter(item=>item.owner_id===profile?.id||item.visibility==="shared") : raw;
     setItems(next);
     const fileItems=next.filter(item=>item.item_type==="file"&&item.storage_path);
     const pairs=await Promise.all(fileItems.map(async item=>{
@@ -61,7 +62,7 @@ export default function ProfessorTrainingHub({ profile }) {
     setLoading(false);
   }
 
-  useEffect(()=>{void load();},[]);
+  useEffect(()=>{void load();},[profile?.id,simulationMode]);
 
   useEffect(()=>{
     if(!preview)return;
@@ -195,7 +196,7 @@ export default function ProfessorTrainingHub({ profile }) {
           <span>{countLabel}</span>
         </div>
 
-        <button
+        {!simulationMode&&<button
           type="button"
           className="training-library-add-toggle"
           aria-expanded={showAdd}
@@ -203,9 +204,11 @@ export default function ProfessorTrainingHub({ profile }) {
         >
           <span><b>+ Agregar Material</b><small>{showAdd?"Ocultar Carga":"Subir Archivo O Guardar Link"}</small></span>
           <strong>{showAdd?"⌃":"⌄"}</strong>
-        </button>
+        </button>}
 
-        {showAdd&&<form className="training-library-form" onSubmit={addMaterial}>
+        {simulationMode&&<div className="training-library-simulation-note">Vista Profe · La Carga De Material Está Bloqueada En La Simulación.</div>}
+
+        {!simulationMode&&showAdd&&<form className="training-library-form" onSubmit={addMaterial}>
           <div className="training-library-mode">
             <button type="button" className={mode==="file"?"active":""} onClick={()=>setMode("file")}>📎 Archivo</button>
             <button type="button" className={mode==="link"?"active":""} onClick={()=>setMode("link")}>🔗 Link</button>
