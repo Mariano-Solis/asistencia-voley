@@ -1206,6 +1206,165 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
 }
 function PlayerSelfEdit({player,onClose,onSaved}) { const [data,setData]=useState({first:player.first_name||"",last:player.last_name||"",dni:player.dni||"",birth:player.birth_date||"",sex:player.sex||"female",file:null}); const [saving,setSaving]=useState(false); const fileRef=useRef(null); async function save(e){e.preventDefault();setSaving(true);try{const r=await supabase.from("players").update({first_name:data.first,last_name:data.last,full_name:`${data.last.toUpperCase()} ${data.first}`,dni:data.dni,birth_date:data.birth,sex:data.sex}).eq("id",player.id).select().single();if(r.error)throw r.error;let updated=r.data;if(data.file){const path=`${player.user_id}/${Date.now()}-${data.file.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;const up=await supabase.storage.from("player-selfies").upload(path,data.file,{upsert:true,contentType:data.file.type||"image/jpeg"});if(up.error)throw up.error;const ur=await supabase.from("players").update({selfie_path:path}).eq("id",player.id).select().single();if(ur.error)throw ur.error;updated=ur.data;}onSaved(updated);}catch(e){alert(errorText(e));}finally{setSaving(false)}} return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Mi Perfil</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={save}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 {data.file?"Cambiar Selfie":"Subir Selfie"}</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>{saving?"Guardando...":"Guardar Cambios"}</button></div></form></div></div>; }
 
+
+function ProfessorPreviewDashboard({ allPlayers, allCategories, disabledTabs, onBackAdmin, onLogout }) {
+  const [professors,setProfessors]=useState([]);
+  const [selectedId,setSelectedId]=useState("");
+  const [previewProfile,setPreviewProfile]=useState(null);
+  const [previewPermissions,setPreviewPermissions]=useState({});
+  const [previewOrder,setPreviewOrder]=useState([]);
+  const [tab,setTab]=useState("home");
+  const [loading,setLoading]=useState(true);
+  const [refreshing,setRefreshing]=useState(false);
+  const [version,setVersion]=useState(0);
+  const [pendingCount,setPendingCount]=useState(0);
+
+  useEffect(()=>{
+    let cancelled=false;
+    async function loadProfessors(){
+      const r=await supabase.from("profiles")
+        .select("id,full_name,role,active,approval_status,can_approve_payments")
+        .eq("role","admin")
+        .eq("active",true)
+        .eq("approval_status","approved")
+        .order("full_name");
+      if(cancelled)return;
+      const list=r.data||[];
+      setProfessors(list);
+      const stored=localStorage.getItem("voley-professor-preview-id")||"";
+      if(stored&&list.some(item=>item.id===stored))setSelectedId(stored);
+      setLoading(false);
+    }
+    void loadProfessors();
+    return()=>{cancelled=true;};
+  },[]);
+
+  async function loadProfessorContext(id){
+    if(!id){setPreviewProfile(null);setPreviewPermissions({});setPreviewOrder([]);return;}
+    const selected=professors.find(item=>item.id===id);
+    if(!selected)return;
+    const [pe,pref]=await Promise.all([
+      supabase.from("admin_category_permissions")
+        .select("category_id,can_view,can_edit,can_attendance")
+        .eq("admin_id",id),
+      supabase.from("user_ui_preferences")
+        .select("navigation_order")
+        .eq("user_id",id)
+        .maybeSingle()
+    ]);
+    const map=Object.fromEntries((pe.data||[]).map(row=>[row.category_id,row]));
+    setPreviewProfile(selected);
+    setPreviewPermissions(map);
+    setPreviewOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]);
+  }
+
+  useEffect(()=>{
+    let cancelled=false;
+    if(!selectedId){setPreviewProfile(null);setPreviewPermissions({});return;}
+    localStorage.setItem("voley-professor-preview-id",selectedId);
+    setLoading(true);
+    loadProfessorContext(selectedId).finally(()=>{if(!cancelled)setLoading(false);});
+    return()=>{cancelled=true;};
+  },[selectedId,professors]);
+
+  const visibleCategories=useMemo(
+    ()=>previewProfile?allCategories.filter(category=>can(previewProfile,category,previewPermissions)):[],
+    [allCategories,previewProfile,previewPermissions]
+  );
+  const editableCategoryIds=useMemo(
+    ()=>previewProfile?allCategories.filter(category=>can(previewProfile,category,previewPermissions,true)).map(category=>category.id):[],
+    [allCategories,previewProfile,previewPermissions]
+  );
+  const restrictCategoryIds=useMemo(()=>visibleCategories.map(category=>category.id),[visibleCategories]);
+
+  useEffect(()=>{
+    if(!previewProfile){setPendingCount(0);return undefined;}
+    let stopped=false,timer=null;
+    const loadCount=async()=>{
+      const r=await supabase.rpc("get_registration_requests");
+      if(stopped||r.error)return;
+      const rows=Array.isArray(r.data?.players)?r.data.players:[];
+      setPendingCount(rows.filter(item=>item.approval_status==="pending"&&editableCategoryIds.includes(item.category_id)).length);
+    };
+    const sync=()=>{
+      if(stopped)return;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{if(!stopped)void loadCount();},120);
+    };
+    void loadCount();
+    const channel=supabase.channel("professor-preview-requests:"+previewProfile.id)
+      .on("postgres_changes",{event:"*",schema:"public",table:"players"},sync)
+      .subscribe();
+    return()=>{stopped=true;clearTimeout(timer);void supabase.removeChannel(channel);};
+  },[previewProfile?.id,editableCategoryIds.join("|")]);
+
+  async function refreshPreview(){
+    if(refreshing||!selectedId)return;
+    setRefreshing(true);
+    try{
+      await loadProfessorContext(selectedId);
+      setVersion(value=>value+1);
+    }finally{
+      setRefreshing(false);
+    }
+  }
+
+  if(loading&&!professors.length) return <main className="loading-screen"><Brand/>Cargando Vista Profe...</main>;
+
+  if(!selectedId||!previewProfile){
+    return <main className="app professor-preview-app">
+      <header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">Vista Profe</span><button className="topbar-exit" onClick={onLogout}>Salir</button></div></header>
+      <div className="professor-preview-admin-bar"><button type="button" onClick={onBackAdmin}>← Administración</button><span>👨‍🏫 Vista Profe</span></div>
+      <div className="content"><div className="watermark"/><div className="content-inner">
+        <section className="professor-preview-picker">
+          <PageTitle title="Profe" text="Elegí Un Profe Para Ver La Aplicación Con Sus Permisos Reales."/>
+          <div className="card professor-preview-picker-card">
+            <label>Profe
+              <select value={selectedId} onChange={event=>setSelectedId(event.target.value)}>
+                <option value="">Seleccioná Un Profe</option>
+                {professors.map(item=><option key={item.id} value={item.id}>{item.full_name}</option>)}
+              </select>
+            </label>
+            <p>Tu Cuenta Sigue Siendo Super Administrador. Esta Vista Sólo Limita La Interfaz A Los Permisos Del Profe Elegido.</p>
+          </div>
+        </section>
+      </div></div>
+      <footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer>
+    </main>;
+  }
+
+  const nav=[["home","Asistencia"],["players","Jugador@s"],["history","Historial"],["schedule","Horarios"],["payments","Pagos"],["requests","Solicitudes"],["training","Entrenamiento"],["settings","Solapas"]];
+  const allowedNav=nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
+  const visibleNav=mergeNavigationOrder(allowedNav,previewOrder);
+
+  return <main className="app professor-preview-app">
+    <header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{previewProfile.full_name||"Profe"}</span><button className="topbar-exit" onClick={onLogout}>Salir</button></div></header>
+    <div className="professor-preview-admin-bar">
+      <button type="button" onClick={onBackAdmin}>← Administración</button>
+      <span>👨‍🏫 Vista Profe · {previewProfile.full_name}</span>
+      <button type="button" className="professor-preview-change" onClick={()=>{setSelectedId("");setTab("home");}}>Cambiar Profe</button>
+    </div>
+    <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
+    <div className="content"><div className="watermark"/><div className="content-inner">
+      {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
+        <button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPreview}>
+          <span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>
+          {refreshing?"Actualizando...":"Actualizar"}
+        </button>
+      </div>}
+      {tab==="home"&&<Attendance key={"preview-home:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview} restrictCategoryIds={restrictCategoryIds}/>}
+      {tab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
+      {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
+      {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
+      {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
+      {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
+      {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
+      {tab==="settings"&&<SolapasSettings profile={previewProfile} disabledTabs={disabledTabs} onSavedVisibility={()=>{}} navigationItems={allowedNav} navigationOrder={previewOrder} onSavedOrder={setPreviewOrder} readOnly/>}
+    </div></div>
+    <footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer>
+  </main>;
+}
+
 function App() {
   const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[playerSession,setPlayerSession]=useState(readStoredPlayer),[players,setPlayers]=useState([]),[categories,setCategories]=useState([]),[permissions,setPermissions]=useState({}),[tab,setTab]=useState("home");
   const [disabledTabs,setDisabledTabs]=useState([]),[navigationOrder,setNavigationOrder]=useState([]);
