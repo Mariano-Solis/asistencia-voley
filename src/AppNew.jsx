@@ -1108,7 +1108,7 @@ function Categories({profile,categories,refresh}) {
 }
 function Permissions({profile,categories}) {
   const [admins,setAdmins]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({});
-  useEffect(()=>{async function load(){const a=await supabase.from("profiles").select("id,full_name").eq("role","admin").order("full_name");setAdmins(a.data||[]);const p=await supabase.from("admin_category_permissions").select("*");setPerms(Object.fromEntries((p.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])))}void load();},[]);
+  useEffect(()=>{async function load(){const a=await supabase.from("profiles").select("id,full_name").eq("role","admin").order("full_name");setAdmins([{id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,preview_self:true},...(a.data||[])]);const p=await supabase.from("admin_category_permissions").select("*");setPerms(Object.fromEntries((p.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])))}void load();},[profile.id,profile.full_name]);
   if(profile.role!=="super_admin")return null;
   async function setP(c,field,value){if(!selected)return;const key=`${selected}:${c.id}`,cur=perms[key]||{can_view:false,can_edit:false,can_attendance:false},next={...cur,[field]:value};if(next.can_edit)next.can_view=true;const r=!next.can_view&&!next.can_edit&&!next.can_attendance?await supabase.from("admin_category_permissions").delete().eq("admin_id",selected).eq("category_id",c.id):await supabase.from("admin_category_permissions").upsert({admin_id:selected,category_id:c.id,can_view:next.can_view,can_edit:next.can_edit,can_attendance:next.can_attendance},{onConflict:"admin_id,category_id"});if(!r.error)setPerms(p=>({...p,[key]:next}));}
   return <section><PageTitle title="Permisos" text="Definí Qué Categorías Puede Ver, Editar O Usar Sólo Para Asistencia Cada Profe."/>
@@ -1207,7 +1207,7 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
 function PlayerSelfEdit({player,onClose,onSaved}) { const [data,setData]=useState({first:player.first_name||"",last:player.last_name||"",dni:player.dni||"",birth:player.birth_date||"",sex:player.sex||"female",file:null}); const [saving,setSaving]=useState(false); const fileRef=useRef(null); async function save(e){e.preventDefault();setSaving(true);try{const r=await supabase.from("players").update({first_name:data.first,last_name:data.last,full_name:`${data.last.toUpperCase()} ${data.first}`,dni:data.dni,birth_date:data.birth,sex:data.sex}).eq("id",player.id).select().single();if(r.error)throw r.error;let updated=r.data;if(data.file){const path=`${player.user_id}/${Date.now()}-${data.file.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;const up=await supabase.storage.from("player-selfies").upload(path,data.file,{upsert:true,contentType:data.file.type||"image/jpeg"});if(up.error)throw up.error;const ur=await supabase.from("players").update({selfie_path:path}).eq("id",player.id).select().single();if(ur.error)throw ur.error;updated=ur.data;}onSaved(updated);}catch(e){alert(errorText(e));}finally{setSaving(false)}} return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Mi Perfil</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={save}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 {data.file?"Cambiar Selfie":"Subir Selfie"}</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>{saving?"Guardando...":"Guardar Cambios"}</button></div></form></div></div>; }
 
 
-function ProfessorPreviewDashboard({ allPlayers, allCategories, disabledTabs, onBackAdmin, onLogout }) {
+function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategories, disabledTabs, onBackAdmin, onLogout }) {
   const [professors,setProfessors]=useState([]);
   const [selectedId,setSelectedId]=useState("");
   const [previewProfile,setPreviewProfile]=useState(null);
@@ -1229,10 +1229,14 @@ function ProfessorPreviewDashboard({ allPlayers, allCategories, disabledTabs, on
         .eq("approval_status","approved")
         .order("full_name");
       if(cancelled)return;
-      const list=r.data||[];
+      const ownProfessor=superAdminProfile
+        ? {...superAdminProfile,role:"admin",preview_self:true,full_name:superAdminProfile.full_name||"Mi Perfil Profe"}
+        : null;
+      const list=[...(ownProfessor?[ownProfessor]:[]),...(r.data||[])];
       setProfessors(list);
       const stored=localStorage.getItem("voley-professor-preview-id")||"";
       if(stored&&list.some(item=>item.id===stored))setSelectedId(stored);
+      else if(ownProfessor)setSelectedId(ownProfessor.id);
       setLoading(false);
     }
     void loadProfessors();
@@ -1322,7 +1326,7 @@ function ProfessorPreviewDashboard({ allPlayers, allCategories, disabledTabs, on
             <label>Profe
               <select value={selectedId} onChange={event=>setSelectedId(event.target.value)}>
                 <option value="">Seleccioná Un Profe</option>
-                {professors.map(item=><option key={item.id} value={item.id}>{item.full_name}</option>)}
+                {professors.map(item=><option key={item.id} value={item.id}>{item.preview_self?`${item.full_name} · Mi Perfil Profe`:item.full_name}</option>)}
               </select>
             </label>
             <p>Tu Cuenta Sigue Siendo Super Administrador. Esta Vista Sólo Limita La Interfaz A Los Permisos Del Profe Elegido.</p>
@@ -1346,6 +1350,7 @@ function ProfessorPreviewDashboard({ allPlayers, allCategories, disabledTabs, on
     </div>
     <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
     <div className="content"><div className="watermark"/><div className="content-inner">
+      {previewProfile.preview_self&&restrictCategoryIds.length===0&&<div className="professor-preview-no-permissions">Tu Perfil Profe Todavía No Tiene Categorías Asignadas. Volvé A Administración → Permisos y Configurá Las Categorías Que Querés Tener Como Profe.</div>}
       {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
         <button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPreview}>
           <span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>
@@ -1562,7 +1567,7 @@ function App() {
     }
     setPlayerSession(current);
   }
-  if (professorPreviewMode&&profile?.role==="super_admin"&&isAuthSession(session)) return <ProfessorPreviewDashboard allPlayers={players} allCategories={categories} disabledTabs={disabledTabs} onLogout={logout} onBackAdmin={()=>setProfessorPreviewMode(false)}/>;
+  if (professorPreviewMode&&profile?.role==="super_admin"&&isAuthSession(session)) return <ProfessorPreviewDashboard superAdminProfile={profile} allPlayers={players} allCategories={categories} disabledTabs={disabledTabs} onLogout={logout} onBackAdmin={()=>setProfessorPreviewMode(false)}/>;
   if (dualPlayerMode&&isAuthSession(session)) return <PlayerDashboard session={session} onLogout={logout} onBackAdmin={()=>setDualPlayerMode(false)}/>;
   if ((isAuthSession(playerSession)||isLegacySession(playerSession))&&!session) return <PlayerDashboard session={playerSession} onLogout={logout}/>;
   if(!isAuthSession(session)||!['admin','super_admin'].includes(profile?.role)) return <Login
@@ -1579,7 +1584,7 @@ function App() {
   nav.push(['settings','Solapas']);
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="playerProfile"&&<span className="nav-role-preview-icon" aria-hidden="true">👤</span>}{k==="professorPreview"&&<span className="nav-role-preview-icon" aria-hidden="true">👨‍🏫</span>}{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
     {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
         <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
