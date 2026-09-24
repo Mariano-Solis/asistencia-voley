@@ -290,7 +290,7 @@ function buildAttendanceReportSheetXml({
   playerRows,
   totals,
 }) {
-  const totalColumns = 1 + sessionColumns.length + 3;
+  const totalColumns = Math.max(10, 1 + sessionColumns.length + 3);
   const lastCol = colName(totalColumns - 1);
   const rows = [];
   rows.push(rowXml(1, [cell("A1", appName, 1)], 32));
