@@ -154,6 +154,80 @@
   line-height:1.3;
 }
 
+
+.training-library-visibility{
+  display:grid;
+  gap:7px;
+}
+
+.training-library-visibility-title{
+  color:#686e76;
+  font-size:9.5px;
+  font-weight:850;
+}
+
+.training-library-visibility>div{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+}
+
+.training-library-visibility button{
+  min-height:50px;
+  display:grid;
+  gap:2px;
+  align-content:center;
+  padding:7px 9px;
+  border:1px solid #dfe3e7;
+  border-radius:11px;
+  background:#fff;
+  color:#555b63;
+  text-align:left;
+}
+
+.training-library-visibility button b{
+  font-size:10.5px;
+  font-weight:900;
+}
+
+.training-library-visibility button small{
+  color:#8b9199;
+  font-size:8.2px;
+  font-weight:650;
+  line-height:1.2;
+}
+
+.training-library-visibility button.active{
+  border-color:#dca7ab;
+  background:#fff0f1;
+  color:#a8121b;
+  box-shadow:0 0 0 2px rgba(181,18,27,.05);
+}
+
+.training-material-visibility{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  max-width:100%;
+  margin-top:5px;
+  padding:3px 6px;
+  border-radius:999px;
+  font-size:7.8px;
+  font-style:normal;
+  font-weight:850;
+  line-height:1;
+}
+
+.training-material-visibility.private{
+  background:#f1f2f4;
+  color:#5f656d;
+}
+
+.training-material-visibility.shared{
+  background:#edf8f1;
+  color:#217446;
+}
+
 .training-library-form-actions{
   display:grid;
   grid-template-columns:.55fr 1fr;
@@ -448,6 +522,24 @@
 }
 
 @media(max-width:430px){
+
+  .training-library-visibility>div{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .training-library-visibility button{
+    min-height:46px;
+    padding:6px 7px;
+  }
+
+  .training-library-visibility button b{
+    font-size:9.8px;
+  }
+
+  .training-library-visibility button small{
+    font-size:7.8px;
+  }
+
   .training-library-head h2{
     font-size:18px;
   }
