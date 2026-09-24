@@ -35,6 +35,17 @@ function xmlEscape(value) {
     .replace(/'/g, "&apos;");
 }
 
+function colName(index) {
+  let n = index + 1;
+  let out = "";
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    out = String.fromCharCode(65 + r) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
+}
+
 function cell(ref, value, style = 0, type = "text") {
   if (value === null || value === undefined || value === "") {
     return '<c r="' + ref + '" s="' + style + '"/>';
@@ -267,4 +278,165 @@ export function exportCategoryWorkbook({
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+
+
+function buildAttendanceReportSheetXml({
+  appName,
+  categoryLabel,
+  periodLabel,
+  exportDate,
+  sessionColumns,
+  playerRows,
+  totals,
+}) {
+  const totalColumns = 1 + sessionColumns.length + 3;
+  const lastCol = colName(totalColumns - 1);
+  const rows = [];
+  rows.push(rowXml(1, [cell("A1", appName, 1)], 32));
+  rows.push(rowXml(2, [cell("A2", "Informe De Asistencia", 2)], 24));
+  rows.push(rowXml(3, [cell("A3", "Categoría", 3), cell("B3", categoryLabel, 4)], 22));
+  rows.push(rowXml(4, [cell("A4", "Período", 3), cell("B4", periodLabel, 4)], 22));
+  rows.push(rowXml(5, [cell("A5", "Fecha De Exportación", 3), cell("B5", exportDate, 4)], 22));
+
+  rows.push(rowXml(7, [
+    cell("A7", "Sesiones", 5),
+    cell("B7", sessionColumns.length, 6, "number"),
+    cell("C7", "Jugador@s", 5),
+    cell("D7", playerRows.length, 6, "number"),
+    cell("E7", "Presentes", 5),
+    cell("F7", totals.present, 6, "number"),
+    cell("G7", "Tardanzas", 5),
+    cell("H7", totals.late, 6, "number"),
+    cell("I7", "Ausencias", 5),
+    cell("J7", totals.absent, 6, "number"),
+  ], 28));
+
+  const headerCells = [cell("A9", "Jugador@", 8)];
+  sessionColumns.forEach((session, index) => {
+    headerCells.push(cell(colName(index + 1) + "9", session.label, 8));
+  });
+  const presentCol = colName(1 + sessionColumns.length);
+  const lateCol = colName(2 + sessionColumns.length);
+  const absentCol = colName(3 + sessionColumns.length);
+  headerCells.push(cell(presentCol + "9", "Presentes", 8));
+  headerCells.push(cell(lateCol + "9", "Tardanzas", 8));
+  headerCells.push(cell(absentCol + "9", "Ausencias", 8));
+  rows.push(rowXml(9, headerCells, 30));
+
+  let rowNumber = 10;
+  playerRows.forEach((player, index) => {
+    const styleText = index % 2 === 0 ? 9 : 11;
+    const styleNumber = index % 2 === 0 ? 10 : 12;
+    const rowCells = [cell("A" + rowNumber, player.name, styleText)];
+    player.statuses.forEach((status, statusIndex) => {
+      rowCells.push(cell(colName(statusIndex + 1) + rowNumber, status, styleNumber));
+    });
+    rowCells.push(cell(presentCol + rowNumber, player.present, styleNumber, "number"));
+    rowCells.push(cell(lateCol + rowNumber, player.late, styleNumber, "number"));
+    rowCells.push(cell(absentCol + rowNumber, player.absent, styleNumber, "number"));
+    rows.push(rowXml(rowNumber, rowCells, 22));
+    rowNumber++;
+  });
+
+  const totalRow = rowNumber + 1;
+  rows.push(rowXml(totalRow, [
+    cell("A" + totalRow, "TOTALES", 13),
+    cell(presentCol + totalRow, totals.present, 13, "number"),
+    cell(lateCol + totalRow, totals.late, 13, "number"),
+    cell(absentCol + totalRow, totals.absent, 13, "number"),
+  ], 24));
+
+  const mergeRefs = [
+    `A1:${lastCol}1`,
+    `A2:${lastCol}2`,
+    `B3:${lastCol}3`,
+    `B4:${lastCol}4`,
+    `B5:${lastCol}5`,
+  ];
+
+  const dateCols = sessionColumns.length
+    ? `<col min="2" max="${1 + sessionColumns.length}" width="16" customWidth="1"/>`
+    : "";
+  const summaryStart = 2 + sessionColumns.length;
+  const summaryEnd = 4 + sessionColumns.length;
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:${lastCol}${totalRow}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0" showGridLines="0">
+      <pane xSplit="1" ySplit="9" topLeftCell="B10" activePane="bottomRight" state="frozen"/>
+    </sheetView>
+  </sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="1" width="30" customWidth="1"/>
+    ${dateCols}
+    <col min="${summaryStart}" max="${summaryEnd}" width="12" customWidth="1"/>
+  </cols>
+  <sheetData>${rows.join("")}</sheetData>
+  <mergeCells count="${mergeRefs.length}">${mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("")}</mergeCells>
+  <autoFilter ref="A9:${lastCol}${Math.max(9, rowNumber - 1)}"/>
+  <pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
+  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`;
+}
+
+function downloadXlsx({ title, sheetName, sheetXml, filename }) {
+  const created = new Date().toISOString();
+  const stringsXml = sharedStringsXml();
+  const safeSheetName = String(sheetName || "Informe").slice(0, 31).replace(/[\\/?*\[\]:]/g, " ");
+
+  const files = [
+    { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
+    { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>` },
+    { name: "docProps/app.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>MGSM VOLEY</Application><AppVersion>1.0</AppVersion></Properties>` },
+    { name: "docProps/core.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEscape(title)}</dc:title><dc:creator>Municipalidad De San Martín - VOLEY</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${created}</dcterms:modified></cp:coreProperties>` },
+    { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="16000" windowHeight="9000"/></bookViews><sheets><sheet name="${xmlEscape(safeSheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>` },
+    { name: "xl/styles.xml", data: stylesXml() },
+    { name: "xl/sharedStrings.xml", data: stringsXml },
+    { name: "xl/worksheets/sheet1.xml", data: sheetXml },
+  ];
+
+  const bytes = zipStore(files);
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+
+export function exportAttendanceWorkbook({
+  appName,
+  categoryLabel,
+  periodLabel,
+  exportDate,
+  sessionColumns,
+  playerRows,
+  totals,
+  filename,
+}) {
+  resetSharedStrings();
+  const sheetXml = buildAttendanceReportSheetXml({
+    appName,
+    categoryLabel,
+    periodLabel,
+    exportDate,
+    sessionColumns,
+    playerRows,
+    totals,
+  });
+  downloadXlsx({
+    title: `Informe De Asistencia · ${categoryLabel}`,
+    sheetName: "Asistencia",
+    sheetXml,
+    filename: filename || "informe-asistencia.xlsx",
+  });
 }
