@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { isAuthSession, isLegacySession, readStoredPlayer, removeStoredPlayer, storeLegacyPlayer } from "./sessionSafety";
 import { CONFLICT_MESSAGE, attendanceWriteError, attendanceFingerprint, readAttendance } from "./attendanceSafety";
@@ -654,7 +655,7 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
       </div>
     </article>
 
-    {detailOpen && <div className="modal player-detail-modal" onClick={closeDetail}>
+    {detailOpen && createPortal(<div className="modal player-detail-modal" onClick={closeDetail}>
       <section className="modal-card player-detail-card" onClick={e=>e.stopPropagation()}>
         <div className="modal-head">
           <div><span className="eyebrow">Información Del Jugador@</span><h2>{player.full_name}</h2></div>
@@ -688,7 +689,7 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
           </>}
         </div>
       </section>
-    </div>}
+    </div>, document.body)}
   </>;
 }
 function PlayerEdit({player,categories,onClose,onSave,saving}) { const parts=player.full_name.split(/\s+/); const [data,setData]=useState({first:player.first_name||parts.slice(1).join(" "),last:player.last_name||parts[0]||"",sex:player.sex||"female",dni:player.dni||"",birth:player.birth_date||"",team:player.team||"",category:player.category_id||categories[0]?.id||"",file:null}); const fileRef=useRef(null); return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Modificar Jugador@</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={e=>{e.preventDefault();onSave(player,data)}}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><select value={data.team} onChange={e=>setData(d=>({...d,team:e.target.value}))}><option value="">Sin Asignar</option>{["A","B","C","D","E"].map(x=><option key={x} value={x}>Equipo {x}</option>)}</select><select value={data.category} onChange={e=>setData(d=>({...d,category:e.target.value}))}>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 Cambiar Selfie</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>Guardar</button></div></form></div></div>; }
