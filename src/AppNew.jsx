@@ -463,28 +463,84 @@ function Players({ profile, players, categories, permissions, refresh }) {
     female: list.filter(p => gender(p.sex) === "female").length,
     male: list.filter(p => gender(p.sex) === "male").length,
   };
+  const isAllCategoriesSelected = visible.length > 0 && selectedCategories.length === visible.length && visible.every(category => selectedCategories.includes(category.id));
   const exportPlayers = players.filter(p => {
     const category = categories.find(item => item.id === p.category_id);
     const allowed = category ? can(profile, category, permissions) : profile.role === "super_admin";
     return allowed && (selectedCategories.length === 0 || selectedCategories.includes(p.category_id));
   });
-  function exportCategorySummary() {
-    const includedCategories = selectedCategories.length
+  function paymentPeriodLabel(value) {
+    if (!value) return "—";
+    const date = new Date(`${String(value).slice(0,10)}T12:00:00`);
+    return new Intl.DateTimeFormat("es-AR", {
+      month: "long",
+      year: "numeric",
+      timeZone: "America/Argentina/Mendoza",
+    }).format(date).replace(/^./, letter => letter.toUpperCase());
+  }
+
+  async function exportCategorySummary() {
+    const hasCategorySelection = selectedCategories.length > 0;
+    const includedCategories = hasCategorySelection
       ? visible.filter(category => selectedCategories.includes(category.id))
       : visible;
+    const selectedPlayerRows = players.filter(player => {
+      const category = categories.find(item => item.id === player.category_id);
+      const allowed = category ? can(profile, category, permissions) : profile.role === "super_admin";
+      return allowed && (!hasCategorySelection || selectedCategories.includes(player.category_id));
+    });
     const categoryRows = includedCategories.map(category => [
       genderText(category.gender),
       category.name,
-      exportPlayers.filter(player => player.category_id === category.id).length,
+      selectedPlayerRows.filter(player => player.category_id === category.id).length,
     ]);
-    const unassignedCount = selectedCategories.length === 0
-      ? exportPlayers.filter(player => !player.category_id || !categories.some(category => category.id === player.category_id)).length
-      : 0;
-    const selectionText = selectedCategories.length === 0
-      ? "Todas Las Categorías"
-      : includedCategories.map(category => `${genderText(category.gender)} · ${category.name}`).join(" | ");
+    const unassignedCount = hasCategorySelection
+      ? 0
+      : selectedPlayerRows.filter(player => !player.category_id || !categories.some(category => category.id === player.category_id)).length;
+    const selectionText = !hasCategorySelection
+      ? "Todas Las Categorías · Sólo Cantidades"
+      : isAllCategoriesSelected
+        ? "Todas Las Categorías"
+        : includedCategories.map(category => `${genderText(category.gender)} · ${category.name}`).join(" | ");
 
-    const playerRows = [...exportPlayers]
+    if (!hasCategorySelection) {
+      exportCategoryWorkbook({
+        appName: APP_NAME,
+        exportDate: new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Mendoza" }),
+        selectionText,
+        total: selectedPlayerRows.length,
+        female: selectedPlayerRows.filter(player => gender(player.sex) === "female").length,
+        male: selectedPlayerRows.filter(player => gender(player.sex) === "male").length,
+        categoryRows,
+        playerRows: [],
+        categorySheets: [],
+        includePlayerDetails: false,
+        unassignedCount,
+        filename: `resumen-jugadores-categorias-${today()}.xlsx`,
+      });
+      return;
+    }
+
+    const playerIds = selectedPlayerRows.map(player => player.id).filter(Boolean);
+    let latestPaidByPlayer = {};
+    if (playerIds.length) {
+      const paymentResult = await supabase
+        .from("monthly_payments")
+        .select("player_id,period_month,validation_status")
+        .in("player_id", playerIds)
+        .eq("validation_status", "validated")
+        .order("period_month", { ascending: false });
+      if (paymentResult.error) {
+        setMsg("No Se Pudieron Consultar Los Pagos Para La Planilla.");
+        return;
+      }
+      latestPaidByPlayer = Object.fromEntries((paymentResult.data || []).reduce((entries, payment) => {
+        if (!entries.some(([playerId]) => playerId === payment.player_id)) entries.push([payment.player_id, payment.period_month]);
+        return entries;
+      }, []));
+    }
+
+    const playerRows = [...selectedPlayerRows]
       .sort((a, b) => {
         const categoryA = categories.find(category => category.id === a.category_id);
         const categoryB = categories.find(category => category.id === b.category_id);
@@ -501,6 +557,7 @@ function Players({ profile, players, categories, permissions, refresh }) {
           lastName: player.last_name || fallbackLast,
           firstName: player.first_name || fallbackParts.join(" "),
           category: category?.name || "Sin Categoría",
+          payment: paymentPeriodLabel(latestPaidByPlayer[player.id]),
         };
       });
 
@@ -517,12 +574,13 @@ function Players({ profile, players, categories, permissions, refresh }) {
       appName: APP_NAME,
       exportDate: new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Mendoza" }),
       selectionText,
-      total: exportPlayers.length,
-      female: exportPlayers.filter(player => gender(player.sex) === "female").length,
-      male: exportPlayers.filter(player => gender(player.sex) === "male").length,
+      total: selectedPlayerRows.length,
+      female: selectedPlayerRows.filter(player => gender(player.sex) === "female").length,
+      male: selectedPlayerRows.filter(player => gender(player.sex) === "male").length,
       categoryRows,
       playerRows,
       categorySheets,
+      includePlayerDetails: true,
       unassignedCount,
       filename: `jugadores-por-categorias-${today()}.xlsx`,
     });
@@ -570,13 +628,13 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
       <input placeholder="Buscar Por Nombre" value={search} onChange={e=>setSearch(e.target.value)}/>
       <details className="multi-category-filter">
         <summary>
-          <span>{selectedCategories.length === 0 ? "Todas Las Categorías" : selectedCategories.length === 1 ? "1 Categoría Seleccionada" : `${selectedCategories.length} Categorías Seleccionadas`}</span>
+          <span>{selectedCategories.length === 0 ? "Sin Categoría" : isAllCategoriesSelected ? "Todas Las Categorías" : selectedCategories.length === 1 ? "1 Categoría Seleccionada" : `${selectedCategories.length} Categorías Seleccionadas`}</span>
           <b aria-hidden="true">⌄</b>
         </summary>
         <div className="multi-category-panel">
           <div className="multi-category-actions">
-            <button type="button" onClick={()=>setSelectedCategories([])}>Todas</button>
-            {selectedCategories.length > 0 && <button type="button" onClick={()=>setSelectedCategories([])}>Limpiar Selección</button>}
+            <button type="button" className={selectedCategories.length===0?"active":""} onClick={()=>setSelectedCategories([])}>Sin Categoría</button>
+            <button type="button" className={isAllCategoriesSelected?"active":""} onClick={()=>setSelectedCategories(visible.map(category=>category.id))}>Todas Las Categorías</button>
           </div>
           <div className="multi-category-options">
             {visible.map(cat=>{
@@ -604,7 +662,7 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
       <button type="button" className="player-export-button" onClick={exportCategorySummary}>
         📊 Exportar Planilla
       </button>
-      <span>{selectedCategories.length === 0 ? "Incluye Todas Las Categorías y Sus Jugador@s" : `Incluye ${selectedCategories.length} Categoría${selectedCategories.length === 1 ? "" : "s"} y Todos Sus Jugador@s`}</span>
+      <span>{selectedCategories.length === 0 ? "Sólo Cantidad De Jugador@s Por Categoría" : isAllCategoriesSelected ? "Incluye Todas Las Categorías y Sus Jugador@s" : `Incluye ${selectedCategories.length} Categoría${selectedCategories.length === 1 ? "" : "s"} y Todos Sus Jugador@s`}</span>
     </div>
     <div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving}/>}</section>;
 }
