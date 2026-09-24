@@ -802,6 +802,30 @@ function History({profile,categories,permissions,players,refresh}) {
     {msg&&<div className="message">{msg}</div>}
   </section>;
 
+  const categoryVariantRank=name=>{
+    const text=String(name||"").trim();
+    const suffix=text.match(/\s([A-Z])$/i);
+    return suffix ? suffix[1].toUpperCase().charCodeAt(0)-64 : 0;
+  };
+  const categoryBaseRank=name=>{
+    const text=String(name||"").trim();
+    const sub=text.match(/Sub\s*(\d+)/i);
+    if(sub)return Number(sub[1]);
+    if(/^Primera\b/i.test(text))return 90;
+    return 80;
+  };
+  const sportCategorySort=(a,b)=>{
+    const variant=categoryVariantRank(a.name)-categoryVariantRank(b.name);
+    if(variant!==0)return variant;
+    const base=categoryBaseRank(a.name)-categoryBaseRank(b.name);
+    if(base!==0)return base;
+    return String(a.name||"").localeCompare(String(b.name||""),"es",{numeric:true});
+  };
+  const isMasterCategory=category=>/^Master\b/i.test(String(category?.name||"").trim());
+  const femaleHistoryCategories=categories.filter(category=>gender(category.gender)==="female"&&!isMasterCategory(category)).sort(sportCategorySort);
+  const maleHistoryCategories=categories.filter(category=>gender(category.gender)==="male"&&!isMasterCategory(category)).sort(sportCategorySort);
+  const masterHistoryCategories=categories.filter(isMasterCategory).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"es",{numeric:true}));
+
   if(selectedCategory){
     const category=categories.find(item=>item.id===selectedCategory);
     const categorySessions=sessions.filter(session=>session.category_id===selectedCategory);
@@ -849,16 +873,41 @@ function History({profile,categories,permissions,players,refresh}) {
       <small>Entrá A Una Categoría Para Ver Todas Sus Asistencias.</small>
     </div>
 
-    <div className="history-category-grid">
-      {categories.map(category=>{
+    <div className="history-category-columns">
+      <div className="history-category-column">
+        <div className="history-category-column-title"><span>♀</span><b>Femenino</b></div>
+        <div className="history-category-stack">{femaleHistoryCategories.map(category=>{
         const count=sessions.filter(session=>session.category_id===category.id).length;
         return <button type="button" className="card history-category-card" key={category.id} onClick={()=>setSelectedCategory(category.id)}>
           <span className="history-category-icon">{category.gender==="female"?"♀":"♂"}</span>
           <div><b>{category.name}</b><span>{genderText(category.gender)} · {count} Registro{count===1?"":"s"}</span></div>
           <strong>›</strong>
         </button>;
-      })}
+      })}</div>
+      </div>
+      <div className="history-category-column">
+        <div className="history-category-column-title"><span>♂</span><b>Masculino</b></div>
+        <div className="history-category-stack">{maleHistoryCategories.map(category=>{
+        const count=sessions.filter(session=>session.category_id===category.id).length;
+        return <button type="button" className="card history-category-card" key={category.id} onClick={()=>setSelectedCategory(category.id)}>
+          <span className="history-category-icon">{category.gender==="female"?"♀":"♂"}</span>
+          <div><b>{category.name}</b><span>{genderText(category.gender)} · {count} Registro{count===1?"":"s"}</span></div>
+          <strong>›</strong>
+        </button>;
+      })}</div>
+      </div>
     </div>
+    {masterHistoryCategories.length>0&&<div className="history-master-section">
+      <div className="history-master-title"><b>Master</b><span>Luego De Las Categorías Masculinas</span></div>
+      <div className="history-master-grid">{masterHistoryCategories.map(category=>{
+        const count=sessions.filter(session=>session.category_id===category.id).length;
+        return <button type="button" className="card history-category-card" key={category.id} onClick={()=>setSelectedCategory(category.id)}>
+          <span className="history-category-icon">{category.gender==="female"?"♀":"♂"}</span>
+          <div><b>{category.name}</b><span>{genderText(category.gender)} · {count} Registro{count===1?"":"s"}</span></div>
+          <strong>›</strong>
+        </button>;
+      })}</div>
+    </div>}
   </section>;
 }
 
@@ -1376,7 +1425,7 @@ function App() {
     {tab==='players'&&<Players key={`players:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
-    {tab==='training'&&<ProfessorTrainingHub/>}
+    {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
     {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
     {tab==='requests'&&<RequestsPage profile={profile}/>}
     {tab==='admins'&&<AdminUsers key={`admins:${tabRefreshVersion}`} profile={profile}/>}
