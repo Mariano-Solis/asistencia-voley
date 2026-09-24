@@ -591,12 +591,36 @@ function PlayerAttendanceSummary({playerId}) {
     late:shown.filter(row=>row.status==="late").length,
     absent:shown.filter(row=>row.status==="absent").length,
   };
-  return <div className="card" style={{marginTop:16}}>
-    <div className="card-head"><div><h3>Asistencia Por Categoría De Entrenamiento</h3><span>La Categoría Oficial Del Jugador@ No Cambia.</span></div></div>
-    <label className="field-label">Categoría<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas</option>{cats.map(cat=><option key={cat.id} value={cat.id}>{genderText(cat.gender)} · {cat.name}</option>)}</select></label>
-    <div className="stats"><div><b>{counts.present}</b><span>Presentes</span></div><div><b>{counts.late}</b><span>Tardanzas</span></div><div><b>{counts.absent}</b><span>Ausencias</span></div></div>
-    {loading?<div className="empty">Cargando Asistencia...</div>:shown.length?<div className="simple-list">{shown.map((row,index)=>{const s=row.training_sessions||{};return <div className="history-row" key={String(s.session_date||"fecha")+":"+String(s.category_id||"cat")+":"+index}><div className="grow"><b>{dateText(s.session_date)}</b><span>{s.categories?.name||"Sin Categoría"} · {TYPES[s.activity_type]?.[1]||"Actividad"}</span></div><span className={"badge "+row.status}>{STATUS[row.status]?.[1]||row.status}</span></div>;})}</div>:<div className="empty">No Hay Asistencias Registradas Para Este Filtro.</div>}
-  </div>;
+  return <section className="player-attendance-summary">
+    <div className="player-attendance-summary-head">
+      <div>
+        <h3>Asistencia Por Categoría De Entrenamiento</h3>
+        <span>La Categoría Oficial Del Jugador@ No Cambia.</span>
+      </div>
+    </div>
+
+    <label className="player-attendance-filter">
+      <span>Categoría</span>
+      <select value={filter} onChange={e=>setFilter(e.target.value)}>
+        <option value="all">Todas</option>
+        {cats.map(cat=><option key={cat.id} value={cat.id}>{genderText(cat.gender)} · {cat.name}</option>)}
+      </select>
+    </label>
+
+    <div className="player-attendance-kpis">
+      <div><b>{counts.present}</b><span>Presentes</span></div>
+      <div><b>{counts.late}</b><span>Tardanzas</span></div>
+      <div><b>{counts.absent}</b><span>Ausencias</span></div>
+    </div>
+
+    {loading?<div className="player-attendance-empty">Cargando Asistencia...</div>:shown.length?<div className="player-attendance-entries">{shown.map((row,index)=>{const s=row.training_sessions||{};const branch=s.categories?.gender?genderText(s.categories.gender):"Sin Rama";return <div className="player-attendance-entry" key={String(s.session_date||"fecha")+":"+String(s.category_id||"cat")+":"+index}>
+      <div>
+        <b>{dateText(s.session_date)}</b>
+        <span>{branch} · {s.categories?.name||"Sin Categoría"} · {TYPES[s.activity_type]?.[1]||"Actividad"}</span>
+      </div>
+      <strong className={"player-attendance-status "+row.status}>{STATUS[row.status]?.[1]||row.status}</strong>
+    </div>;})}</div>:<div className="player-attendance-empty">No Hay Asistencias Registradas Para Este Filtro.</div>}
+  </section>;
 }
 
 function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
@@ -648,6 +672,7 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
         <div className="player-detail-data">
           <div><span>DNI</span><b>{player.dni || "—"}</b></div>
           <div><span>Edad</span><b>{ageOf(player.birth_date)}</b></div>
+          <div><span>Fecha De Nacimiento</span><b>{player.birth_date ? dateText(player.birth_date) : "—"}</b></div>
           <div><span>Código De Acceso</span><b>{player.access_code || "—"}</b></div>
           {player.account_email !== undefined && <div className="player-detail-email"><span>Correo De Cuenta</span><b>{player.account_email || "Sin Cuenta Asociada"}</b></div>}
         </div>
@@ -682,8 +707,8 @@ function History({profile,categories,permissions,players,refresh}) {
     setSelected(s);
   }
   async function remove(){ if(!selected || !confirm("¿Eliminar Definitivamente Este Registro y Su Asistencia?")) return; await supabase.from("attendance").delete().eq("session_id",selected.id); const r=await supabase.from("training_sessions").delete().eq("id",selected.id); if(r.error)setMsg(errorText(r.error)); else { setSelected(null); await load(); await refresh(); setMsg("✓ Registro Eliminado."); } }
-  if(selected) return <section><div className="back-row"><button className="back-btn" onClick={()=>setSelected(null)}>← Volver Al Historial</button><span>{dateText(selected.session_date)}</span></div><div className="card session-detail"><div className="detail-head"><div><span className="eyebrow">{TYPES[selected.activity_type]?.[1]}</span><h2>{TYPES[selected.activity_type]?.[0]} {selected.categories?.name}</h2><p>{selected.activity_type === "match" ? `Vs. ${selected.opponent || "—"}${selected.event_location ? ` · ${selected.event_location}` : ""}` : selected.activity_type === "tournament" ? `${selected.tournament_location || selected.event_location || "—"} · ${dateText(selected.tournament_start_date || selected.session_date)} → ${dateText(selected.tournament_end_date || selected.session_date)}` : "Registro De Entrenamiento"}</p></div><div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div></div><div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={!can(profile, selected.categories, permissions, true)} onChange={async status=>{const u=await supabase.from("attendance").update({status}).eq("session_id",selected.id).eq("player_id",r.player_id);if(!u.error)setRows(x=>x.map(y=>y.player_id===r.player_id?{...y,status}:y));}}/></div>})}</div></div>{msg&&<div className="message">{msg}</div>}</section>;
-  return <section><PageTitle title="Historial" text="Entrá A Cada Sesión Para Ver O Modificar Su Asistencia."/><div className="card toolbar"><label>Categoría</label><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas</option>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="session-list">{sessions.length ? sessions.map(s=><button key={s.id} className="session-card card" onClick={()=>openSession(s)}><span className="session-icon">{TYPES[s.activity_type]?.[0]}</span><div className="grow"><b>{dateText(s.session_date)} · {s.categories?.name}</b><span>{TYPES[s.activity_type]?.[1]}{s.opponent ? ` · Vs. ${s.opponent}` : ""}</span></div><span>→</span></button>) : <Empty text="No Hay Registros."/>}</div></section>;
+  if(selected) return <section><div className="back-row"><button className="back-btn" onClick={()=>setSelected(null)}>← Volver Al Historial</button><span>{dateText(selected.session_date)}</span></div><div className="card session-detail"><div className="detail-head"><div><span className="eyebrow">{TYPES[selected.activity_type]?.[1]}</span><h2>{TYPES[selected.activity_type]?.[0]} {selected.categories?.gender ? `${genderText(selected.categories.gender)} · ` : ""}{selected.categories?.name}</h2><p>{selected.activity_type === "match" ? `Vs. ${selected.opponent || "—"}${selected.event_location ? ` · ${selected.event_location}` : ""}` : selected.activity_type === "tournament" ? `${selected.tournament_location || selected.event_location || "—"} · ${dateText(selected.tournament_start_date || selected.session_date)} → ${dateText(selected.tournament_end_date || selected.session_date)}` : "Registro De Entrenamiento"}</p></div><div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div></div><div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={!can(profile, selected.categories, permissions, true)} onChange={async status=>{const u=await supabase.from("attendance").update({status}).eq("session_id",selected.id).eq("player_id",r.player_id);if(!u.error)setRows(x=>x.map(y=>y.player_id===r.player_id?{...y,status}:y));}}/></div>})}</div></div>{msg&&<div className="message">{msg}</div>}</section>;
+  return <section><PageTitle title="Historial" text="Entrá A Cada Sesión Para Ver O Modificar Su Asistencia."/><div className="card toolbar"><label>Categoría</label><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas</option>{categories.map(c=><option key={c.id} value={c.id}>{genderText(c.gender)} · {c.name}</option>)}</select></div><div className="session-list">{sessions.length ? sessions.map(s=><button key={s.id} className="session-card card" onClick={()=>openSession(s)}><span className="session-icon">{TYPES[s.activity_type]?.[0]}</span><div className="grow"><b>{dateText(s.session_date)} · {s.categories?.gender ? `${genderText(s.categories.gender)} · ` : ""}{s.categories?.name}</b><span>{TYPES[s.activity_type]?.[1]}{s.opponent ? ` · Vs. ${s.opponent}` : ""}</span></div><span>→</span></button>) : <Empty text="No Hay Registros."/>}</div></section>;
 }
 
 function AdminUsers({ profile }) {
