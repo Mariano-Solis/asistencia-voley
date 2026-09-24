@@ -31,6 +31,7 @@ export default function ProfessorTrainingHub({ profile }) {
   const [title,setTitle]=useState("");
   const [link,setLink]=useState("");
   const [file,setFile]=useState(null);
+  const [visibility,setVisibility]=useState("private");
   const [busy,setBusy]=useState(false);
   const [msg,setMsg]=useState("");
   const [preview,setPreview]=useState(null);
@@ -40,7 +41,7 @@ export default function ProfessorTrainingHub({ profile }) {
     setLoading(true);
     const r=await supabase
       .from("training_library_items")
-      .select("id,owner_id,title,item_type,storage_path,external_url,mime_type,file_size,created_at")
+      .select("id,owner_id,title,item_type,storage_path,external_url,mime_type,file_size,visibility,created_at")
       .order("created_at",{ascending:false});
     if(r.error){
       setMsg(r.error.message||"No Se Pudo Cargar La Biblioteca.");
@@ -76,6 +77,7 @@ export default function ProfessorTrainingHub({ profile }) {
     setTitle("");
     setLink("");
     setFile(null);
+    setVisibility("private");
     if(fileRef.current)fileRef.current.value="";
   }
 
@@ -94,6 +96,7 @@ export default function ProfessorTrainingHub({ profile }) {
           title:title.trim()||fallbackTitle,
           item_type:"link",
           external_url:cleanUrl,
+          visibility,
         });
         if(r.error)throw r.error;
       }else{
@@ -114,6 +117,7 @@ export default function ProfessorTrainingHub({ profile }) {
           storage_path:path,
           mime_type:prepared.type,
           file_size:prepared.size,
+          visibility,
         });
         if(r.error){
           try{await supabase.storage.from("training-library").remove([path]);}catch{}
@@ -231,6 +235,20 @@ export default function ProfessorTrainingHub({ profile }) {
             required
           />}
 
+          <div className="training-library-visibility">
+            <span className="training-library-visibility-title">¿Quién Puede Verlo?</span>
+            <div>
+              <button type="button" className={visibility==="private"?"active":""} onClick={()=>setVisibility("private")}>
+                <b>🔒 Privado</b>
+                <small>Sólo Vos y Super Admin</small>
+              </button>
+              <button type="button" className={visibility==="shared"?"active":""} onClick={()=>setVisibility("shared")}>
+                <b>👥 Compartido</b>
+                <small>Todos Los Profes</small>
+              </button>
+            </div>
+          </div>
+
           <div className="training-library-form-actions">
             <button type="button" onClick={()=>{resetForm();setShowAdd(false)}}>Cancelar</button>
             <button className="primary" disabled={busy}>{busy?"Guardando...":"Guardar Material"}</button>
@@ -254,6 +272,9 @@ export default function ProfessorTrainingHub({ profile }) {
                   <span className="training-material-copy">
                     <b>{item.title}</b>
                     <small>{item.item_type==="link"?"Link":compactBytes(item.file_size)}</small>
+                    <em className={"training-material-visibility "+(item.visibility==="shared"?"shared":"private")}>
+                      {item.visibility==="shared"?"👥 Compartido":"🔒 Privado"}
+                    </em>
                   </span>
                   <strong>›</strong>
                 </button>
