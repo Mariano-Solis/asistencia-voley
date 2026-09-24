@@ -46,7 +46,11 @@ main.app > nav button[data-feature-tab="Pagos"]::before,
 main.app nav button[data-feature-tab="Pagos"]::before { content:"💳" !important; }
 
 main.app > nav button[data-feature-tab="Mi Perfil"]::before,
-main.app nav button[data-feature-tab="Mi Perfil"]::before { content:"👤" !important; }
+main.app nav button[data-feature-tab="Mi Perfil"]::before,
+main.app > nav button[data-feature-tab="Jugador"]::before,
+main.app nav button[data-feature-tab="Jugador"]::before { content:"👤" !important; }
+main.app > nav button[data-feature-tab="Profe"]::before,
+main.app nav button[data-feature-tab="Profe"]::before { content:"👨‍🏫" !important; }
 main.app > nav button[data-feature-tab="Solapas"]::before,
 main.app nav button[data-feature-tab="Solapas"]::before { content:"⚙️" !important; }
 
