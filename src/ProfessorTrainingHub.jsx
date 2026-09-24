@@ -240,7 +240,7 @@ export default function ProfessorTrainingHub({ profile }) {
             <div>
               <button type="button" className={visibility==="private"?"active":""} onClick={()=>setVisibility("private")}>
                 <b>🔒 Privado</b>
-                <small>Sólo Vos y Super Admin</small>
+                
               </button>
               <button type="button" className={visibility==="shared"?"active":""} onClick={()=>setVisibility("shared")}>
                 <b>👥 Compartido</b>
