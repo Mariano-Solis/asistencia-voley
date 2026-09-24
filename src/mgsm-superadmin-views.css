@@ -133,3 +133,25 @@
     padding:14px!important;
   }
 }
+
+
+/* Iconos De Las Vistas Especiales Del Super Admin */
+.nav-role-preview-icon{
+  display:block;
+  margin:0 auto 3px;
+  font-size:18px;
+  line-height:1;
+}
+
+.professor-preview-no-permissions{
+  margin:0 0 12px;
+  padding:10px 12px;
+  border:1px solid #ecd8da;
+  border-radius:12px;
+  background:#fff8f8;
+  color:#7f1d24;
+  font-size:10px;
+  font-weight:750;
+  line-height:1.45;
+  text-align:center;
+}
