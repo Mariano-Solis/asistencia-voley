@@ -1,0 +1,106 @@
+/* =========================================================
+   MGSM VOLEY · MODAL DE JUGADOR@ CENTRADO
+   Se carga al final para aislar el detalle del layout principal.
+========================================================= */
+.player-detail-modal{
+  position:fixed!important;
+  inset:0!important;
+  z-index:40000!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left))!important;
+  background:rgba(14,17,21,.62)!important;
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+  box-sizing:border-box;
+}
+
+.player-detail-card{
+  position:relative!important;
+  width:min(620px,100%)!important;
+  max-width:620px!important;
+  max-height:calc(100dvh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;
+  margin:auto!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  border-radius:22px!important;
+  border-top:5px solid var(--mgsm-red)!important;
+  box-shadow:0 28px 80px rgba(0,0,0,.32)!important;
+  -webkit-overflow-scrolling:touch;
+}
+
+.player-detail-card>.modal-head{
+  position:sticky;
+  top:-16px;
+  z-index:20;
+  margin:-1px -1px 14px!important;
+  padding:13px 1px 12px;
+  background:rgba(255,255,255,.97);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+
+.player-detail-card>.modal-head:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,#eceef1 15%,#eceef1 85%,transparent);
+}
+
+.player-detail-card>.modal-head .eyebrow{
+  display:block;
+  margin-bottom:5px;
+}
+
+.player-detail-card>.modal-head button{
+  flex:0 0 auto;
+  width:40px!important;
+  height:40px!important;
+  display:grid!important;
+  place-items:center!important;
+}
+
+@media(max-width:760px){
+  .player-detail-modal{
+    padding:
+      max(14px, env(safe-area-inset-top))
+      12px
+      max(14px, env(safe-area-inset-bottom))!important;
+  }
+
+  .player-detail-card{
+    width:min(100%,620px)!important;
+    max-height:calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;
+    padding:16px!important;
+    border-radius:20px!important;
+  }
+
+  .player-detail-card>.modal-head{
+    top:-16px;
+  }
+}
+
+@media(max-width:430px){
+  .player-detail-modal{
+    padding:
+      max(10px, env(safe-area-inset-top))
+      10px
+      max(10px, env(safe-area-inset-bottom))!important;
+  }
+
+  .player-detail-card{
+    max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;
+    border-radius:18px!important;
+  }
+}
