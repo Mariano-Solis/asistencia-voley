@@ -436,7 +436,7 @@ function buildAttendanceReportSheetXml({
   playerRows,
   totals,
 }) {
-  const totalColumns = Math.max(10, 1 + sessionColumns.length + 3);
+  const totalColumns = Math.max(10, 2 + sessionColumns.length + 3);
   const lastCol = colName(totalColumns - 1);
   const rows = [];
   rows.push(rowXml(1, [cell("A1", appName, 1)], 32));
@@ -458,13 +458,13 @@ function buildAttendanceReportSheetXml({
     cell("J7", totals.absent, 6, "number"),
   ], 28));
 
-  const headerCells = [cell("A9", "Jugador@", 8)];
+  const headerCells = [cell("A9", "Jugador@", 8), cell("B9", "Pagos", 8)];
   sessionColumns.forEach((session, index) => {
-    headerCells.push(cell(colName(index + 1) + "9", session.label, 8));
+    headerCells.push(cell(colName(index + 2) + "9", session.label, 8));
   });
-  const presentCol = colName(1 + sessionColumns.length);
-  const lateCol = colName(2 + sessionColumns.length);
-  const absentCol = colName(3 + sessionColumns.length);
+  const presentCol = colName(2 + sessionColumns.length);
+  const lateCol = colName(3 + sessionColumns.length);
+  const absentCol = colName(4 + sessionColumns.length);
   headerCells.push(cell(presentCol + "9", "Presentes", 8));
   headerCells.push(cell(lateCol + "9", "Tardanzas", 8));
   headerCells.push(cell(absentCol + "9", "Ausencias", 8));
@@ -474,9 +474,9 @@ function buildAttendanceReportSheetXml({
   playerRows.forEach((player, index) => {
     const styleText = index % 2 === 0 ? 9 : 11;
     const styleNumber = index % 2 === 0 ? 10 : 12;
-    const rowCells = [cell("A" + rowNumber, player.name, styleText)];
+    const rowCells = [cell("A" + rowNumber, player.name, styleText), cell("B" + rowNumber, player.payment || "—", styleText)];
     player.statuses.forEach((status, statusIndex) => {
-      rowCells.push(cell(colName(statusIndex + 1) + rowNumber, status, styleNumber));
+      rowCells.push(cell(colName(statusIndex + 2) + rowNumber, status, styleNumber));
     });
     rowCells.push(cell(presentCol + rowNumber, player.present, styleNumber, "number"));
     rowCells.push(cell(lateCol + rowNumber, player.late, styleNumber, "number"));
@@ -502,22 +502,23 @@ function buildAttendanceReportSheetXml({
   ];
 
   const dateCols = sessionColumns.length
-    ? `<col min="2" max="${1 + sessionColumns.length}" width="16" customWidth="1"/>`
+    ? `<col min="3" max="${2 + sessionColumns.length}" width="16" customWidth="1"/>`
     : "";
-  const summaryStart = 2 + sessionColumns.length;
-  const summaryEnd = 4 + sessionColumns.length;
+  const summaryStart = 3 + sessionColumns.length;
+  const summaryEnd = 5 + sessionColumns.length;
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <dimension ref="A1:${lastCol}${totalRow}"/>
   <sheetViews>
     <sheetView workbookViewId="0" showGridLines="0">
-      <pane xSplit="1" ySplit="9" topLeftCell="B10" activePane="bottomRight" state="frozen"/>
+      <pane xSplit="2" ySplit="9" topLeftCell="C10" activePane="bottomRight" state="frozen"/>
     </sheetView>
   </sheetViews>
   <sheetFormatPr defaultRowHeight="18"/>
   <cols>
     <col min="1" max="1" width="30" customWidth="1"/>
+    <col min="2" max="2" width="20" customWidth="1"/>
     ${dateCols}
     <col min="${summaryStart}" max="${summaryEnd}" width="12" customWidth="1"/>
   </cols>
