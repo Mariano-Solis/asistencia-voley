@@ -1368,11 +1368,11 @@ function ProfessorPreviewDashboard({ allPlayers, allCategories, disabledTabs, on
 function App() {
   const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[playerSession,setPlayerSession]=useState(readStoredPlayer),[players,setPlayers]=useState([]),[categories,setCategories]=useState([]),[permissions,setPermissions]=useState({}),[tab,setTab]=useState("home");
   const [disabledTabs,setDisabledTabs]=useState([]),[navigationOrder,setNavigationOrder]=useState([]);
-  const [dualPlayerAvailable,setDualPlayerAvailable]=useState(false),[dualPlayerMode,setDualPlayerMode]=useState(false);
+  const [dualPlayerAvailable,setDualPlayerAvailable]=useState(false),[dualPlayerMode,setDualPlayerMode]=useState(false),[professorPreviewMode,setProfessorPreviewMode]=useState(false);
   const [pendingRequestCount,setPendingRequestCount]=useState(0);
   const [tabRefreshVersion,setTabRefreshVersion]=useState(0),[tabRefreshing,setTabRefreshing]=useState(false);
   const authIntent = useRef(null), authEpoch = useRef(0);
-  function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); setDisabledTabs([]); setNavigationOrder([]); setDualPlayerAvailable(false); setDualPlayerMode(false); setPendingRequestCount(0); }
+  function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); setDisabledTabs([]); setNavigationOrder([]); setDualPlayerAvailable(false); setDualPlayerMode(false); setProfessorPreviewMode(false); setPendingRequestCount(0); }
   async function applySession(current) {
     const epoch = ++authEpoch.current;
     if (!isAuthSession(current)) { clearIdentity(); return; }
@@ -1562,6 +1562,7 @@ function App() {
     }
     setPlayerSession(current);
   }
+  if (professorPreviewMode&&profile?.role==="super_admin"&&isAuthSession(session)) return <ProfessorPreviewDashboard allPlayers={players} allCategories={categories} disabledTabs={disabledTabs} onLogout={logout} onBackAdmin={()=>setProfessorPreviewMode(false)}/>;
   if (dualPlayerMode&&isAuthSession(session)) return <PlayerDashboard session={session} onLogout={logout} onBackAdmin={()=>setDualPlayerMode(false)}/>;
   if ((isAuthSession(playerSession)||isLegacySession(playerSession))&&!session) return <PlayerDashboard session={playerSession} onLogout={logout}/>;
   if(!isAuthSession(session)||!['admin','super_admin'].includes(profile?.role)) return <Login
@@ -1570,12 +1571,15 @@ function App() {
     onAdmin={acceptAdmin}
     onPlayer={acceptPlayer}/>;
   const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['training','Entrenamiento'],['payments','Pagos'],['requests','Solicitudes']];
-  if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Mi Perfil']);
-  if(profile.role==='super_admin')nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
+  if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Jugador']);
+  if(profile.role==='super_admin'){
+    nav.splice(dualPlayerAvailable?3:2,0,['professorPreview','Profe']);
+    nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
+  }
   nav.push(['settings','Solapas']);
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
     {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
         <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
