@@ -1350,6 +1350,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     </div>
     <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
     <div className="content"><div className="watermark"/><div className="content-inner">
+      {previewProfile.preview_self&&restrictCategoryIds.length===0&&<div className="professor-preview-no-permissions">Tu Perfil Profe Todavía No Tiene Categorías Asignadas. Volvé A Administración → Permisos y Configurá Las Categorías Que Querés Tener Como Profe.</div>}
       {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
         <button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPreview}>
           <span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>
