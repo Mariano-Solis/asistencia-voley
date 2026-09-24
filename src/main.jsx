@@ -63,6 +63,7 @@ import './mgsm-multi-category-filter.css'
 import './mgsm-player-export.css'
 import './mgsm-selfie-preview.css'
 import './mgsm-professors-compact.css'
+import './mgsm-player-attendance-clean.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
