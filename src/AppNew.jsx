@@ -497,6 +497,7 @@ function Players({ profile, players, categories, permissions, refresh }) {
         const fallbackParts = String(player.full_name || "").trim().split(/\s+/);
         const fallbackLast = fallbackParts.shift() || "";
         return {
+          categoryId: player.category_id || null,
           lastName: player.last_name || fallbackLast,
           firstName: player.first_name || fallbackParts.join(" "),
           dni: player.dni || "",
@@ -510,6 +511,15 @@ function Players({ profile, players, categories, permissions, refresh }) {
         };
       });
 
+    const categorySheets = includedCategories.map(category => {
+      const branchPrefix = gender(category.gender) === "female" ? "F" : "M";
+      return {
+        sheetName: `${branchPrefix} ${category.name}`,
+        categoryLabel: `${genderText(category.gender)} · ${category.name}`,
+        playerRows: playerRows.filter(player => player.categoryId === category.id),
+      };
+    });
+
     exportCategoryWorkbook({
       appName: APP_NAME,
       exportDate: new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Mendoza" }),
@@ -519,6 +529,7 @@ function Players({ profile, players, categories, permissions, refresh }) {
       male: exportPlayers.filter(player => gender(player.sex) === "male").length,
       categoryRows,
       playerRows,
+      categorySheets,
       unassignedCount,
       filename: `jugadores-por-categorias-${today()}.xlsx`,
     });
