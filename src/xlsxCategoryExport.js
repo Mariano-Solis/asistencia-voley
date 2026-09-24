@@ -303,6 +303,78 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
 </worksheet>`;
 }
 
+function safeSheetName(value, fallback = "Categoría") {
+  const cleaned = String(value || fallback)
+    .replace(/[\\/*?:\[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || fallback;
+  return cleaned.slice(0, 31);
+}
+
+function uniqueSheetNames(names) {
+  const used = new Set();
+  return names.map((name, index) => {
+    const base = safeSheetName(name, "Categoría " + (index + 1));
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate.toLowerCase())) {
+      const tail = " " + suffix;
+      candidate = base.slice(0, Math.max(1, 31 - tail.length)) + tail;
+      suffix++;
+    }
+    used.add(candidate.toLowerCase());
+    return candidate;
+  });
+}
+
+function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, playerRows = [] }) {
+  const rows = [];
+  rows.push(rowXml(1, [cell("A1", appName, 1)], 32));
+  rows.push(rowXml(2, [cell("A2", categoryLabel, 2)], 24));
+  rows.push(rowXml(3, [cell("A3", "Fecha De Exportación", 3), cell("B3", exportDate, 4)], 22));
+  rows.push(rowXml(5, [
+    cell("A5", "Apellido", 8),
+    cell("B5", "Nombre", 8),
+    cell("C5", "Código Personal", 8),
+    cell("D5", "Categoría", 8),
+    cell("E5", "Fecha De Creación De Cuenta", 8),
+  ], 30));
+
+  let rowNumber = 6;
+  playerRows.forEach((player, index) => {
+    const styleText = index % 2 === 0 ? 9 : 11;
+    rows.push(rowXml(rowNumber, [
+      cell("A" + rowNumber, player.lastName || "—", styleText),
+      cell("B" + rowNumber, player.firstName || "—", styleText),
+      cell("C" + rowNumber, player.accessCode || "—", styleText),
+      cell("D" + rowNumber, player.category || categoryLabel || "—", styleText),
+      cell("E" + rowNumber, player.createdAt || "—", styleText),
+    ], 22));
+    rowNumber++;
+  });
+
+  const totalRow = rowNumber + 1;
+  rows.push(rowXml(totalRow, [
+    cell("A" + totalRow, "TOTAL", 13),
+    cell("B" + totalRow, "Jugador@s Incluidos", 13),
+    cell("E" + totalRow, playerRows.length, 13, "number"),
+  ], 24));
+
+  const mergeRefs = ["A1:E1", "A2:E2", "B3:E3"];
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<dimension ref="A1:E' + totalRow + '"/>' +
+    '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<sheetFormatPr defaultRowHeight="18"/>' +
+    '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="20" customWidth="1"/><col min="4" max="4" width="22" customWidth="1"/><col min="5" max="5" width="26" customWidth="1"/></cols>' +
+    '<sheetData>' + rows.join("") + '</sheetData>' +
+    '<mergeCells count="' + mergeRefs.length + '">' + mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("") + '</mergeCells>' +
+    '<autoFilter ref="A5:E' + Math.max(5, rowNumber - 1) + '"/>' +
+    '<pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>' +
+    '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+    '</worksheet>';
+}
+
 export function exportCategoryWorkbook({
   appName,
   title = "Resumen De Jugador@s Por Categor\u00eda",
