@@ -631,6 +631,13 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
   const category=cat?.name || "Sin Categoría";
   const team=player.team ? `Equipo ${player.team}` : "Sin Asignar";
 
+  useEffect(()=>{
+    if(!detailOpen)return;
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    return()=>{document.body.style.overflow=previousOverflow;};
+  },[detailOpen]);
+
   function closeDetail(){ setDetailOpen(false); }
   function editPlayer(){ closeDetail(); onEdit(); }
   function deletePlayer(){ closeDetail(); onDelete(); }
