@@ -303,6 +303,78 @@ function buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, player
 </worksheet>`;
 }
 
+function safeSheetName(value, fallback = "Categoría") {
+  const cleaned = String(value || fallback)
+    .replace(/[\\/*?:\[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || fallback;
+  return cleaned.slice(0, 31);
+}
+
+function uniqueSheetNames(names) {
+  const used = new Set();
+  return names.map((name, index) => {
+    const base = safeSheetName(name, "Categoría " + (index + 1));
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate.toLowerCase())) {
+      const tail = " " + suffix;
+      candidate = base.slice(0, Math.max(1, 31 - tail.length)) + tail;
+      suffix++;
+    }
+    used.add(candidate.toLowerCase());
+    return candidate;
+  });
+}
+
+function buildCategoryPlayersSheetXml({ appName, exportDate, categoryLabel, playerRows = [] }) {
+  const rows = [];
+  rows.push(rowXml(1, [cell("A1", appName, 1)], 32));
+  rows.push(rowXml(2, [cell("A2", categoryLabel, 2)], 24));
+  rows.push(rowXml(3, [cell("A3", "Fecha De Exportación", 3), cell("B3", exportDate, 4)], 22));
+  rows.push(rowXml(5, [
+    cell("A5", "Apellido", 8),
+    cell("B5", "Nombre", 8),
+    cell("C5", "Código Personal", 8),
+    cell("D5", "Categoría", 8),
+    cell("E5", "Fecha De Creación De Cuenta", 8),
+  ], 30));
+
+  let rowNumber = 6;
+  playerRows.forEach((player, index) => {
+    const styleText = index % 2 === 0 ? 9 : 11;
+    rows.push(rowXml(rowNumber, [
+      cell("A" + rowNumber, player.lastName || "—", styleText),
+      cell("B" + rowNumber, player.firstName || "—", styleText),
+      cell("C" + rowNumber, player.accessCode || "—", styleText),
+      cell("D" + rowNumber, player.category || categoryLabel || "—", styleText),
+      cell("E" + rowNumber, player.createdAt || "—", styleText),
+    ], 22));
+    rowNumber++;
+  });
+
+  const totalRow = rowNumber + 1;
+  rows.push(rowXml(totalRow, [
+    cell("A" + totalRow, "TOTAL", 13),
+    cell("B" + totalRow, "Jugador@s Incluidos", 13),
+    cell("E" + totalRow, playerRows.length, 13, "number"),
+  ], 24));
+
+  const mergeRefs = ["A1:E1", "A2:E2", "B3:E3"];
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<dimension ref="A1:E' + totalRow + '"/>' +
+    '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<sheetFormatPr defaultRowHeight="18"/>' +
+    '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="20" customWidth="1"/><col min="4" max="4" width="22" customWidth="1"/><col min="5" max="5" width="26" customWidth="1"/></cols>' +
+    '<sheetData>' + rows.join("") + '</sheetData>' +
+    '<mergeCells count="' + mergeRefs.length + '">' + mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("") + '</mergeCells>' +
+    '<autoFilter ref="A5:E' + Math.max(5, rowNumber - 1) + '"/>' +
+    '<pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>' +
+    '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+    '</worksheet>';
+}
+
 export function exportCategoryWorkbook({
   appName,
   title = "Resumen De Jugador@s Por Categor\u00eda",
@@ -313,6 +385,7 @@ export function exportCategoryWorkbook({
   male,
   categoryRows,
   playerRows = [],
+  categorySheets = [],
   unassignedCount = 0,
   filename,
 }) {
@@ -320,19 +393,38 @@ export function exportCategoryWorkbook({
   resetSharedStrings();
   const sheetXml = buildSheetXml({ appName, title, exportDate, selectionText, total, female, male, categoryRows, unassignedCount });
   const playerSheetXml = buildPlayerDetailsSheetXml({ appName, exportDate, selectionText, playerRows });
+  const categorySheetNames = uniqueSheetNames(categorySheets.map(sheet => sheet.sheetName || sheet.categoryLabel || "Categoría"));
+  const categorySheetXmls = categorySheets.map((sheet, index) => ({
+    name: categorySheetNames[index],
+    xml: buildCategoryPlayersSheetXml({
+      appName,
+      exportDate,
+      categoryLabel: sheet.categoryLabel || categorySheetNames[index],
+      playerRows: sheet.playerRows || [],
+    }),
+  }));
   const stringsXml = sharedStringsXml();
+  const sheets = [
+    { name: "Resumen", xml: sheetXml },
+    { name: "Jugador@s", xml: playerSheetXml },
+    ...categorySheetXmls,
+  ];
+  const sheetOverrides = sheets.map((_, index) => '<Override PartName="/xl/worksheets/sheet' + (index + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("");
+  const workbookSheets = sheets.map((sheet, index) => '<sheet name="' + xmlEscape(sheet.name) + '" sheetId="' + (index + 1) + '" r:id="rId' + (index + 1) + '"/>').join("");
+  const sheetRelationships = sheets.map((_, index) => '<Relationship Id="rId' + (index + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (index + 1) + '.xml"/>').join("");
+  const stylesRid = sheets.length + 1;
+  const sharedStringsRid = sheets.length + 2;
 
   const files = [
-    { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
+    { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheetOverrides}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
     { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>` },
     { name: "docProps/app.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>MGSM VOLEY</Application><AppVersion>1.0</AppVersion></Properties>` },
     { name: "docProps/core.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEscape(title)}</dc:title><dc:creator>Municipalidad De San Mart\u00edn - VOLEY</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${created}</dcterms:modified></cp:coreProperties>` },
-    { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="16000" windowHeight="9000"/></bookViews><sheets><sheet name="Resumen" sheetId="1" r:id="rId1"/><sheet name="Jugador@s" sheetId="2" r:id="rId2"/></sheets></workbook>` },
-    { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>` },
+    { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="16000" windowHeight="9000"/></bookViews><sheets>${workbookSheets}</sheets></workbook>` },
+    { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetRelationships}<Relationship Id="rId${stylesRid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId${sharedStringsRid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>` },
     { name: "xl/styles.xml", data: stylesXml() },
     { name: "xl/sharedStrings.xml", data: stringsXml },
-    { name: "xl/worksheets/sheet1.xml", data: sheetXml },
-    { name: "xl/worksheets/sheet2.xml", data: playerSheetXml },
+    ...sheets.map((sheet, index) => ({ name: "xl/worksheets/sheet" + (index + 1) + ".xml", data: sheet.xml })),
   ];
 
   const bytes = zipStore(files);
