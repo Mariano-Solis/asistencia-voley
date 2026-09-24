@@ -65,6 +65,7 @@ import './mgsm-selfie-preview.css'
 import './mgsm-professors-compact.css'
 import './mgsm-player-attendance-clean.css'
 import './mgsm-player-modal-centered.css'
+import './mgsm-history-reports.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
