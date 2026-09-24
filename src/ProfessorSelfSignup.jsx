@@ -119,8 +119,8 @@ export default function ProfessorSelfSignup() {
 
       setMessage(
         alsoPlayer
-          ? `✓ Solicitud Creada Como Profe + Jugador@. ${VerificationText} El Acceso De Profe Quedará Pendiente Hasta Que El Super Administrador Lo Apruebe; Tu Perfil De Jugador@ También Deberá Ser Aprobado Por Un Profe Autorizado O El Super Administrador.`
-          : `✓ Solicitud De Profe Creada. ${VerificationText} El Acceso Quedará Pendiente Hasta Que El Super Administrador Confirme Que Pertenecés Al Cuerpo De Profes.`
+          ? `✓ Solicitud Creada Como Profe + Jugador@. ${verificationText} El Acceso De Profe Quedará Pendiente Hasta Que El Super Administrador Lo Apruebe; Tu Perfil De Jugador@ También Deberá Ser Aprobado Por Un Profe Autorizado O El Super Administrador.`
+          : `✓ Solicitud De Profe Creada. ${verificationText} El Acceso Quedará Pendiente Hasta Que El Super Administrador Confirme Que Pertenecés Al Cuerpo De Profes.`
       );
     } catch (e) {
       setMessage(e?.message || "No Se Pudo Crear La Cuenta.");
