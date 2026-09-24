@@ -500,14 +500,7 @@ function Players({ profile, players, categories, permissions, refresh }) {
           categoryId: player.category_id || null,
           lastName: player.last_name || fallbackLast,
           firstName: player.first_name || fallbackParts.join(" "),
-          dni: player.dni || "",
-          branch: category ? genderText(category.gender) : genderText(player.sex),
           category: category?.name || "Sin Categoría",
-          team: player.team ? `Equipo ${player.team}` : "Sin Asignar",
-          accessCode: player.access_code || "",
-          createdAt: player.created_at
-            ? new Date(player.created_at).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Mendoza" })
-            : "—",
         };
       });
 
