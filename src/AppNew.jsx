@@ -270,6 +270,17 @@ function Attendance({ profile, players, categories, permissions, refresh, restri
   }
   async function save() {
     if(!categoryId||!open||loading||savingRef.current||conflict||!baselineRef.current)return;
+    if(!dirty){setMsg("No Hay Cambios De Asistencia Para Guardar.");return;}
+    const existingSession=!!baselineRef.current?.session;
+    if(existingSession){
+      const baselineStatuses=Object.fromEntries((baselineRef.current.rows||[]).map(row=>[row.player_id,row.status]));
+      const playerIds=new Set([...Object.keys(baselineStatuses),...Object.keys(att)]);
+      const changedStatuses=[...playerIds].filter(playerId=>(baselineStatuses[playerId]||null)!==(att[playerId]||null)).length;
+      const text=changedStatuses
+        ? `Vas A Modificar Una Asistencia Ya Guardada. Hay ${changedStatuses} Estado${changedStatuses===1?"":"s"} Modificado${changedStatuses===1?"":"s"}. ¿Deseás Guardar Los Cambios?`
+        : "Vas A Modificar Un Registro De Asistencia Ya Guardado. ¿Deseás Guardar Los Cambios?";
+      if(!window.confirm(text))return;
+    }
     savingRef.current=true;setSaving(true);setMsg('');
     const payload={session_date:date,created_by:profile.id,activity_type:type,category_id:categoryId,
       opponent:type==='match'?clean(details.opponent)||null:null,
