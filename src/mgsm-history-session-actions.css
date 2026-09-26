@@ -64,3 +64,39 @@ main.app .session-detail .record-actions .danger:focus-visible {
     width: 100%;
   }
 }
+
+
+/* Guardado explícito de cambios en Historial */
+main.app .history-save-actions {
+  position: sticky;
+  bottom: 10px;
+  z-index: 12;
+  margin-top: 16px;
+  padding: 10px;
+  border: 1px solid #ead9db;
+  border-radius: 14px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 10px 26px rgba(32, 24, 24, .10);
+  backdrop-filter: blur(10px);
+}
+
+main.app .history-save-actions .primary.wide {
+  width: 100%;
+  min-height: 48px;
+}
+
+main.app .history-save-actions small {
+  display: block;
+  margin-top: 7px;
+  text-align: center;
+  color: #8f0d14;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  main.app .history-save-actions {
+    bottom: 8px;
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+}
