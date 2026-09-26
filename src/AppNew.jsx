@@ -849,14 +849,17 @@ function History({profile,categories,permissions,players,refresh}) {
     setHistorySaving(true);
     setMsg("");
     try {
-      for (const row of historyChangedRows) {
-        const result = await supabase
-          .from("attendance")
-          .update({status: row.status})
-          .eq("session_id", selected.id)
-          .eq("player_id", row.player_id);
-        if (result.error) throw result.error;
-      }
+      const result = await supabase
+        .from("attendance")
+        .upsert(
+          historyChangedRows.map(row=>({
+            session_id:selected.id,
+            player_id:row.player_id,
+            status:row.status,
+          })),
+          {onConflict:"session_id,player_id"},
+        );
+      if (result.error) throw result.error;
 
       const verify = await supabase.from("attendance").select("player_id,status").eq("session_id",selected.id);
       if (verify.error) throw verify.error;
