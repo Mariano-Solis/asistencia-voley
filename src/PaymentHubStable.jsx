@@ -188,21 +188,23 @@ function buildPaymentStats(players = [], paymentByPlayer = {}) {
   };
 }
 
-function PaymentAnalytics({ stats, period }) {
+function PaymentAnalytics({ stats, period, title = "Resumen De Pagos", subtitle = "", badgeLabel = "" }) {
   const charts = [
     { key: "paid", label: "Pagados", value: stats.validated, pct: stats.validatedPct },
     { key: "review", label: "En Revisión", value: stats.review, pct: stats.reviewPct },
     { key: "pending", label: "Pendientes", value: stats.pending, pct: stats.pendingPct },
   ];
+  const resolvedSubtitle = subtitle || (period ? `${periodLabel(period)} · Estado General Del Período Seleccionado.` : "");
+  const resolvedBadge = badgeLabel || `${stats.total} Jugador@s`;
 
   return (
     <section className="stable-pay-analytics">
       <div className="stable-pay-analytics-head">
         <div>
-          <h3>Resumen De Pagos</h3>
-          <p>{periodLabel(period)} · Estado General Del Período Seleccionado.</p>
+          <h3>{title}</h3>
+          {resolvedSubtitle && <p>{resolvedSubtitle}</p>}
         </div>
-        <span>{stats.total} Jugador@s</span>
+        <span>{resolvedBadge}</span>
       </div>
 
       <div className="stable-pay-analytics-summary">
@@ -236,6 +238,17 @@ function PaymentAnalytics({ stats, period }) {
       </div>
     </section>
   );
+}
+
+function buildPlayerPaymentStats(payments = [], maxPeriod, monthlyFee = 0) {
+  const periods = availablePaymentPeriods(maxPeriod);
+  const byPeriod = new Map(payments.map((row) => [row.period_month, row]));
+  const pseudoPlayers = periods.map((period) => ({
+    id: period,
+    monthly_fee: monthlyFee,
+  }));
+  const pseudoPayments = Object.fromEntries(periods.map((period) => [period, byPeriod.get(period)]));
+  return buildPaymentStats(pseudoPlayers, pseudoPayments);
 }
 
 export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
@@ -272,6 +285,10 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   useEffect(() => { load(false, true); }, [player?.id]);
 
   const period = oldestUnpaidPeriod(payments, maxEligiblePeriod);
+  const personalAnalytics = useMemo(
+    () => buildPlayerPaymentStats(payments, maxEligiblePeriod, player?.monthly_fee),
+    [payments, maxEligiblePeriod, player?.monthly_fee],
+  );
   const current = period ? payments.find((row) => row.period_month === period) : null;
   const currentState = period ? stateOf(current) : { cls: "paid", label: "✓ Sin Cuotas Pendientes" };
   const verifying = current?.validation_status === "pending_validation";
@@ -379,6 +396,13 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
           <p>Durante Septiembre Estamos Creando y Aprobando Cuentas. La Carga De Pagos Se Habilita El 25 De Septiembre Para Abonar Octubre.</p>
         </section> : <>
         <OfficialAccount onCopy={copyAlias} />
+
+        <PaymentAnalytics
+          stats={personalAnalytics}
+          title="Mi Resumen De Pagos"
+          subtitle="Estado De Tus Cuotas Habilitadas."
+          badgeLabel={`${personalAnalytics.total} Cuota${personalAnalytics.total===1?"":"s"}`}
+        />
 
         <section className={`stable-pay-current ${currentState.cls}`}>
           <div><span>{period ? `Cuota A Pagar · ${periodLabel(period)}` : "Estado De Pagos"}</span><strong>{period ? money(player.monthly_fee) : "Al Día"}</strong></div>
