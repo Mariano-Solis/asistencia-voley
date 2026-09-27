@@ -147,3 +147,261 @@
     margin:12px 12px 0;
   }
 }
+
+
+/* =========================================================
+   PAGOS · ANALÍTICAS GRÁFICAS
+========================================================= */
+.stable-pay-analytics{
+  margin:16px;
+  padding:18px;
+  border:1px solid #e4e6ea;
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 12px 30px rgba(25,28,33,.06);
+}
+
+.stable-pay-analytics-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+
+.stable-pay-analytics-head h3{
+  margin:0;
+  font-size:22px;
+  line-height:1.1;
+  color:#24272d;
+}
+
+.stable-pay-analytics-head p{
+  margin:5px 0 0;
+  color:#777e87;
+  font-size:13px;
+}
+
+.stable-pay-analytics-head>span{
+  flex:0 0 auto;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#f3f4f6;
+  color:#666d76;
+  font-size:12px;
+  font-weight:850;
+}
+
+.stable-pay-analytics-summary{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.stable-pay-analytics-summary>div{
+  min-width:0;
+  padding:12px 8px;
+  border-radius:15px;
+  background:#f7f8fa;
+  text-align:center;
+}
+
+.stable-pay-analytics-summary b{
+  display:block;
+  color:#20242a;
+  font-size:22px;
+  line-height:1;
+}
+
+.stable-pay-analytics-summary span{
+  display:block;
+  margin-top:6px;
+  color:#7a808b;
+  font-size:11px;
+  font-weight:750;
+}
+
+.stable-pay-financial-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:16px;
+}
+
+.stable-pay-financial-summary>div{
+  padding:12px;
+  border:1px solid #eceef1;
+  border-radius:14px;
+  background:#fff;
+  text-align:center;
+}
+
+.stable-pay-financial-summary span{
+  display:block;
+  color:#7a808b;
+  font-size:11px;
+  font-weight:750;
+}
+
+.stable-pay-financial-summary b{
+  display:block;
+  margin-top:4px;
+  color:#20242a;
+  font-size:18px;
+}
+
+.stable-pay-chart-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+
+.stable-pay-chart-card{
+  display:grid;
+  justify-items:center;
+  gap:10px;
+  padding:14px 10px;
+  border-radius:18px;
+  background:#fbfbfc;
+}
+
+.stable-pay-chart{
+  --pay-accent:#22a06b;
+  width:112px;
+  aspect-ratio:1;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  position:relative;
+  background:conic-gradient(var(--pay-accent) 0 var(--pay-angle),#eceff3 var(--pay-angle) 360deg);
+}
+
+.stable-pay-chart::after{
+  content:"";
+  position:absolute;
+  inset:12px;
+  border-radius:50%;
+  background:#fff;
+}
+
+.stable-pay-chart>div{
+  position:relative;
+  z-index:1;
+  display:grid;
+  gap:2px;
+  text-align:center;
+}
+
+.stable-pay-chart strong{
+  color:#20242a;
+  font-size:20px;
+  line-height:1;
+}
+
+.stable-pay-chart span{
+  color:#7a808b;
+  font-size:10px;
+  font-weight:850;
+}
+
+.stable-pay-chart-card.review .stable-pay-chart{
+  --pay-accent:#d89b00;
+}
+
+.stable-pay-chart-card.pending .stable-pay-chart{
+  --pay-accent:#cf2e35;
+}
+
+.stable-pay-chart-meta{
+  display:flex;
+  align-items:baseline;
+  gap:5px;
+  color:#7a808b;
+  font-size:11px;
+}
+
+.stable-pay-chart-meta b{
+  color:#20242a;
+  font-size:16px;
+}
+
+.stable-pay-analytics-note{
+  display:flex;
+  justify-content:center;
+  gap:18px;
+  margin-top:12px;
+  color:#737983;
+  font-size:11px;
+  font-weight:700;
+}
+
+@media(max-width:900px){
+  .stable-pay-analytics{
+    margin:12px;
+    padding:15px;
+    border-radius:18px;
+  }
+
+  .stable-pay-analytics-head{
+    align-items:center;
+  }
+
+  .stable-pay-analytics-head h3{
+    font-size:19px;
+  }
+
+  .stable-pay-analytics-summary{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+
+  .stable-pay-chart-grid{
+    gap:8px;
+  }
+
+  .stable-pay-chart-card{
+    padding:10px 5px;
+  }
+
+  .stable-pay-chart{
+    width:min(25vw,92px);
+  }
+
+  .stable-pay-chart::after{
+    inset:10px;
+  }
+
+  .stable-pay-chart strong{
+    font-size:17px;
+  }
+
+  .stable-pay-chart span{
+    font-size:9px;
+  }
+}
+
+@media(max-width:480px){
+  .stable-pay-analytics-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .stable-pay-financial-summary{
+    grid-template-columns:1fr;
+  }
+
+  .stable-pay-chart{
+    width:84px;
+  }
+
+  .stable-pay-chart-meta{
+    display:grid;
+    justify-items:center;
+    gap:1px;
+  }
+
+  .stable-pay-analytics-note{
+    display:grid;
+    gap:4px;
+    text-align:center;
+  }
+}
