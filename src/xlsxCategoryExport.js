@@ -427,6 +427,170 @@ export function exportCategoryWorkbook({
 }
 
 
+function buildInstitutionAttendanceSheetXml({ appName, title, exportDate, summary, categoryRows = [] }) {
+  const rows = [];
+  rows.push(rowXml(1, [cell("A1", appName, 1)], 32));
+  rows.push(rowXml(2, [cell("A2", title, 2)], 24));
+  rows.push(rowXml(3, [cell("A3", "Fecha De Exportación", 3), cell("B3", exportDate, 4)], 22));
+
+  rows.push(rowXml(5, [
+    cell("A5", "Sesiones", 5),
+    cell("B5", "Jugador@s", 5),
+    cell("C5", "Registros", 5),
+    cell("D5", "Presentes", 5),
+    cell("E5", "Tardanzas", 5),
+    cell("F5", "Ausencias", 5),
+  ], 24));
+  rows.push(rowXml(6, [
+    cell("A6", summary.sessions || 0, 6, "number"),
+    cell("B6", summary.players || 0, 6, "number"),
+    cell("C6", summary.total || 0, 6, "number"),
+    cell("D6", summary.present || 0, 6, "number"),
+    cell("E6", summary.late || 0, 6, "number"),
+    cell("F6", summary.absent || 0, 6, "number"),
+  ], 30));
+
+  rows.push(rowXml(8, [
+    cell("A8", "% Asistencia", 5),
+    cell("B8", "% Tardanza", 5),
+    cell("C8", "% Inasistencia", 5),
+  ], 24));
+  rows.push(rowXml(9, [
+    cell("A9", summary.presentPct || 0, 6, "number"),
+    cell("B9", summary.latePct || 0, 6, "number"),
+    cell("C9", summary.absentPct || 0, 6, "number"),
+  ], 30));
+
+  rows.push(rowXml(11, [cell("A11", "Detalle Por Categoría", 7)], 24));
+  rows.push(rowXml(12, [
+    cell("A12", "Rama", 8),
+    cell("B12", "Categoría", 8),
+    cell("C12", "Sesiones", 8),
+    cell("D12", "Registros", 8),
+    cell("E12", "Presentes", 8),
+    cell("F12", "Tardanzas", 8),
+    cell("G12", "Ausencias", 8),
+    cell("H12", "% Asistencia", 8),
+    cell("I12", "% Tardanza", 8),
+    cell("J12", "% Inasistencia", 8),
+  ], 26));
+
+  let r = 13;
+  categoryRows.forEach((entry, index) => {
+    const styleText = index % 2 === 0 ? 9 : 11;
+    const styleNumber = index % 2 === 0 ? 10 : 12;
+    rows.push(rowXml(r, [
+      cell("A" + r, entry.gender, styleText),
+      cell("B" + r, entry.category, styleText),
+      cell("C" + r, entry.sessions, styleNumber, "number"),
+      cell("D" + r, entry.records, styleNumber, "number"),
+      cell("E" + r, entry.present, styleNumber, "number"),
+      cell("F" + r, entry.late, styleNumber, "number"),
+      cell("G" + r, entry.absent, styleNumber, "number"),
+      cell("H" + r, entry.presentPct, styleNumber, "number"),
+      cell("I" + r, entry.latePct, styleNumber, "number"),
+      cell("J" + r, entry.absentPct, styleNumber, "number"),
+    ], 22));
+    r++;
+  });
+
+  const mergeRefs = ["A1:J1", "A2:J2", "B3:J3", "A11:J11"];
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:J${Math.max(13, r)}"/>
+  <sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="12" topLeftCell="A13" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="1" width="16" customWidth="1"/>
+    <col min="2" max="2" width="24" customWidth="1"/>
+    <col min="3" max="10" width="14" customWidth="1"/>
+  </cols>
+  <sheetData>${rows.join("")}</sheetData>
+  <mergeCells count="${mergeRefs.length}">${mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("")}</mergeCells>
+  <autoFilter ref="A12:J${Math.max(12, r - 1)}"/>
+  <pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
+  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`;
+}
+
+export function exportInstitutionAttendanceWorkbook({
+  appName,
+  exportDate,
+  general,
+  female,
+  male,
+  categoryRows = [],
+  filename,
+}) {
+  const created = new Date().toISOString();
+  resetSharedStrings();
+
+  const sheets = [
+    {
+      name: "General",
+      xml: buildInstitutionAttendanceSheetXml({
+        appName,
+        title: "Asistencia Total De La Institución",
+        exportDate,
+        summary: general,
+        categoryRows,
+      }),
+    },
+    {
+      name: "Femenino",
+      xml: buildInstitutionAttendanceSheetXml({
+        appName,
+        title: "Asistencia · Rama Femenina",
+        exportDate,
+        summary: female,
+        categoryRows: categoryRows.filter(row => row.gender === "Femenino"),
+      }),
+    },
+    {
+      name: "Masculino",
+      xml: buildInstitutionAttendanceSheetXml({
+        appName,
+        title: "Asistencia · Rama Masculina",
+        exportDate,
+        summary: male,
+        categoryRows: categoryRows.filter(row => row.gender === "Masculino"),
+      }),
+    },
+  ];
+
+  const stringsXml = sharedStringsXml();
+  const sheetOverrides = sheets.map((_, index) => '<Override PartName="/xl/worksheets/sheet' + (index + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("");
+  const workbookSheets = sheets.map((sheet, index) => '<sheet name="' + xmlEscape(sheet.name) + '" sheetId="' + (index + 1) + '" r:id="rId' + (index + 1) + '"/>').join("");
+  const sheetRelationships = sheets.map((_, index) => '<Relationship Id="rId' + (index + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (index + 1) + '.xml"/>').join("");
+  const stylesRid = sheets.length + 1;
+  const sharedStringsRid = sheets.length + 2;
+
+  const files = [
+    { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheetOverrides}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
+    { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>` },
+    { name: "docProps/app.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>MGSM VOLEY</Application><AppVersion>1.0</AppVersion></Properties>` },
+    { name: "docProps/core.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Asistencia Total De La Institución</dc:title><dc:creator>Municipalidad De San Martín - VOLEY</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${created}</dcterms:modified></cp:coreProperties>` },
+    { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="16000" windowHeight="9000"/></bookViews><sheets>${workbookSheets}</sheets></workbook>` },
+    { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetRelationships}<Relationship Id="rId${stylesRid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId${sharedStringsRid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>` },
+    { name: "xl/styles.xml", data: stylesXml() },
+    { name: "xl/sharedStrings.xml", data: stringsXml },
+    ...sheets.map((sheet, index) => ({ name: "xl/worksheets/sheet" + (index + 1) + ".xml", data: sheet.xml })),
+  ];
+
+  const bytes = zipStore(files);
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename || "asistencia-institucional.xlsx";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+
+
 function buildAttendanceReportSheetXml({
   appName,
   categoryLabel,
