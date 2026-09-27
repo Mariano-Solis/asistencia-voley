@@ -130,6 +130,114 @@ function OfficialAccount({ onCopy }) {
   );
 }
 
+
+function buildPaymentStats(players = [], paymentByPlayer = {}) {
+  const total = players.length;
+  let validated = 0;
+  let review = 0;
+  let rejected = 0;
+  let noReceipt = 0;
+  let expected = 0;
+  let received = 0;
+
+  players.forEach((player) => {
+    const payment = paymentByPlayer[player.id];
+    expected += Number(player.monthly_fee || 0);
+
+    if (!payment) {
+      noReceipt += 1;
+      return;
+    }
+
+    if (payment.validation_status === "validated") {
+      validated += 1;
+      received += Number(payment.amount_due || 0);
+      return;
+    }
+
+    if (["pending_validation", "manual_review"].includes(payment.validation_status)) {
+      review += 1;
+      return;
+    }
+
+    if (payment.validation_status === "rejected") {
+      rejected += 1;
+      return;
+    }
+
+    noReceipt += 1;
+  });
+
+  const pending = noReceipt + rejected;
+  const pct = (value) => total ? Math.round((value / total) * 1000) / 10 : 0;
+  const collectionPct = expected ? Math.round((received / expected) * 1000) / 10 : 0;
+
+  return {
+    total,
+    validated,
+    review,
+    pending,
+    rejected,
+    noReceipt,
+    expected,
+    received,
+    validatedPct: pct(validated),
+    reviewPct: pct(review),
+    pendingPct: pct(pending),
+    collectionPct,
+  };
+}
+
+function PaymentAnalytics({ stats, period }) {
+  const charts = [
+    { key: "paid", label: "Pagados", value: stats.validated, pct: stats.validatedPct },
+    { key: "review", label: "En Revisión", value: stats.review, pct: stats.reviewPct },
+    { key: "pending", label: "Pendientes", value: stats.pending, pct: stats.pendingPct },
+  ];
+
+  return (
+    <section className="stable-pay-analytics">
+      <div className="stable-pay-analytics-head">
+        <div>
+          <h3>Resumen De Pagos</h3>
+          <p>{periodLabel(period)} · Estado General Del Período Seleccionado.</p>
+        </div>
+        <span>{stats.total} Jugador@s</span>
+      </div>
+
+      <div className="stable-pay-analytics-summary">
+        <div><b>{stats.total}</b><span>Total</span></div>
+        <div><b>{stats.validated}</b><span>Pagados</span></div>
+        <div><b>{stats.review}</b><span>En Revisión</span></div>
+        <div><b>{stats.pending}</b><span>Pendientes</span></div>
+        <div><b>{stats.rejected}</b><span>Rechazados</span></div>
+      </div>
+
+      <div className="stable-pay-financial-summary">
+        <div><span>Esperado</span><b>{money(stats.expected)}</b></div>
+        <div><span>Validado</span><b>{money(stats.received)}</b></div>
+        <div><span>Recaudado</span><b>{stats.collectionPct}%</b></div>
+      </div>
+
+      <div className="stable-pay-chart-grid">
+        {charts.map((chart) => (
+          <div className={`stable-pay-chart-card ${chart.key}`} key={chart.key}>
+            <div className="stable-pay-chart" style={{ "--pay-angle": `${chart.pct * 3.6}deg` }}>
+              <div><strong>{chart.pct}%</strong><span>{chart.label}</span></div>
+            </div>
+            <div className="stable-pay-chart-meta"><b>{chart.value}</b><span>De {stats.total}</span></div>
+          </div>
+        ))}
+      </div>
+
+      <div className="stable-pay-analytics-note">
+        <span>Sin Comprobante: <b>{stats.noReceipt}</b></span>
+        <span>Rechazados: <b>{stats.rejected}</b></span>
+      </div>
+    </section>
+  );
+}
+
 export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   const inputRef = useRef(null);
   const refreshInFlightRef = useRef(false);
@@ -371,13 +479,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
     return true;
   }), [players, paymentByPlayer, search, status]);
 
-  const validated = rows.filter((p) => paymentByPlayer[p.id]?.validation_status === "validated").length;
-  const review = rows.filter((p) => paymentByPlayer[p.id]?.validation_status === "manual_review").length;
-  const expected = rows.reduce((sum, p) => sum + Number(p.monthly_fee || 0), 0);
-  const received = rows.reduce((sum, p) => {
-    const pay = paymentByPlayer[p.id];
-    return sum + (pay?.validation_status === "validated" ? Number(pay.amount_due || 0) : 0);
-  }, 0);
+  const analytics = useMemo(() => buildPaymentStats(players, paymentByPlayer), [players, paymentByPlayer]);
   const receiptsCount = payments.filter((p) => !!p.receipt_path).length;
   const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && p.validation_status !== "validated").length;
 
@@ -468,12 +570,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
         <div className="stable-pay-period-picker">
           <label><span>Período</span><select value={period} onChange={(e) => setPeriod(e.target.value)}>{paymentPeriods.map((value) => <option key={value} value={value}>{periodLabel(value)}</option>)}</select></label>
         </div>
-        <div className="stable-pay-summary">
-          <div><span>Esperado</span><b>{money(expected)}</b></div>
-          <div><span>Validados</span><b>{validated}</b></div>
-          <div><span>En Revisión</span><b>{review}</b></div>
-          <div><span>Validado</span><b>{money(received)}</b></div>
-        </div>
+        <PaymentAnalytics stats={analytics} period={period} />
 
         <div className="stable-pay-filters">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar Jugador@" />
