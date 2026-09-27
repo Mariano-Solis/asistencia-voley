@@ -69,6 +69,7 @@ import './mgsm-history-reports.css'
 import './mgsm-training-library.css'
 import './mgsm-superadmin-views.css'
 import './mgsm-desktop-navigation-final.css'
+import './mgsm-history-analytics.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
