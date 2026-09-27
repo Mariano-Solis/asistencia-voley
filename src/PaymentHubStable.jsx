@@ -83,6 +83,13 @@ function money(value) {
   }).format(Number(value || 0));
 }
 
+function paymentCategoryLabel(category) {
+  if (!category) return "Categoría";
+  const name = String(category.name || "Categoría").trim();
+  if (/^master\b/i.test(name)) return `Master · ${name}`;
+  return `${category.gender === "male" ? "Masculino" : "Femenino"} · ${name}`;
+}
+
 function safeName(name) {
   return String(name || "comprobante")
     .normalize("NFD")
@@ -452,6 +459,8 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
   const refreshInFlightRef = useRef(false);
   const [players, setPlayers] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [analyticsCategoryId, setAnalyticsCategoryId] = useState("");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -467,13 +476,15 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
     if (clearMessage) setMessage("");
 
     try {
-      const [p, pay] = await Promise.all([
+      const [p, pay, cat] = await Promise.all([
         supabase.from("players").select("id,full_name,monthly_fee,category_id,team,active").eq("active", true).order("full_name"),
         supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_provider").eq("period_month", period),
+        supabase.from("categories").select("id,name,gender,active").eq("active", true).order("name"),
       ]);
-      if (p.error || pay.error) setMessage("No Se Pudieron Cargar Los Pagos.");
+      if (p.error || pay.error || cat.error) setMessage("No Se Pudieron Cargar Los Pagos.");
       if (!p.error) setPlayers(p.data || []);
       if (!pay.error) setPayments(pay.data || []);
+      if (!cat.error) setCategories(cat.data || []);
     } finally {
       if (showLoading) setLoading(false);
       refreshInFlightRef.current = false;
@@ -491,6 +502,48 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
   }, [hasPendingValidation]);
 
   const paymentByPlayer = useMemo(() => Object.fromEntries(payments.map((p) => [p.player_id, p])), [payments]);
+  const availableAnalyticsCategories = useMemo(() => {
+    const visibleCategoryIds = new Set(players.map((player) => player.category_id).filter(Boolean));
+    return categories
+      .filter((category) => visibleCategoryIds.has(category.id))
+      .sort((a, b) => paymentCategoryLabel(a).localeCompare(paymentCategoryLabel(b), "es"));
+  }, [players, categories]);
+
+  useEffect(() => {
+    if (role === "super_admin") {
+      if (analyticsCategoryId && !availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)) {
+        setAnalyticsCategoryId("");
+      }
+      return;
+    }
+
+    if (!availableAnalyticsCategories.length) {
+      if (analyticsCategoryId) setAnalyticsCategoryId("");
+      return;
+    }
+
+    if (!availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)) {
+      setAnalyticsCategoryId(availableAnalyticsCategories[0].id);
+    }
+  }, [role, analyticsCategoryId, availableAnalyticsCategories]);
+
+  const effectiveAnalyticsCategoryId = role === "super_admin"
+    ? analyticsCategoryId
+    : (availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)
+      ? analyticsCategoryId
+      : availableAnalyticsCategories[0]?.id || "");
+
+  const analyticsPlayers = useMemo(() => {
+    if (role === "super_admin" && !effectiveAnalyticsCategoryId) return players;
+    if (!effectiveAnalyticsCategoryId) return [];
+    return players.filter((player) => player.category_id === effectiveAnalyticsCategoryId);
+  }, [players, role, effectiveAnalyticsCategoryId]);
+
+  const analyticsCategory = availableAnalyticsCategories.find((category) => category.id === effectiveAnalyticsCategoryId) || null;
+  const analyticsScopeLabel = role === "super_admin" && !effectiveAnalyticsCategoryId
+    ? "Todas Las Categorías"
+    : paymentCategoryLabel(analyticsCategory);
+
   const rows = useMemo(() => players.filter((player) => {
     const payment = paymentByPlayer[player.id];
     const q = search.trim().toLowerCase();
@@ -503,7 +556,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
     return true;
   }), [players, paymentByPlayer, search, status]);
 
-  const analytics = useMemo(() => buildPaymentStats(players, paymentByPlayer), [players, paymentByPlayer]);
+  const analytics = useMemo(() => buildPaymentStats(analyticsPlayers, paymentByPlayer), [analyticsPlayers, paymentByPlayer]);
   const receiptsCount = payments.filter((p) => !!p.receipt_path).length;
   const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && p.validation_status !== "validated").length;
 
@@ -593,8 +646,26 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
         </section> : <>
         <div className="stable-pay-period-picker">
           <label><span>Período</span><select value={period} onChange={(e) => setPeriod(e.target.value)}>{paymentPeriods.map((value) => <option key={value} value={value}>{periodLabel(value)}</option>)}</select></label>
+          <label>
+            <span>Categoría Del Resumen</span>
+            <select
+              value={effectiveAnalyticsCategoryId}
+              onChange={(e) => setAnalyticsCategoryId(e.target.value)}
+              disabled={role !== "super_admin" && availableAnalyticsCategories.length <= 1}
+            >
+              {role === "super_admin" && <option value="">Todas Las Categorías</option>}
+              {availableAnalyticsCategories.map((category) => (
+                <option key={category.id} value={category.id}>{paymentCategoryLabel(category)}</option>
+              ))}
+            </select>
+          </label>
         </div>
-        <PaymentAnalytics stats={analytics} period={period} />
+        <PaymentAnalytics
+          stats={analytics}
+          period={period}
+          subtitle={`${periodLabel(period)} · ${analyticsScopeLabel}.`}
+          badgeLabel={`${analytics.total} Jugador@${analytics.total === 1 ? "" : "s"}`}
+        />
 
         <div className="stable-pay-filters">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar Jugador@" />
