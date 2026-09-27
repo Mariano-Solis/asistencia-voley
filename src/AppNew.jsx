@@ -854,8 +854,11 @@ function History({profile,categories,permissions,players,refresh}) {
     const nextSessions=r.data||[];
     setSessions(nextSessions);
     if(!nextSessions.length){setHistoryAttendance([]);return;}
-    const a=await supabase.from("attendance").select("session_id,player_id,status").in("session_id",nextSessions.map(session=>session.id));
-    if(a.error)setMsg(errorText(a.error)); else setHistoryAttendance(a.data||[]);
+    const a=await supabase.from("attendance").select("session_id,player_id,status");
+    if(a.error)setMsg(errorText(a.error)); else {
+      const visibleSessionIds=new Set(nextSessions.map(session=>session.id));
+      setHistoryAttendance((a.data||[]).filter(row=>visibleSessionIds.has(row.session_id)));
+    }
   }
   useEffect(()=>{void load()},[]);
   useEffect(()=>{if(!reportCategory&&categories[0]?.id)setReportCategory(categories[0].id)},[categories,reportCategory]);
