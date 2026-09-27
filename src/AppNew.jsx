@@ -138,7 +138,7 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
   </section></main>;
 }
 
-function StatusButtons({ value, onChange, disabled = false }) { return <div className="status-picker">{Object.entries(STATUS).map(([k, v]) => <button disabled={disabled} type="button" key={k} className={`status ${k} ${value === k ? "active" : ""}`} onClick={() => onChange(k)}><b>{v[0]}</b><span>{v[1]}</span></button>)}</div>; }
+function StatusButtons({ value, onChange, disabled = false }) { return <div className="status-picker">{Object.entries(STATUS).map(([k, v]) => <button disabled={disabled} type="button" key={k} className={`status ${k} ${value === k ? "active" : ""}`} onClick={() => onChange(value === k ? null : k)}><b>{v[0]}</b><span>{v[1]}</span></button>)}</div>; }
 
 
 function attendanceStats(rows = []) {
@@ -929,9 +929,13 @@ function History({profile,categories,permissions,players,refresh}) {
       supabase.rpc("get_attendance_session_roster", { p_session_id: s.id }),
     ]);
     const loadedRows=a.data||[];
-    setRows(loadedRows);
-    setOriginalRows(loadedRows.map(row=>({...row})));
-    setHistoryRoster(Object.fromEntries((roster.data||[]).map(player=>[player.id,player])));
+    const rosterRows=roster.data||[];
+    const statusByPlayer=Object.fromEntries(loadedRows.map(row=>[row.player_id,row.status]));
+    const playerIds=[...new Set([...rosterRows.map(player=>player.id),...loadedRows.map(row=>row.player_id)])];
+    const editableRows=playerIds.map(player_id=>({player_id,status:statusByPlayer[player_id]||null}));
+    setRows(editableRows);
+    setOriginalRows(editableRows.map(row=>({...row})));
+    setHistoryRoster(Object.fromEntries(rosterRows.map(player=>[player.id,player])));
     setMsg("");
     setSelected(s);
   }
@@ -969,21 +973,36 @@ function History({profile,categories,permissions,players,refresh}) {
     setHistorySaving(true);
     setMsg("");
     try {
-      const result = await supabase
-        .from("attendance")
-        .upsert(
-          historyChangedRows.map(row=>({
-            session_id:selected.id,
-            player_id:row.player_id,
-            status:row.status,
-          })),
-          {onConflict:"session_id,player_id"},
-        );
-      if (result.error) throw result.error;
+      const rowsToUpsert=historyChangedRows.filter(row=>row.status);
+      const rowsToDelete=historyChangedRows.filter(row=>!row.status);
+
+      if(rowsToUpsert.length){
+        const result = await supabase
+          .from("attendance")
+          .upsert(
+            rowsToUpsert.map(row=>({
+              session_id:selected.id,
+              player_id:row.player_id,
+              status:row.status,
+            })),
+            {onConflict:"session_id,player_id"},
+          );
+        if (result.error) throw result.error;
+      }
+
+      if(rowsToDelete.length){
+        const removed=await supabase
+          .from("attendance")
+          .delete()
+          .eq("session_id",selected.id)
+          .in("player_id",rowsToDelete.map(row=>row.player_id));
+        if(removed.error) throw removed.error;
+      }
 
       const verify = await supabase.from("attendance").select("player_id,status").eq("session_id",selected.id);
       if (verify.error) throw verify.error;
-      const verifiedRows = verify.data || [];
+      const verifiedStatusByPlayer=Object.fromEntries((verify.data||[]).map(row=>[row.player_id,row.status]));
+      const verifiedRows=rows.map(row=>({...row,status:verifiedStatusByPlayer[row.player_id]||null}));
       setRows(verifiedRows);
       setOriginalRows(verifiedRows.map(row=>({...row})));
       setMsg("✓ Cambios De Asistencia Guardados.");
