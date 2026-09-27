@@ -116,6 +116,8 @@
 
 
 .stable-pay-period-picker{
+  display:grid;
+  gap:8px;
   margin:16px 18px 0;
 }
 
@@ -144,6 +146,7 @@
 
 @media(max-width:900px){
   .stable-pay-period-picker{
+    gap:7px;
     margin:12px 12px 0;
   }
 }

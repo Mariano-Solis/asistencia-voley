@@ -445,7 +445,7 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   );
 }
 
-export function AdminPaymentPanel({ role, canApprovePayments = role === "super_admin", onClose, embedded = false }) {
+export function AdminPaymentPanel({ role, userId, canApprovePayments = role === "super_admin", onClose, embedded = false }) {
   const maxEligiblePeriod = maxEligiblePaymentPeriod();
   const paymentPeriods = availablePaymentPeriods(maxEligiblePeriod);
   const defaultPeriod = (() => {
@@ -460,6 +460,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
   const [players, setPlayers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [permissionRows, setPermissionRows] = useState([]);
   const [analyticsCategoryId, setAnalyticsCategoryId] = useState("");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
@@ -476,22 +477,33 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
     if (clearMessage) setMessage("");
 
     try {
-      const [p, pay, cat] = await Promise.all([
+      const permissionRequest = role === "super_admin"
+        ? Promise.resolve({ data: [], error: null })
+        : userId
+          ? supabase
+              .from("admin_category_permissions")
+              .select("category_id,can_view,can_edit,can_attendance")
+              .eq("admin_id", userId)
+          : Promise.resolve({ data: [], error: new Error("Usuario Sin Identificar") });
+
+      const [p, pay, cat, perm] = await Promise.all([
         supabase.from("players").select("id,full_name,monthly_fee,category_id,team,active").eq("active", true).order("full_name"),
         supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_provider").eq("period_month", period),
         supabase.from("categories").select("id,name,gender,active").eq("active", true).order("name"),
+        permissionRequest,
       ]);
-      if (p.error || pay.error || cat.error) setMessage("No Se Pudieron Cargar Los Pagos.");
+      if (p.error || pay.error || cat.error || perm.error) setMessage("No Se Pudieron Cargar Los Pagos.");
       if (!p.error) setPlayers(p.data || []);
       if (!pay.error) setPayments(pay.data || []);
       if (!cat.error) setCategories(cat.data || []);
+      if (!perm.error) setPermissionRows(perm.data || []);
     } finally {
       if (showLoading) setLoading(false);
       refreshInFlightRef.current = false;
     }
   }
 
-  useEffect(() => { load(false, true); }, [period, paymentsStarted]);
+  useEffect(() => { load(false, true); }, [period, paymentsStarted, role, userId]);
 
   const hasPendingValidation = payments.some((p) => p.validation_status === "pending_validation");
 
@@ -501,50 +513,60 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
     return () => window.clearInterval(timer);
   }, [hasPendingValidation]);
 
-  const paymentByPlayer = useMemo(() => Object.fromEntries(payments.map((p) => [p.player_id, p])), [payments]);
+  const allowedCategoryIds = useMemo(() => {
+    if (role === "super_admin") return null;
+    return new Set(
+      permissionRows
+        .filter((permission) => permission.can_view === true || permission.can_edit === true)
+        .map((permission) => permission.category_id)
+        .filter(Boolean),
+    );
+  }, [role, permissionRows]);
+
+  const scopedPlayers = useMemo(() => {
+    if (role === "super_admin") return players;
+    if (!allowedCategoryIds?.size) return [];
+    return players.filter((player) => player.category_id && allowedCategoryIds.has(player.category_id));
+  }, [players, role, allowedCategoryIds]);
+
+  const scopedPlayerIds = useMemo(() => new Set(scopedPlayers.map((player) => player.id)), [scopedPlayers]);
+  const scopedPayments = useMemo(
+    () => role === "super_admin" ? payments : payments.filter((payment) => scopedPlayerIds.has(payment.player_id)),
+    [payments, role, scopedPlayerIds],
+  );
+  const paymentByPlayer = useMemo(
+    () => Object.fromEntries(scopedPayments.map((payment) => [payment.player_id, payment])),
+    [scopedPayments],
+  );
+
   const availableAnalyticsCategories = useMemo(() => {
-    const visibleCategoryIds = new Set(players.map((player) => player.category_id).filter(Boolean));
-    return categories
-      .filter((category) => visibleCategoryIds.has(category.id))
-      .sort((a, b) => paymentCategoryLabel(a).localeCompare(paymentCategoryLabel(b), "es"));
-  }, [players, categories]);
+    const source = role === "super_admin"
+      ? categories
+      : categories.filter((category) => allowedCategoryIds?.has(category.id));
+    return [...source].sort((a, b) => paymentCategoryLabel(a).localeCompare(paymentCategoryLabel(b), "es"));
+  }, [role, categories, allowedCategoryIds]);
 
   useEffect(() => {
-    if (role === "super_admin") {
-      if (analyticsCategoryId && !availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)) {
-        setAnalyticsCategoryId("");
-      }
-      return;
+    if (analyticsCategoryId && !availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)) {
+      setAnalyticsCategoryId("");
     }
+  }, [analyticsCategoryId, availableAnalyticsCategories]);
 
-    if (!availableAnalyticsCategories.length) {
-      if (analyticsCategoryId) setAnalyticsCategoryId("");
-      return;
-    }
-
-    if (!availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)) {
-      setAnalyticsCategoryId(availableAnalyticsCategories[0].id);
-    }
-  }, [role, analyticsCategoryId, availableAnalyticsCategories]);
-
-  const effectiveAnalyticsCategoryId = role === "super_admin"
+  const effectiveAnalyticsCategoryId = availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)
     ? analyticsCategoryId
-    : (availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)
-      ? analyticsCategoryId
-      : availableAnalyticsCategories[0]?.id || "");
+    : "";
 
   const analyticsPlayers = useMemo(() => {
-    if (role === "super_admin" && !effectiveAnalyticsCategoryId) return players;
-    if (!effectiveAnalyticsCategoryId) return [];
-    return players.filter((player) => player.category_id === effectiveAnalyticsCategoryId);
-  }, [players, role, effectiveAnalyticsCategoryId]);
+    if (!effectiveAnalyticsCategoryId) return scopedPlayers;
+    return scopedPlayers.filter((player) => player.category_id === effectiveAnalyticsCategoryId);
+  }, [scopedPlayers, effectiveAnalyticsCategoryId]);
 
   const analyticsCategory = availableAnalyticsCategories.find((category) => category.id === effectiveAnalyticsCategoryId) || null;
-  const analyticsScopeLabel = role === "super_admin" && !effectiveAnalyticsCategoryId
-    ? "Todas Las Categorías"
+  const analyticsScopeLabel = !effectiveAnalyticsCategoryId
+    ? (role === "super_admin" ? "Todas Las Categorías" : "Todas Mis Categorías")
     : paymentCategoryLabel(analyticsCategory);
 
-  const rows = useMemo(() => players.filter((player) => {
+  const rows = useMemo(() => analyticsPlayers.filter((player) => {
     const payment = paymentByPlayer[player.id];
     const q = search.trim().toLowerCase();
     if (q && !player.full_name.toLowerCase().includes(q)) return false;
@@ -554,7 +576,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
     if (status === "pending" && payment) return false;
     if (status === "rejected" && payment?.validation_status !== "rejected") return false;
     return true;
-  }), [players, paymentByPlayer, search, status]);
+  }), [analyticsPlayers, paymentByPlayer, search, status]);
 
   const analytics = useMemo(() => buildPaymentStats(analyticsPlayers, paymentByPlayer), [analyticsPlayers, paymentByPlayer]);
   const receiptsCount = payments.filter((p) => !!p.receipt_path).length;
@@ -651,9 +673,9 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
             <select
               value={effectiveAnalyticsCategoryId}
               onChange={(e) => setAnalyticsCategoryId(e.target.value)}
-              disabled={role !== "super_admin" && availableAnalyticsCategories.length <= 1}
+              disabled={availableAnalyticsCategories.length === 0}
             >
-              {role === "super_admin" && <option value="">Todas Las Categorías</option>}
+              <option value="">{role === "super_admin" ? "Todas Las Categorías" : "Todas Mis Categorías"}</option>
               {availableAnalyticsCategories.map((category) => (
                 <option key={category.id} value={category.id}>{paymentCategoryLabel(category)}</option>
               ))}
@@ -726,7 +748,7 @@ export function AdminPaymentPanel({ role, canApprovePayments = role === "super_a
 }
 
 export default function PaymentHubStable() {
-  const [identity, setIdentity] = useState({ role: "", player: null });
+  const [identity, setIdentity] = useState({ role: "", player: null, userId: "" });
   const [mode, setMode] = useState(() => localStorage.getItem("voley_access_mode") || "");
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -738,7 +760,7 @@ export default function PaymentHubStable() {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
       if (!alive || !user) {
-        if (alive) setIdentity({ role: "", player: null });
+        if (alive) setIdentity({ role: "", player: null, userId: "" });
         return;
       }
       const [profile, player] = await Promise.all([
@@ -746,7 +768,7 @@ export default function PaymentHubStable() {
         supabase.from("players").select("id,full_name,monthly_fee,user_id,active").eq("user_id", user.id).eq("active", true).maybeSingle(),
       ]);
       if (!alive) return;
-      setIdentity({ role: profile.data?.role || "", player: player.data || null });
+      setIdentity({ role: profile.data?.role || "", player: player.data || null, userId: user.id });
     }
     resolve();
     const { data } = supabase.auth.onAuthStateChange(() => setTimeout(resolve, 0));
@@ -829,7 +851,7 @@ export default function PaymentHubStable() {
       )}
 
       {open && playerMode && identity.player && <PlayerPaymentPanel player={identity.player} onClose={() => setOpen(false)} />}
-      {open && adminMode && <AdminPaymentPanel role={identity.role} onClose={() => setOpen(false)} />}
+      {open && adminMode && <AdminPaymentPanel role={identity.role} userId={identity.userId} onClose={() => setOpen(false)} />}
     </>
   );
 }
