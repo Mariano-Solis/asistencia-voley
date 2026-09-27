@@ -1741,7 +1741,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       {tab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
-      {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
+      {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
       {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
       {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
       {tab==="settings"&&<SolapasSettings profile={previewProfile} disabledTabs={disabledTabs} onSavedVisibility={()=>{}} navigationItems={allowedNav} navigationOrder={previewOrder} onSavedOrder={setPreviewOrder} readOnly/>}
@@ -1979,7 +1979,7 @@ function App() {
     {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
     {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
-    {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
+    {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} userId={profile.id} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
     {tab==='requests'&&<RequestsPage profile={profile}/>}
     {tab==='admins'&&<AdminUsers key={`admins:${tabRefreshVersion}`} profile={profile}/>}
     {tab==='categories'&&<Categories key={`categories:${tabRefreshVersion}`} profile={profile} categories={categories} refresh={refresh}/>}
