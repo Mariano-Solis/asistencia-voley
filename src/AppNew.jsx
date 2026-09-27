@@ -864,13 +864,22 @@ function History({profile,categories,permissions,players,refresh}) {
   useEffect(()=>{if(!reportCategory&&categories[0]?.id)setReportCategory(categories[0].id)},[categories,reportCategory]);
 
   const sessionById = useMemo(() => Object.fromEntries(sessions.map(session=>[session.id,session])), [sessions]);
+  const isMasterCategory=category=>/^Master\b/i.test(String(category?.name||"").trim());
   const institutionStats = attendanceStats(historyAttendance);
   const institutionPlayerCount = useMemo(() => new Set(historyAttendance.map(row=>row.player_id)).size, [historyAttendance]);
-  const institutionFemaleRows = useMemo(() => historyAttendance.filter(row=>gender(sessionById[row.session_id]?.categories?.gender)==="female"), [historyAttendance,sessionById]);
-  const institutionMaleRows = useMemo(() => historyAttendance.filter(row=>gender(sessionById[row.session_id]?.categories?.gender)==="male"), [historyAttendance,sessionById]);
-  const canSeeFemaleBranch = profile.role==="super_admin" || categories.some(category=>gender(category.gender)==="female");
-  const canSeeMaleBranch = profile.role==="super_admin" || categories.some(category=>gender(category.gender)==="male");
-  const visibleBranchCount = Number(canSeeFemaleBranch) + Number(canSeeMaleBranch);
+  const institutionFemaleRows = useMemo(() => historyAttendance.filter(row=>{
+    const category=sessionById[row.session_id]?.categories;
+    return gender(category?.gender)==="female"&&!isMasterCategory(category);
+  }), [historyAttendance,sessionById]);
+  const institutionMaleRows = useMemo(() => historyAttendance.filter(row=>{
+    const category=sessionById[row.session_id]?.categories;
+    return gender(category?.gender)==="male"&&!isMasterCategory(category);
+  }), [historyAttendance,sessionById]);
+  const institutionMasterRows = useMemo(() => historyAttendance.filter(row=>isMasterCategory(sessionById[row.session_id]?.categories)), [historyAttendance,sessionById]);
+  const canSeeFemaleBranch = profile.role==="super_admin" || categories.some(category=>gender(category.gender)==="female"&&!isMasterCategory(category));
+  const canSeeMaleBranch = profile.role==="super_admin" || categories.some(category=>gender(category.gender)==="male"&&!isMasterCategory(category));
+  const canSeeMasterBranch = profile.role==="super_admin" || categories.some(isMasterCategory);
+  const visibleBranchCount = Number(canSeeFemaleBranch) + Number(canSeeMaleBranch) + Number(canSeeMasterBranch);
 
   function exportInstitutionReport(){
     const categoryRows=categories.map(category=>{
@@ -1119,7 +1128,6 @@ function History({profile,categories,permissions,players,refresh}) {
     if(base!==0)return base;
     return String(a.name||"").localeCompare(String(b.name||""),"es",{numeric:true});
   };
-  const isMasterCategory=category=>/^Master\b/i.test(String(category?.name||"").trim());
   const femaleHistoryCategories=categories.filter(category=>gender(category.gender)==="female"&&!isMasterCategory(category)).sort(sportCategorySort);
   const maleHistoryCategories=categories.filter(category=>gender(category.gender)==="male"&&!isMasterCategory(category)).sort(sportCategorySort);
   const masterHistoryCategories=categories.filter(isMasterCategory).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"es",{numeric:true}));
@@ -1179,29 +1187,37 @@ function History({profile,categories,permissions,players,refresh}) {
       <button type="button" className="primary" onClick={exportInstitutionReport} disabled={!historyAttendance.length}>📥 Exportar Planilla Institucional</button>
     </div>}
 
-    <AttendanceAnalytics
-      title={profile.role==="super_admin" ? "Resumen General De La Institución" : "Resumen General De Mis Categorías"}
+    {profile.role==="super_admin" && <AttendanceAnalytics
+      title="Resumen General De La Institución"
       subtitle="Totales y Promedios Acumulados De Todo El Historial Disponible."
       rows={historyAttendance}
       sessionsCount={sessions.length}
       playersCount={institutionPlayerCount}
-    />
+    />}
 
     <div className={`attendance-branch-grid ${visibleBranchCount===1?"single":""}`}>
       {canSeeFemaleBranch && <AttendanceAnalytics
         title="Femenino"
-        subtitle="Resumen Acumulado De La Rama Femenina."
+        subtitle="Resumen Acumulado De Las Categorías Femeninas."
         rows={institutionFemaleRows}
-        sessionsCount={sessions.filter(session=>gender(session.categories?.gender)==="female").length}
+        sessionsCount={sessions.filter(session=>gender(session.categories?.gender)==="female"&&!isMasterCategory(session.categories)).length}
         playersCount={new Set(institutionFemaleRows.map(row=>row.player_id)).size}
         compact
       />}
       {canSeeMaleBranch && <AttendanceAnalytics
         title="Masculino"
-        subtitle="Resumen Acumulado De La Rama Masculina."
+        subtitle="Resumen Acumulado De Las Categorías Masculinas."
         rows={institutionMaleRows}
-        sessionsCount={sessions.filter(session=>gender(session.categories?.gender)==="male").length}
+        sessionsCount={sessions.filter(session=>gender(session.categories?.gender)==="male"&&!isMasterCategory(session.categories)).length}
         playersCount={new Set(institutionMaleRows.map(row=>row.player_id)).size}
+        compact
+      />}
+      {canSeeMasterBranch && <AttendanceAnalytics
+        title="Master"
+        subtitle="Resumen Acumulado De Las Categorías Master."
+        rows={institutionMasterRows}
+        sessionsCount={sessions.filter(session=>isMasterCategory(session.categories)).length}
+        playersCount={new Set(institutionMasterRows.map(row=>row.player_id)).size}
         compact
       />}
     </div>
