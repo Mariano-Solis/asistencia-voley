@@ -8,7 +8,7 @@ import ProfessorTrainingHub from "./ProfessorTrainingHub";
 import { AdminPaymentPanel, PlayerPaymentPanel } from "./PaymentHubStable";
 import officialLogo from "../Logo.jpg";
 import { playerPhotoPath, preparePlayerPhoto, savePendingPlayerPhoto } from "./playerPhoto";
-import { exportAttendanceWorkbook, exportCategoryWorkbook } from "./xlsxCategoryExport";
+import { exportAttendanceWorkbook, exportCategoryWorkbook, exportInstitutionAttendanceWorkbook } from "./xlsxCategoryExport";
 
 const APP_NAME = "Municipalidad De San Martín - VOLEY";
 const TAGLINE = "#VamosElPoli";
@@ -139,6 +139,58 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
 }
 
 function StatusButtons({ value, onChange, disabled = false }) { return <div className="status-picker">{Object.entries(STATUS).map(([k, v]) => <button disabled={disabled} type="button" key={k} className={`status ${k} ${value === k ? "active" : ""}`} onClick={() => onChange(k)}><b>{v[0]}</b><span>{v[1]}</span></button>)}</div>; }
+
+
+function attendanceStats(rows = []) {
+  const valid = rows.filter(row => ["present","late","absent"].includes(row?.status));
+  const total = valid.length;
+  const present = valid.filter(row => row.status === "present").length;
+  const late = valid.filter(row => row.status === "late").length;
+  const absent = valid.filter(row => row.status === "absent").length;
+  const pct = value => total ? Math.round((value / total) * 1000) / 10 : 0;
+  return {
+    total,
+    present,
+    late,
+    absent,
+    presentPct: pct(present),
+    latePct: pct(late),
+    absentPct: pct(absent),
+  };
+}
+
+function AttendanceAnalytics({ title, subtitle, rows = [], sessionsCount = 0, playersCount = null, compact = false }) {
+  const stats = attendanceStats(rows);
+  const metrics = [
+    { key:"present", label:"Asistencia", value:stats.present, pct:stats.presentPct },
+    { key:"late", label:"Tardanzas", value:stats.late, pct:stats.latePct },
+    { key:"absent", label:"Inasistencia", value:stats.absent, pct:stats.absentPct },
+  ];
+  return <section className={`attendance-analytics ${compact ? "compact" : ""}`}>
+    <div className="attendance-analytics-head">
+      <div>
+        <h3>{title}</h3>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      <span>{stats.total} Registros</span>
+    </div>
+    <div className="attendance-analytics-summary">
+      <div><b>{sessionsCount}</b><span>Sesiones</span></div>
+      {playersCount!==null && <div><b>{playersCount}</b><span>Jugador@s</span></div>}
+      <div><b>{stats.present}</b><span>Presentes</span></div>
+      <div><b>{stats.late}</b><span>Tardanzas</span></div>
+      <div><b>{stats.absent}</b><span>Ausencias</span></div>
+    </div>
+    <div className="attendance-pie-grid">
+      {metrics.map(metric=><div className={`attendance-pie-card ${metric.key}`} key={metric.key}>
+        <div className="attendance-pie" style={{"--attendance-angle":`${metric.pct * 3.6}deg`}}>
+          <div><strong>{metric.pct}%</strong><span>{metric.label}</span></div>
+        </div>
+        <div className="attendance-pie-meta"><b>{metric.value}</b><span>De {stats.total}</span></div>
+      </div>)}
+    </div>
+  </section>;
+}
 
 function Attendance({ profile, players, categories, permissions, refresh, restrictCategoryIds = null }) {
   const editable = useMemo(() => categories.filter(c => canAttend(profile, c, permissions)), [categories, profile, permissions]);
@@ -793,15 +845,71 @@ function PlayerEdit({player,categories,onClose,onSave,saving}) { const parts=pla
 
 function History({profile,categories,permissions,players,refresh}) {
   const monthStart=`${today().slice(0,7)}-01`;
-  const [sessions,setSessions]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[originalRows,setOriginalRows]=useState([]),[historySaving,setHistorySaving]=useState(false),[selectedCategory,setSelectedCategory]=useState(null),[msg,setMsg]=useState(""),[historyRoster,setHistoryRoster]=useState({});
+  const [sessions,setSessions]=useState([]),[historyAttendance,setHistoryAttendance]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[originalRows,setOriginalRows]=useState([]),[historySaving,setHistorySaving]=useState(false),[selectedCategory,setSelectedCategory]=useState(null),[msg,setMsg]=useState(""),[historyRoster,setHistoryRoster]=useState({});
   const [showReport,setShowReport]=useState(false),[reportCategory,setReportCategory]=useState(categories[0]?.id||""),[reportFrom,setReportFrom]=useState(monthStart),[reportTo,setReportTo]=useState(today()),[reportBusy,setReportBusy]=useState(false);
 
   async function load(){
     const r=await supabase.from("training_sessions").select("*, categories(id,name,gender)").order("session_date",{ascending:false});
-    if(r.error)setMsg(errorText(r.error)); else setSessions(r.data||[]);
+    if(r.error){setMsg(errorText(r.error));return;}
+    const nextSessions=r.data||[];
+    setSessions(nextSessions);
+    if(!nextSessions.length){setHistoryAttendance([]);return;}
+    const a=await supabase.from("attendance").select("session_id,player_id,status");
+    if(a.error)setMsg(errorText(a.error)); else {
+      const visibleSessionIds=new Set(nextSessions.map(session=>session.id));
+      setHistoryAttendance((a.data||[]).filter(row=>visibleSessionIds.has(row.session_id)));
+    }
   }
   useEffect(()=>{void load()},[]);
   useEffect(()=>{if(!reportCategory&&categories[0]?.id)setReportCategory(categories[0].id)},[categories,reportCategory]);
+
+  const sessionById = useMemo(() => Object.fromEntries(sessions.map(session=>[session.id,session])), [sessions]);
+  const institutionStats = attendanceStats(historyAttendance);
+  const institutionPlayerCount = useMemo(() => new Set(historyAttendance.map(row=>row.player_id)).size, [historyAttendance]);
+  const institutionFemaleRows = useMemo(() => historyAttendance.filter(row=>gender(sessionById[row.session_id]?.categories?.gender)==="female"), [historyAttendance,sessionById]);
+  const institutionMaleRows = useMemo(() => historyAttendance.filter(row=>gender(sessionById[row.session_id]?.categories?.gender)==="male"), [historyAttendance,sessionById]);
+
+  function exportInstitutionReport(){
+    const categoryRows=categories.map(category=>{
+      const categorySessions=sessions.filter(session=>session.category_id===category.id);
+      const categorySessionIds=new Set(categorySessions.map(session=>session.id));
+      const categoryAttendance=historyAttendance.filter(row=>categorySessionIds.has(row.session_id));
+      const stats=attendanceStats(categoryAttendance);
+      return {
+        gender:genderText(category.gender),
+        category:category.name,
+        sessions:categorySessions.length,
+        records:stats.total,
+        present:stats.present,
+        late:stats.late,
+        absent:stats.absent,
+        presentPct:stats.presentPct,
+        latePct:stats.latePct,
+        absentPct:stats.absentPct,
+      };
+    });
+    exportInstitutionAttendanceWorkbook({
+      appName:APP_NAME,
+      exportDate:new Date().toLocaleString("es-AR",{timeZone:"America/Argentina/Mendoza"}),
+      general:{
+        sessions:sessions.length,
+        players:institutionPlayerCount,
+        ...institutionStats,
+      },
+      female:{
+        sessions:sessions.filter(session=>gender(session.categories?.gender)==="female").length,
+        players:new Set(institutionFemaleRows.map(row=>row.player_id)).size,
+        ...attendanceStats(institutionFemaleRows),
+      },
+      male:{
+        sessions:sessions.filter(session=>gender(session.categories?.gender)==="male").length,
+        players:new Set(institutionMaleRows.map(row=>row.player_id)).size,
+        ...attendanceStats(institutionMaleRows),
+      },
+      categoryRows,
+      filename:`asistencia-institucional-${today()}.xlsx`,
+    });
+  }
 
   async function openSession(s){
     const [a, roster] = await Promise.all([
@@ -867,7 +975,7 @@ function History({profile,categories,permissions,players,refresh}) {
       setRows(verifiedRows);
       setOriginalRows(verifiedRows.map(row=>({...row})));
       setMsg("✓ Cambios De Asistencia Guardados.");
-      await refresh();
+      await Promise.all([refresh(),load()]);
     } catch (error) {
       setMsg(errorText(error));
     } finally {
@@ -970,7 +1078,15 @@ function History({profile,categories,permissions,players,refresh}) {
         </div>
         <div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div>
       </div>
-      <div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={historySaving || !can(profile, selected.categories, permissions, true)} onChange={status=>{setRows(current=>current.map(row=>row.player_id===r.player_id?{...row,status}:row));setMsg("");}}/></div>})}</div>
+      <AttendanceAnalytics
+        title="Resumen Del Entrenamiento"
+        subtitle="Asistencia, Tardanzas e Inasistencias De Esta Sesión."
+        rows={rows}
+        sessionsCount={1}
+        playersCount={rows.length}
+        compact
+      />
+            <div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={historySaving || !can(profile, selected.categories, permissions, true)} onChange={status=>{setRows(current=>current.map(row=>row.player_id===r.player_id?{...row,status}:row));setMsg("");}}/></div>})}</div>
       {can(profile, selected.categories, permissions, true) && <div className="history-save-actions">
         <button type="button" className="primary wide" disabled={historySaving || !historyChangedRows.length} onClick={saveHistoryChanges}>
           {historySaving ? "Guardando..." : historyChangedRows.length ? `Guardar Cambios (${historyChangedRows.length})` : "Guardar Cambios"}
@@ -1017,6 +1133,13 @@ function History({profile,categories,permissions,players,refresh}) {
         <span>{category?.gender==="female"?"♀":"♂"}</span>
         <div><h2>{category?genderText(category.gender):"Rama"} · {category?.name||"Categoría"}</h2><p>Todas Las Asistencias Cargadas De Esta Categoría.</p></div>
       </div>
+      <AttendanceAnalytics
+        title="Resumen De La Categoría"
+        subtitle="Promedios Acumulados De Todas Las Asistencias Cargadas."
+        rows={historyAttendance.filter(row=>categorySessions.some(session=>session.id===row.session_id))}
+        sessionsCount={categorySessions.length}
+        playersCount={new Set(historyAttendance.filter(row=>categorySessions.some(session=>session.id===row.session_id)).map(row=>row.player_id)).size}
+      />
       <div className="session-list">
         {categorySessions.length ? categorySessions.map(s=><button key={s.id} className="session-card card" onClick={()=>openSession(s)}>
           <span className="session-icon">{TYPES[s.activity_type]?.[0]}</span>
@@ -1043,6 +1166,41 @@ function History({profile,categories,permissions,players,refresh}) {
         </div>
         <button type="button" className="primary history-export-button" disabled={reportBusy} onClick={exportReport}>{reportBusy?"Generando...":"📥 Exportar XLSX"}</button>
       </div>}
+    </div>
+
+    {profile.role==="super_admin" && <div className="card institution-export-card">
+      <div>
+        <b>🏛️ Asistencia Total De La Institución</b>
+        <small>General + Femenino + Masculino + Detalle Por Categoría.</small>
+      </div>
+      <button type="button" className="primary" onClick={exportInstitutionReport} disabled={!historyAttendance.length}>📥 Exportar Planilla Institucional</button>
+    </div>}
+
+    <AttendanceAnalytics
+      title={profile.role==="super_admin" ? "Resumen General De La Institución" : "Resumen General De Mis Categorías"}
+      subtitle="Totales y Promedios Acumulados De Todo El Historial Disponible."
+      rows={historyAttendance}
+      sessionsCount={sessions.length}
+      playersCount={institutionPlayerCount}
+    />
+
+    <div className="attendance-branch-grid">
+      <AttendanceAnalytics
+        title="Femenino"
+        subtitle="Resumen Acumulado De La Rama Femenina."
+        rows={institutionFemaleRows}
+        sessionsCount={sessions.filter(session=>gender(session.categories?.gender)==="female").length}
+        playersCount={new Set(institutionFemaleRows.map(row=>row.player_id)).size}
+        compact
+      />
+      <AttendanceAnalytics
+        title="Masculino"
+        subtitle="Resumen Acumulado De La Rama Masculina."
+        rows={institutionMaleRows}
+        sessionsCount={sessions.filter(session=>gender(session.categories?.gender)==="male").length}
+        playersCount={new Set(institutionMaleRows.map(row=>row.player_id)).size}
+        compact
+      />
     </div>
 
     {msg&&<div className="message">{msg}</div>}

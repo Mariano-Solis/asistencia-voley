@@ -1,0 +1,256 @@
+/* =========================================================
+   HISTORIAL · ANALÍTICAS DE ASISTENCIA
+========================================================= */
+
+main.app .attendance-analytics{
+  margin:18px 0;
+  padding:18px;
+  border:1px solid #e5e7eb;
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 14px 34px rgba(25,28,33,.06);
+}
+
+main.app .attendance-analytics.compact{
+  margin:14px 0;
+  padding:16px;
+}
+
+main.app .attendance-analytics-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+
+main.app .attendance-analytics-head h3{
+  margin:0;
+  font-size:22px;
+  line-height:1.1;
+}
+
+main.app .attendance-analytics-head p{
+  margin:5px 0 0;
+  color:#7a808b;
+  font-size:13px;
+}
+
+main.app .attendance-analytics-head > span{
+  flex:0 0 auto;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#f4f5f7;
+  color:#666d76;
+  font-size:12px;
+  font-weight:800;
+}
+
+main.app .attendance-analytics-summary{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:16px;
+}
+
+main.app .attendance-analytics-summary > div{
+  min-width:0;
+  padding:12px 8px;
+  border-radius:16px;
+  background:#f7f8fa;
+  text-align:center;
+}
+
+main.app .attendance-analytics-summary b{
+  display:block;
+  font-size:22px;
+  line-height:1;
+  color:#20242a;
+}
+
+main.app .attendance-analytics-summary span{
+  display:block;
+  margin-top:6px;
+  color:#7a808b;
+  font-size:11px;
+  font-weight:700;
+}
+
+main.app .attendance-pie-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+
+main.app .attendance-pie-card{
+  display:grid;
+  justify-items:center;
+  gap:10px;
+  padding:14px 10px;
+  border-radius:18px;
+  background:#fbfbfc;
+}
+
+main.app .attendance-pie{
+  --attendance-accent:#22a06b;
+  width:112px;
+  aspect-ratio:1;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:conic-gradient(var(--attendance-accent) 0 var(--attendance-angle), #eceff3 var(--attendance-angle) 360deg);
+  position:relative;
+}
+
+main.app .attendance-pie::after{
+  content:"";
+  position:absolute;
+  inset:12px;
+  border-radius:50%;
+  background:#fff;
+}
+
+main.app .attendance-pie > div{
+  position:relative;
+  z-index:1;
+  display:grid;
+  gap:2px;
+  text-align:center;
+}
+
+main.app .attendance-pie strong{
+  font-size:20px;
+  line-height:1;
+}
+
+main.app .attendance-pie span{
+  color:#7a808b;
+  font-size:10px;
+  font-weight:800;
+}
+
+main.app .attendance-pie-card.late .attendance-pie{
+  --attendance-accent:#d89b00;
+}
+
+main.app .attendance-pie-card.absent .attendance-pie{
+  --attendance-accent:#cf2e35;
+}
+
+main.app .attendance-pie-meta{
+  display:flex;
+  align-items:baseline;
+  gap:5px;
+  color:#7a808b;
+  font-size:11px;
+}
+
+main.app .attendance-pie-meta b{
+  color:#20242a;
+  font-size:16px;
+}
+
+main.app .attendance-branch-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+
+main.app .institution-export-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin:18px 0;
+  padding:16px 18px;
+}
+
+main.app .institution-export-card > div{
+  display:grid;
+  gap:4px;
+}
+
+main.app .institution-export-card b{
+  font-size:16px;
+}
+
+main.app .institution-export-card small{
+  color:#7a808b;
+  font-weight:600;
+}
+
+main.app .institution-export-card button{
+  flex:0 0 auto;
+}
+
+@media (max-width:768px){
+  main.app .attendance-analytics{
+    padding:15px;
+    border-radius:19px;
+  }
+
+  main.app .attendance-analytics-head{
+    align-items:center;
+  }
+
+  main.app .attendance-analytics-head h3{
+    font-size:19px;
+  }
+
+  main.app .attendance-analytics-summary{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+
+  main.app .attendance-pie-grid{
+    gap:8px;
+  }
+
+  main.app .attendance-pie-card{
+    padding:10px 5px;
+  }
+
+  main.app .attendance-pie{
+    width:min(25vw,92px);
+  }
+
+  main.app .attendance-pie::after{
+    inset:10px;
+  }
+
+  main.app .attendance-pie strong{
+    font-size:17px;
+  }
+
+  main.app .attendance-pie span{
+    font-size:9px;
+  }
+
+  main.app .attendance-branch-grid{
+    grid-template-columns:1fr;
+    gap:2px;
+  }
+
+  main.app .institution-export-card{
+    display:grid;
+  }
+
+  main.app .institution-export-card button{
+    width:100%;
+  }
+}
+
+@media (max-width:420px){
+  main.app .attendance-analytics-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  main.app .attendance-pie{
+    width:86px;
+  }
+
+  main.app .attendance-pie-meta{
+    display:grid;
+    justify-items:center;
+    gap:1px;
+  }
+}
