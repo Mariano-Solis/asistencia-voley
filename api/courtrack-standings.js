@@ -89,6 +89,35 @@ function resolveFromLeagues(leagues, branch, category) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: true, message: "Método No Permitido." });
 
+  if (req.query.debug === "ligas") {
+    try {
+      const leagues = await courtrack(`/getLigas?id_cliente=${CLIENT_ID}`);
+      const compact = (Array.isArray(leagues) ? leagues : []).map((league) => ({
+        id: league?.id,
+        nombre: league?.nombre,
+        torneos: (Array.isArray(league?.torneos) ? league.torneos : []).map((t) => ({
+          id: t?.id,
+          descripcion: t?.descripcion,
+          id_rama: t?.id_rama,
+          edad_limite: t?.edad_limite,
+        })),
+        etapas: Object.fromEntries(Object.entries(league?.torneos_etapas || {}).map(([id, stages]) => [
+          id,
+          (Array.isArray(stages) ? stages : []).map((st) => ({
+            id: st?.id,
+            titulo: st?.titulo,
+            descripcion: st?.descripcion,
+            sistema: st?.sistema,
+            orden: st?.orden,
+          })),
+        ])),
+      }));
+      return json(res, 200, { error: false, leagues: compact });
+    } catch (error) {
+      return json(res, 502, { error: true, message: error?.message || "No Se Pudieron Listar Las Ligas." });
+    }
+  }
+
   const branch = String(req.query.branch || "female").toLowerCase();
   const category = String(req.query.category || "mayores").toLowerCase();
   const key = `${branch}:${category}`;
