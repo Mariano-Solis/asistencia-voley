@@ -15,22 +15,31 @@ const NATIVE_STANDINGS = {
 
 const CATEGORY_OPTIONS = {
   female: [
-    ["mayores", "Primera"],
-    ["sub18", "Sub 18"],
-    ["sub16", "Sub 16"],
-    ["sub14", "Sub 14"],
     ["sub12", "Sub 12"],
+    ["sub14", "Sub 14"],
+    ["sub16", "Sub 16"],
+    ["sub18", "Sub 18"],
+    ["mayores", "Primera"],
   ],
   male: [
-    ["mayores", "Primera"],
-    ["sub18", "Sub 18"],
-    ["sub16", "Sub 16"],
     ["sub14", "Sub 14"],
+    ["sub16", "Sub 16"],
+    ["sub18", "Sub 18"],
+    ["mayores", "Primera"],
   ],
+};
+
+const DEFAULT_SELECTED = {
+  female: ["sub14", "sub16", "sub18", "mayores"],
+  male: ["sub14", "sub16", "sub18", "mayores"],
 };
 
 function branchLabel(value) {
   return value === "female" ? "Femenino" : "Masculino";
+}
+
+function categoryLabel(branch, value) {
+  return CATEGORY_OPTIONS[branch].find(([key]) => key === value)?.[1] || value;
 }
 
 function formatTime(value) {
@@ -47,27 +56,153 @@ function formatTime(value) {
   }
 }
 
+function round1(value) {
+  return Number.isFinite(value) ? Math.round(value * 10) / 10 : 0;
+}
+
+function buildAggregate(tables) {
+  const byTeam = new Map();
+
+  for (const table of tables) {
+    for (const row of table.positions || []) {
+      const team = String(row.id_equipo || "").trim();
+      if (!team) continue;
+      const current = byTeam.get(team) || {
+        team,
+        logo: row.logo || "",
+        appearances: 0,
+        positionSum: 0,
+        pointsSum: 0,
+        played: 0,
+        won: 0,
+        lost: 0,
+        setsWon: 0,
+        setsLost: 0,
+        details: [],
+      };
+      current.appearances += 1;
+      current.positionSum += Number(row.posicion || 0);
+      current.pointsSum += Number(row.puntos || 0);
+      current.played += Number(row.jugados || 0);
+      current.won += Number(row.ganados || 0);
+      current.lost += Number(row.perdidos || 0);
+      current.setsWon += Number(row.setGanados || 0);
+      current.setsLost += Number(row.setPerdidos || 0);
+      current.logo = current.logo || row.logo || "";
+      current.details.push({
+        category: table.category,
+        categoryLabel: table.categoryLabel,
+        posicion: Number(row.posicion || 0),
+        puntos: Number(row.puntos || 0),
+        jugados: Number(row.jugados || 0),
+        ganados: Number(row.ganados || 0),
+        perdidos: Number(row.perdidos || 0),
+        setGanados: Number(row.setGanados || 0),
+        setPerdidos: Number(row.setPerdidos || 0),
+      });
+      byTeam.set(team, current);
+    }
+  }
+
+  return [...byTeam.values()].map((row) => ({
+    ...row,
+    avgPosition: round1(row.positionSum / Math.max(1, row.appearances)),
+    avgPoints: round1(row.pointsSum / Math.max(1, row.appearances)),
+    winPct: row.played ? round1((row.won / row.played) * 100) : 0,
+  })).sort((a, b) =>
+    a.avgPosition - b.avgPosition ||
+    b.winPct - a.winPct ||
+    b.avgPoints - a.avgPoints ||
+    a.team.localeCompare(b.team)
+  ).map((row, index) => ({ ...row, computedRank: index + 1 }));
+}
+
+async function loadNativeTable(branch, category) {
+  const ids = NATIVE_STANDINGS[`${branch}:${category}`];
+  if (!ids) throw new Error("Rama O Categoría No Válida.");
+
+  const response = await CapacitorHttp.get({
+    url: "https://api.courtrack.com/api/torneo/getPosiciones",
+    params: {
+      id_torneos: String(ids.tournamentId),
+      id_etapas: String(ids.stageId),
+    },
+    headers: { Accept: "application/json" },
+    connectTimeout: 12000,
+    readTimeout: 12000,
+  });
+
+  const payload = typeof response.data === "string"
+    ? JSON.parse(response.data || "{}")
+    : (response.data || {});
+
+  if (response.status < 200 || response.status >= 300 || payload?.error) {
+    throw new Error(payload?.message || `Courtrack Respondió HTTP ${response.status}.`);
+  }
+
+  const table = Array.isArray(payload?.data) ? payload.data[0] : null;
+  if (!table) throw new Error("No Se Encontró La Tabla Solicitada.");
+
+  return {
+    branch,
+    category,
+    categoryLabel: categoryLabel(branch, category),
+    fetchedAt: new Date().toISOString(),
+    tournamentId: Number(table.id_torneo || ids.tournamentId),
+    stageId: Number(table.id_etapa || ids.stageId),
+    stage: table.titulo || table.descripcion_etapa || "",
+    division: table.division || "",
+    positions: Array.isArray(table.posicionesObj) ? table.posicionesObj : [],
+  };
+}
+
+async function loadWebTable(branch, category, signal) {
+  const params = new URLSearchParams({ branch, category });
+  const response = await fetch(`/api/courtrack-standings?${params.toString()}`, {
+    signal,
+    headers: { Accept: "application/json" },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.message || "No Se Pudo Actualizar La Tabla.");
+  }
+  return {
+    ...payload,
+    categoryLabel: categoryLabel(branch, category),
+  };
+}
+
 export default function StandingsHub({ compact = false }) {
   const [branch, setBranch] = useState("female");
-  const [category, setCategory] = useState("mayores");
-  const [query, setQuery] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState(DEFAULT_SELECTED.female);
+  const [selectedTeam, setSelectedTeam] = useState("MSM");
   const [advanced, setAdvanced] = useState(false);
-  const [data, setData] = useState(null);
+  const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
   const abortRef = useRef(null);
 
   const options = CATEGORY_OPTIONS[branch];
 
   useEffect(() => {
-    if (!options.some(([value]) => value === category)) setCategory(options[0][0]);
-    setQuery("");
+    setSelectedCategories(DEFAULT_SELECTED[branch]);
+    setSelectedTeam("MSM");
   }, [branch]);
 
-  useEffect(() => {
-    setQuery("");
-  }, [category]);
+  function toggleCategory(category) {
+    setSelectedCategories((current) => {
+      if (current.includes(category)) {
+        if (current.length === 1) return current;
+        return current.filter((item) => item !== category);
+      }
+      return [...current, category].sort((a, b) => {
+        const order = options.map(([value]) => value);
+        return order.indexOf(a) - order.indexOf(b);
+      });
+    });
+  }
 
   async function load({ quiet = false } = {}) {
     abortRef.current?.abort();
@@ -76,62 +211,29 @@ export default function StandingsHub({ compact = false }) {
     if (quiet) setRefreshing(true);
     else setLoading(true);
     setMessage("");
+
     try {
-      let payload;
+      const loader = Capacitor.isNativePlatform()
+        ? (category) => loadNativeTable(branch, category)
+        : (category) => loadWebTable(branch, category, controller.signal);
 
-      if (Capacitor.isNativePlatform()) {
-        const ids = NATIVE_STANDINGS[`${branch}:${category}`];
-        if (!ids) throw new Error("Rama O Categoría No Válida.");
+      const results = await Promise.allSettled(selectedCategories.map(loader));
+      const ok = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+      const failed = results.filter((result) => result.status === "rejected");
 
-        const response = await CapacitorHttp.get({
-          url: "https://api.courtrack.com/api/torneo/getPosiciones",
-          params: {
-            id_torneos: String(ids.tournamentId),
-            id_etapas: String(ids.stageId),
-          },
-          headers: { Accept: "application/json" },
-          connectTimeout: 12000,
-          readTimeout: 12000,
-        });
-
-        const nativePayload = typeof response.data === "string"
-          ? JSON.parse(response.data || "{}")
-          : (response.data || {});
-
-        if (response.status < 200 || response.status >= 300 || nativePayload?.error) {
-          throw new Error(nativePayload?.message || `Courtrack Respondió HTTP ${response.status}.`);
-        }
-
-        const table = Array.isArray(nativePayload?.data) ? nativePayload.data[0] : null;
-        if (!table) throw new Error("No Se Encontró La Tabla Solicitada.");
-
-        payload = {
-          error: false,
-          source: "Courtrack · Federación Mendocina De Voleibol",
-          fetchedAt: new Date().toISOString(),
-          branch,
-          category,
-          tournamentId: Number(table.id_torneo || ids.tournamentId),
-          stageId: Number(table.id_etapa || ids.stageId),
-          stage: table.titulo || table.descripcion_etapa || "",
-          division: table.division || "",
-          positions: Array.isArray(table.posicionesObj) ? table.posicionesObj : [],
-        };
-      } else {
-        const params = new URLSearchParams({ branch, category });
-        const response = await fetch(`/api/courtrack-standings?${params.toString()}`, {
-          signal: controller.signal,
-          headers: { Accept: "application/json" },
-        });
-        payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload?.error) {
-          throw new Error(payload?.message || "No Se Pudo Actualizar La Tabla.");
-        }
+      if (!ok.length) {
+        throw new Error(failed[0]?.reason?.message || "No Se Pudieron Consultar Las Posiciones.");
       }
 
-      setData(payload);
+      setTables(ok);
+      setLastUpdated(new Date().toISOString());
+      if (failed.length) {
+        setMessage(`Se Actualizaron ${ok.length} De ${selectedCategories.length} Categorías. Reintentá Para Completar Las Restantes.`);
+      }
     } catch (error) {
-      if (error?.name !== "AbortError") setMessage(error?.message || "No Se Pudo Actualizar La Tabla.");
+      if (error?.name !== "AbortError") {
+        setMessage(error?.message || "No Se Pudieron Actualizar Las Posiciones.");
+      }
     } finally {
       if (!controller.signal.aborted) {
         setLoading(false);
@@ -146,40 +248,43 @@ export default function StandingsHub({ compact = false }) {
     const onVisible = () => {
       if (document.visibilityState === "visible") void load({ quiet: true });
     };
-    const onFocus = () => void load({ quiet: true });
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onFocus);
     return () => {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onFocus);
       abortRef.current?.abort();
     };
-  }, [branch, category]);
+  }, [branch, selectedCategories.join("|")]);
 
-  const rows = useMemo(() => {
-    const positions = Array.isArray(data?.positions) ? data.positions : [];
-    const needle = query.trim().toLocaleLowerCase("es-AR");
-    if (!needle) return positions;
-    return positions.filter((row) => String(row.id_equipo || "").toLocaleLowerCase("es-AR").includes(needle));
-  }, [data, query]);
+  const aggregate = useMemo(() => buildAggregate(tables), [tables]);
+  const teams = useMemo(() => aggregate.map((row) => row.team), [aggregate]);
 
-  const leader = data?.positions?.[0] || null;
-  const msm = useMemo(() => {
-    const positions = Array.isArray(data?.positions) ? data.positions : [];
-    return positions.find((row) => String(row.id_equipo || "").toUpperCase() === "MSM") || null;
-  }, [data]);
+  useEffect(() => {
+    if (selectedTeam !== "__ALL__" && !teams.includes(selectedTeam)) {
+      setSelectedTeam(teams.includes("MSM") ? "MSM" : "__ALL__");
+    }
+  }, [teams.join("|")]);
+
+  const selectedAggregate = useMemo(
+    () => aggregate.find((row) => row.team === selectedTeam) || null,
+    [aggregate, selectedTeam]
+  );
+
+  const comparisonRows = selectedTeam === "__ALL__" ? aggregate : selectedAggregate ? [selectedAggregate] : [];
 
   return <section className={`standings-page ${compact ? "compact" : ""}`}>
     <div className="standings-hero">
       <div>
         <span className="eyebrow">Federación Mendocina De Voleibol · Nivel 1</span>
-        <h1>Tabla De Posiciones</h1>
-        <p>Consulta Institucional Con Actualización Automática Desde Courtrack.</p>
+        <h1>Posiciones y Comparativo Institucional</h1>
+        <p>Datos Oficiales Actualizados Y Resumen Comparativo Calculado Para Uso Institucional.</p>
       </div>
       <div className="standings-live">
         <span className={refreshing ? "pulse" : ""}>●</span>
-        <div><b>{refreshing ? "Actualizando..." : "Actualización Automática"}</b><small>Cada 60 Segundos · Última Consulta {formatTime(data?.fetchedAt)}</small></div>
+        <div>
+          <b>{refreshing ? "Actualizando..." : "Actualización Automática"}</b>
+          <small>Cada 60 Segundos · Última Consulta {formatTime(lastUpdated)}</small>
+        </div>
       </div>
     </div>
 
@@ -190,17 +295,26 @@ export default function StandingsHub({ compact = false }) {
           <option value="male">Masculino</option>
         </select>
       </label>
-      <label>Categoría
-        <select value={category} onChange={(event) => setCategory(event.target.value)}>
-          {options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+
+      <label>Equipo
+        <select value={selectedTeam} onChange={(event) => setSelectedTeam(event.target.value)}>
+          <option value="__ALL__">Todos Los Equipos</option>
+          {teams.map((team) => <option key={team} value={team}>{team}</option>)}
         </select>
       </label>
-      <label>Filtrar Equipo <small className="standings-optional">(Opcional)</small>
-        <div className="standings-search">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ej.: MSM"/>
-          {query && <button type="button" aria-label="Limpiar Filtro" onClick={() => setQuery("")}>×</button>}
+
+      <div className="standings-category-picker">
+        <span>Categorías Incluidas</span>
+        <div className="standings-category-chips">
+          {options.map(([value, label]) => <button
+            type="button"
+            key={value}
+            className={selectedCategories.includes(value) ? "active" : ""}
+            onClick={() => toggleCategory(value)}
+          >{label}</button>)}
         </div>
-      </label>
+      </div>
+
       <button type="button" className="standings-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
         <span className={refreshing ? "spinning" : ""}>↻</span> {refreshing ? "Actualizando..." : "Actualizar Ahora"}
       </button>
@@ -208,51 +322,105 @@ export default function StandingsHub({ compact = false }) {
 
     {message && <div className="message standings-message">{message}</div>}
 
-    {!loading && data && <div className="standings-summary">
-      <div className="card standings-msm-card"><span>Posición MSM</span><b>{msm ? `#${msm.posicion}` : "—"}</b></div>
-      <div className="card standings-msm-card"><span>Puntos MSM</span><b>{msm?.puntos ?? "—"}</b></div>
-      <div className="card"><span>Equipos</span><b>{data.positions?.length || 0}</b></div>
-      <div className="card"><span>Líder</span><b>{leader?.id_equipo || "—"}</b></div>
+    {!loading && selectedTeam !== "__ALL__" && selectedAggregate && <div className="standings-summary">
+      <div className="card standings-msm-card"><span>Equipo</span><b>{selectedAggregate.team}</b></div>
+      <div className="card standings-msm-card"><span>Posición Promedio</span><b>{selectedAggregate.avgPosition}</b></div>
+      <div className="card"><span>Puntos Promedio</span><b>{selectedAggregate.avgPoints}</b></div>
+      <div className="card"><span>% De Victorias</span><b>{selectedAggregate.winPct}%</b></div>
+    </div>}
+
+    {!loading && selectedTeam !== "__ALL__" && selectedAggregate && <div className="standings-card card">
+      <div className="standings-card-head">
+        <div>
+          <h2>{selectedAggregate.team} · Rendimiento Por Categoría</h2>
+          <p>Promedios calculados solamente sobre las categorías seleccionadas donde participa el equipo.</p>
+        </div>
+      </div>
+      <div className="standings-table-wrap">
+        <table className="standings-table">
+          <thead><tr><th>Categoría</th><th>Pos.</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th><th>%V</th></tr></thead>
+          <tbody>{selectedAggregate.details.map((row) => <tr key={row.category}>
+            <td><strong>{row.categoryLabel}</strong></td>
+            <td>{row.posicion}</td>
+            <td>{row.puntos}</td>
+            <td>{row.jugados}</td>
+            <td>{row.ganados}</td>
+            <td>{row.perdidos}</td>
+            <td>{row.jugados ? round1((row.ganados / row.jugados) * 100) : 0}%</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
     </div>}
 
     <div className="standings-card card">
       <div className="standings-card-head">
         <div>
-          <h2>{data?.stage || "Posiciones Oficiales"}</h2>
-          <p>{data?.division || (loading ? "Consultando Información..." : "Federación Mendocina De Voleibol")}</p>
+          <h2>{selectedTeam === "__ALL__" ? "Comparativo General De Instituciones" : "Resumen Comparativo"}</h2>
+          <p>
+            {selectedTeam === "__ALL__"
+              ? `Promedio combinado de ${selectedCategories.map((item) => categoryLabel(branch, item)).join(", ")}. No reemplaza las tablas oficiales por categoría.`
+              : `Comparación calculada sobre ${selectedAggregate?.appearances || 0} categorías con participación.`}
+          </p>
         </div>
-        <label className="standings-advanced"><input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)}/> Estadísticas Avanzadas</label>
+        <label className="standings-advanced">
+          <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)}/>
+          Estadísticas Avanzadas
+        </label>
       </div>
 
-      {loading ? <div className="standings-loading">Consultando La Tabla Oficial...</div> :
+      {loading ? <div className="standings-loading">Consultando Las Tablas Oficiales...</div> :
         <div className="standings-table-wrap">
-          <div className="standings-results-meta">{query ? `Mostrando ${rows.length} De ${data?.positions?.length || 0} Equipos` : `Mostrando ${rows.length} Equipos`}</div>
           <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
             <thead><tr>
-              <th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th>
-              {advanced && <><th>SG</th><th>SP</th><th>TF</th><th>TC</th></>}
+              {selectedTeam === "__ALL__" && <th>#</th>}
+              <th>Equipo</th>
+              <th>Cat.</th>
+              <th>Pos. Prom.</th>
+              <th>PTS Prom.</th>
+              <th>%V</th>
+              {advanced && <><th>PJ</th><th>PG</th><th>PP</th><th>SG</th><th>SP</th></>}
             </tr></thead>
             <tbody>
-              {rows.map((row) => {
-                const classes = [
-                  row.posicion <= 3 ? `top-${row.posicion}` : "",
-                  String(row.id_equipo || "").toUpperCase() === "MSM" ? "is-msm" : "",
-                ].filter(Boolean).join(" ");
-                return <tr key={`${row.posicion}:${row.id_equipo}`} className={classes}>
-                <td><span className="standings-position">{row.posicion}</span></td>
-                <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : <span className="standings-logo-fallback">🏐</span>}<strong>{row.id_equipo}</strong></div></td>
-                <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
-                {advanced && <><td>{row.setGanados}</td><td>{row.setPerdidos}</td><td>{row.tantosGanados}</td><td>{row.tantosPerdidos}</td></>}
-              </tr>})}
-              {!rows.length && <tr><td colSpan={advanced ? 10 : 6} className="standings-empty">No Hay Equipos Que Coincidan Con La Búsqueda.</td></tr>}
+              {comparisonRows.map((row) => <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
+                {selectedTeam === "__ALL__" && <td><span className="standings-position">{row.computedRank}</span></td>}
+                <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
+                <td>{row.appearances}</td>
+                <td><b>{row.avgPosition}</b></td>
+                <td>{row.avgPoints}</td>
+                <td>{row.winPct}%</td>
+                {advanced && <><td>{row.played}</td><td>{row.won}</td><td>{row.lost}</td><td>{row.setsWon}</td><td>{row.setsLost}</td></>}
+              </tr>)}
             </tbody>
           </table>
         </div>}
+
       <div className="standings-foot">
-        <span>PTS: Puntos · PJ: Jugados · PG: Ganados · PP: Perdidos</span>
-        {advanced && <span>SG/SP: Sets Ganados/Perdidos · TF/TC: Tantos A Favor/En Contra</span>}
-        <small>Fuente: {data?.source || "Courtrack · Federación Mendocina De Voleibol"}</small>
+        <span><b>Pos. Prom.</b>: promedio aritmético de la posición del equipo en cada categoría seleccionada.</span>
+        <span><b>PTS Prom.</b>: promedio de puntos oficiales entre las categorías donde participa.</span>
+        <span><b>%V</b>: victorias totales ÷ partidos jugados totales.</span>
+        <small>Fuente De Datos: Courtrack · Federación Mendocina De Voleibol. El Comparativo General Es Un Cálculo Institucional Propio.</small>
       </div>
+    </div>
+
+    <div className="standings-official-grid">
+      {tables.map((table) => <div className="standings-card card" key={table.category}>
+        <div className="standings-card-head">
+          <div>
+            <h2>{table.categoryLabel} · Tabla Oficial</h2>
+            <p>{table.stage || table.division || branchLabel(branch)}</p>
+          </div>
+        </div>
+        <div className="standings-table-wrap">
+          <table className="standings-table">
+            <thead><tr><th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th></tr></thead>
+            <tbody>{table.positions.map((row) => <tr key={`${table.category}:${row.id_equipo}`} className={String(row.id_equipo).toUpperCase() === "MSM" ? "is-msm" : ""}>
+              <td><span className="standings-position">{row.posicion}</span></td>
+              <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.id_equipo}</strong></div></td>
+              <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+      </div>)}
     </div>
   </section>;
 }
