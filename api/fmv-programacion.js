@@ -101,4 +101,43 @@ function parse(html){
     return{round,confirmed:matches.length>0&&matches.every(x=>x.confirmed),matches};
   });
 }
-export default async function handler(req,res){if(req.method!=="GET")return send(res,405,{error:true,message:"Método No Permitido."});try{const r=await fetch(SOURCE_URL,{headers:{Accept:"text/html,application/xhtml+xml"},cache:"no-store"});if(!r.ok)throw new Error(`La Programación FMV Respondió HTTP ${r.status}.`);const html=await r.text();return send(res,200,{error:false,source:"Federación Mendocina De Voleibol",sourceUrl:SOURCE_URL,fetchedAt:new Date().toISOString(),rounds:parse(html)},true)}catch(error){return send(res,502,{error:true,message:error?.message||"No Se Pudo Consultar La Programación."})}}
+export default async function handler(req,res){
+  if(req.method!=="GET")return send(res,405,{error:true,message:"Método No Permitido."});
+  try{
+    const r=await fetch(SOURCE_URL,{headers:{Accept:"text/html,application/xhtml+xml"},cache:"no-store"});
+    if(!r.ok)throw new Error(`La Programación FMV Respondió HTTP ${r.status}.`);
+    const html=await r.text();
+
+    if(String(req.query?.debug||"")==="1"){
+      const c=candidates(html);
+      const dm=html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([\s\S]*?)["']\s*\/?>/i);
+      const desc=dm?clean(dm[1]):"";
+      const nd=norm(desc);
+      const debug=c.map(cur=>{
+        const next=c.find(x=>x.index>cur.index);
+        const seg=html.slice(cur.index,next?.index||html.length);
+        const rows=[];
+        for(const rm of seg.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)){
+          const cells=[...rm[0].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1]));
+          if(cells.length<5)continue;
+          const [date,time,local,visitor,place]=cells;
+          if(!team(local)&&!team(visitor))continue;
+          const needle=norm(`${date} ${time} ${local} ${visitor} ${place}`);
+          const di=needle?nd.indexOf(needle):-1;
+          rows.push({
+            cells,
+            di,
+            htmlMeta:inferMetaFromPrefix(seg.slice(Math.max(0,rm.index-60000),rm.index)),
+            descMeta:di>=0?inferMetaFromPrefix(nd.slice(Math.max(0,di-60000),di)):null
+          });
+        }
+        return{round:cur.round,index:cur.index,rowCount:rows.length,rows:rows.slice(0,30)};
+      });
+      return send(res,200,{candidates:c,descLength:nd.length,debug});
+    }
+
+    return send(res,200,{error:false,source:"Federación Mendocina De Voleibol",sourceUrl:SOURCE_URL,fetchedAt:new Date().toISOString(),rounds:parse(html)},true);
+  }catch(error){
+    return send(res,502,{error:true,message:error?.message||"No Se Pudo Consultar La Programación."});
+  }
+}
