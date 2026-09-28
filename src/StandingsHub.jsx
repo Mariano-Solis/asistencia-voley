@@ -282,6 +282,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       setSelectedKeys([]);
       return;
     }
+
     if (!availableBranches.includes(branch)) {
       setBranch(availableBranches[0]);
       return;
@@ -294,9 +295,24 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       ? configuredDefaults.filter((key) => permitted.includes(key))
       : permitted;
 
-    setSelectedKeys(defaults.length ? defaults : permitted.slice(0, 1));
-    setSelectedTeam("MSM");
+    setSelectedKeys((current) => {
+      const stillValid = current.filter((key) => permitted.includes(key));
+      if (stillValid.length) return stillValid;
+      return defaults.length ? defaults : permitted.slice(0, 1);
+    });
   }, [competition, branch, accessSignature, unrestricted]);
+
+  function changeCompetition(nextCompetition) {
+    setCompetition(nextCompetition);
+    const branches = ["female", "male"].filter((value) =>
+      availableEntries.some((item) => item.competition === nextCompetition && item.branch === value)
+    );
+    if (branches.length && !branches.includes(branch)) setBranch(branches[0]);
+  }
+
+  function changeBranch(nextBranch) {
+    setBranch(nextBranch);
+  }
 
   function toggleCategory(key) {
     setSelectedKeys((current) => {
@@ -319,6 +335,12 @@ export default function StandingsHub({ compact = false, allowedCategories = null
 
     try {
       const selectedEntries = options.filter((item) => selectedKeys.includes(item.key));
+      if (!selectedEntries.length) {
+        if (!quiet) setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       const loader = Capacitor.isNativePlatform()
         ? (entry) => loadNativeTable(entry)
         : (entry) => loadWebTable(entry, controller.signal);
@@ -498,13 +520,13 @@ export default function StandingsHub({ compact = false, allowedCategories = null
 
     <div className="standings-controls card">
       <label>Competencia
-        <select value={competition} onChange={(event) => setCompetition(event.target.value)}>
+        <select value={competition} onChange={(event) => changeCompetition(event.target.value)}>
           {availableCompetitions.map((value) => <option key={value} value={value}>{competitionLabel(value)}</option>)}
         </select>
       </label>
 
       <label>Rama
-        <select value={branch} onChange={(event) => setBranch(event.target.value)}>
+        <select value={branch} onChange={(event) => changeBranch(event.target.value)}>
           {availableBranches.map((value) => <option key={value} value={value}>{branchLabel(value)}</option>)}
         </select>
       </label>
