@@ -31,7 +31,7 @@
 .standings-category-chips button.active{background:#c01423;color:#fff;border-color:#c01423}
 .standings-official-grid{display:grid;gap:14px}
 .standings-card-head p{max-width:760px}
-.standings-controls{grid-template-columns:minmax(160px,.8fr) minmax(180px,.9fr) minmax(280px,1.6fr) auto}
+.standings-controls{grid-template-columns:minmax(145px,.75fr) minmax(135px,.7fr) minmax(180px,.9fr) minmax(280px,1.5fr) auto}
 @media(max-width:820px){
   .standings-controls{grid-template-columns:1fr 1fr}
   .standings-category-picker{grid-column:1/-1}
@@ -49,3 +49,11 @@
 .standings-no-access{padding:18px;display:grid;gap:6px}
 .standings-no-access b{font-size:14px}
 .standings-no-access span{font-size:12px;color:#667085;line-height:1.45}
+
+.standings-controls>label select{background:#fff}
+.standings-category-picker{min-width:0}
+@media(max-width:1050px){
+  .standings-controls{grid-template-columns:1fr 1fr 1fr}
+  .standings-category-picker{grid-column:1/-1}
+  .standings-refresh{grid-column:1/-1}
+}

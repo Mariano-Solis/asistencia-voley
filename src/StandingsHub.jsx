@@ -1,86 +1,93 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 
-const NATIVE_STANDINGS = {
-  "female:sub12": { tournamentId: 897, stageId: 3640 },
-  "female:sub14": { tournamentId: 898, stageId: 3641 },
-  "female:sub16": { tournamentId: 899, stageId: 3642 },
-  "female:sub18": { tournamentId: 900, stageId: 3643 },
-  "female:mayores": { tournamentId: 901, stageId: 3644 },
-  "male:sub14": { tournamentId: 896, stageId: 3639 },
-  "male:sub16": { tournamentId: 895, stageId: 3638 },
-  "male:sub18": { tournamentId: 894, stageId: 3637 },
-  "male:mayores": { tournamentId: 893, stageId: 3636 },
-};
+const TABLE_CATALOG = [
+  { key: "female:level1:sub12", branch: "female", competition: "level1", category: "sub12", apiCategory: "sub12", label: "Sub 12", tournamentId: 897, stageId: 3640 },
+  { key: "female:level1:sub14", branch: "female", competition: "level1", category: "sub14", apiCategory: "sub14", label: "Sub 14", tournamentId: 898, stageId: 3641 },
+  { key: "female:level1:sub16", branch: "female", competition: "level1", category: "sub16", apiCategory: "sub16", label: "Sub 16", tournamentId: 899, stageId: 3642 },
+  { key: "female:level1:sub18", branch: "female", competition: "level1", category: "sub18", apiCategory: "sub18", label: "Sub 18", tournamentId: 900, stageId: 3643 },
+  { key: "female:level1:mayores", branch: "female", competition: "level1", category: "mayores", apiCategory: "mayores", label: "Primera", tournamentId: 901, stageId: 3644 },
 
-const CATEGORY_OPTIONS = {
-  female: [
-    ["sub12", "Sub 12"],
-    ["sub14", "Sub 14"],
-    ["sub16", "Sub 16"],
-    ["sub18", "Sub 18"],
-    ["mayores", "Primera"],
-  ],
-  male: [
-    ["sub14", "Sub 14"],
-    ["sub16", "Sub 16"],
-    ["sub18", "Sub 18"],
-    ["mayores", "Primera"],
-  ],
-};
+  { key: "male:level1:sub14", branch: "male", competition: "level1", category: "sub14", apiCategory: "sub14", label: "Sub 14", tournamentId: 896, stageId: 3639 },
+  { key: "male:level1:sub16", branch: "male", competition: "level1", category: "sub16", apiCategory: "sub16", label: "Sub 16", tournamentId: 895, stageId: 3638 },
+  { key: "male:level1:sub18", branch: "male", competition: "level1", category: "sub18", apiCategory: "sub18", label: "Sub 18", tournamentId: 894, stageId: 3637 },
+  { key: "male:level1:mayores", branch: "male", competition: "level1", category: "mayores", apiCategory: "mayores", label: "Primera", tournamentId: 893, stageId: 3636 },
+
+  { key: "female:level3:sub12", branch: "female", competition: "level3", category: "sub12", apiCategory: "n3_sub12", label: "Sub 12", tournamentId: 915, stageId: 3694 },
+  { key: "female:level3:sub14a", branch: "female", competition: "level3", category: "sub14a", apiCategory: "n3_sub14_a", label: "Sub 14 · Zona A", tournamentId: 913, stageId: 3691 },
+  { key: "female:level3:sub14b", branch: "female", competition: "level3", category: "sub14b", apiCategory: "n3_sub14_b", label: "Sub 14 · Zona B", tournamentId: 913, stageId: 3692 },
+  { key: "female:level3:sub16", branch: "female", competition: "level3", category: "sub16", apiCategory: "n3_sub16", label: "Sub 16", tournamentId: 914, stageId: 3693 },
+  { key: "female:level3:sub18", branch: "female", competition: "level3", category: "sub18", apiCategory: "n3_sub18", label: "Sub 18", tournamentId: 912, stageId: 3690 },
+  { key: "female:level3:mayores", branch: "female", competition: "level3", category: "mayores", apiCategory: "n3_mayores", label: "Primera", tournamentId: 906, stageId: 3679 },
+
+  { key: "female:master:master_a", branch: "female", competition: "master", category: "master_a", apiCategory: "master_a", label: "Master A", tournamentId: 886, stageId: 3626 },
+  { key: "female:master:master_c", branch: "female", competition: "master", category: "master_c", apiCategory: "master_c", label: "Master C", tournamentId: 888, stageId: 3628 },
+];
 
 const DEFAULT_SELECTED = {
-  female: ["sub14", "sub16", "sub18", "mayores"],
-  male: ["sub14", "sub16", "sub18", "mayores"],
+  "female:level1": ["female:level1:sub14", "female:level1:sub16", "female:level1:sub18", "female:level1:mayores"],
+  "male:level1": ["male:level1:sub14", "male:level1:sub16", "male:level1:sub18", "male:level1:mayores"],
+  "female:level3": [],
+  "female:master": [],
 };
 
-function localCategoryToStanding(category) {
-  const rawName = String(category?.name || "")
+function normalizeName(value) {
+  return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase();
-  const compactName = rawName.replace(/[^A-Z0-9]/g, "");
-  const rawGender = String(category?.gender || "").toLowerCase();
-  const branch = ["female", "femenino", "femenina", "mujer", "f"].includes(rawGender)
-    ? "female"
-    : "male";
-
-  let categoryKey = null;
-  if (compactName.includes("SUB12")) categoryKey = "sub12";
-  else if (compactName.includes("SUB14")) categoryKey = "sub14";
-  else if (compactName.includes("SUB16")) categoryKey = "sub16";
-  else if (compactName.includes("SUB18")) categoryKey = "sub18";
-  else if (compactName.includes("PRIMERA") || compactName.includes("MAYORES") || compactName.includes("MAYOR")) categoryKey = "mayores";
-
-  if (!categoryKey) return null;
-  if (!CATEGORY_OPTIONS[branch]?.some(([value]) => value === categoryKey)) return null;
-  return { branch, category: categoryKey };
-}
-
-function buildStandingsRestriction(allowedCategories, unrestricted) {
-  const result = { female: new Set(), male: new Set() };
-
-  if (unrestricted) {
-    for (const branch of ["female", "male"]) {
-      for (const [value] of CATEGORY_OPTIONS[branch]) result[branch].add(value);
-    }
-    return result;
-  }
-
-  for (const category of Array.isArray(allowedCategories) ? allowedCategories : []) {
-    const mapped = localCategoryToStanding(category);
-    if (mapped) result[mapped.branch].add(mapped.category);
-  }
-
-  return result;
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function branchLabel(value) {
   return value === "female" ? "Femenino" : "Masculino";
 }
 
-function categoryLabel(branch, value) {
-  return CATEGORY_OPTIONS[branch].find(([key]) => key === value)?.[1] || value;
+function competitionLabel(value) {
+  if (value === "level3") return "Nivel 3";
+  if (value === "master") return "Master";
+  return "Nivel 1";
+}
+
+function permissionKeysForCategory(category) {
+  const name = normalizeName(category?.name);
+  const compact = name.replace(/[^A-Z0-9]/g, "");
+  const rawGender = String(category?.gender || "").toLowerCase();
+  const branch = ["female", "femenino", "femenina", "mujer", "f"].includes(rawGender) ? "female" : "male";
+
+  if (branch === "female" && compact === "MASTERA") return ["female:master:master_a"];
+  if (branch === "female" && compact === "MASTERC") return ["female:master:master_c"];
+
+  const isLevel3Team = branch === "female" && /B$/.test(compact);
+  let ageKey = null;
+  if (compact.includes("SUB12")) ageKey = "sub12";
+  else if (compact.includes("SUB14")) ageKey = "sub14";
+  else if (compact.includes("SUB16")) ageKey = "sub16";
+  else if (compact.includes("SUB18")) ageKey = "sub18";
+  else if (compact.includes("PRIMERA") || compact.includes("MAYORES") || compact.includes("MAYOR")) ageKey = "mayores";
+
+  if (!ageKey) return [];
+
+  if (isLevel3Team) {
+    if (ageKey === "sub14") {
+      return ["female:level3:sub14a", "female:level3:sub14b"];
+    }
+    const key = `female:level3:${ageKey}`;
+    return TABLE_CATALOG.some((item) => item.key === key) ? [key] : [];
+  }
+
+  const key = `${branch}:level1:${ageKey}`;
+  return TABLE_CATALOG.some((item) => item.key === key) ? [key] : [];
+}
+
+function buildAllowedKeys(allowedCategories, unrestricted) {
+  if (unrestricted) return new Set(TABLE_CATALOG.map((item) => item.key));
+  const result = new Set();
+  for (const category of Array.isArray(allowedCategories) ? allowedCategories : []) {
+    for (const key of permissionKeysForCategory(category)) result.add(key);
+  }
+  return result;
 }
 
 function formatTime(value) {
@@ -131,7 +138,7 @@ function buildAggregate(tables) {
       current.setsLost += Number(row.setPerdidos || 0);
       current.logo = current.logo || row.logo || "";
       current.details.push({
-        category: table.category,
+        tableKey: table.tableKey,
         categoryLabel: table.categoryLabel,
         posicion: Number(row.posicion || 0),
         puntos: Number(row.puntos || 0),
@@ -158,15 +165,12 @@ function buildAggregate(tables) {
   ).map((row, index) => ({ ...row, computedRank: index + 1 }));
 }
 
-async function loadNativeTable(branch, category) {
-  const ids = NATIVE_STANDINGS[`${branch}:${category}`];
-  if (!ids) throw new Error("Rama O Categoría No Válida.");
-
+async function loadNativeTable(entry) {
   const response = await CapacitorHttp.get({
     url: "https://api.courtrack.com/api/torneo/getPosiciones",
     params: {
-      id_torneos: String(ids.tournamentId),
-      id_etapas: String(ids.stageId),
+      id_torneos: String(entry.tournamentId),
+      id_etapas: String(entry.stageId),
     },
     headers: { Accept: "application/json" },
     connectTimeout: 12000,
@@ -185,20 +189,22 @@ async function loadNativeTable(branch, category) {
   if (!table) throw new Error("No Se Encontró La Tabla Solicitada.");
 
   return {
-    branch,
-    category,
-    categoryLabel: categoryLabel(branch, category),
+    branch: entry.branch,
+    competition: entry.competition,
+    category: entry.apiCategory,
+    tableKey: entry.key,
+    categoryLabel: entry.label,
     fetchedAt: new Date().toISOString(),
-    tournamentId: Number(table.id_torneo || ids.tournamentId),
-    stageId: Number(table.id_etapa || ids.stageId),
+    tournamentId: Number(table.id_torneo || entry.tournamentId),
+    stageId: Number(table.id_etapa || entry.stageId),
     stage: table.titulo || table.descripcion_etapa || "",
     division: table.division || "",
     positions: Array.isArray(table.posicionesObj) ? table.posicionesObj : [],
   };
 }
 
-async function loadWebTable(branch, category, signal) {
-  const params = new URLSearchParams({ branch, category });
+async function loadWebTable(entry, signal) {
+  const params = new URLSearchParams({ branch: entry.branch, category: entry.apiCategory });
   const response = await fetch(`/api/courtrack-standings?${params.toString()}`, {
     signal,
     headers: { Accept: "application/json" },
@@ -209,13 +215,33 @@ async function loadWebTable(branch, category, signal) {
   }
   return {
     ...payload,
-    categoryLabel: categoryLabel(branch, category),
+    tableKey: entry.key,
+    competition: entry.competition,
+    categoryLabel: entry.label,
   };
 }
 
 export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false }) {
+  const allowedKeys = useMemo(
+    () => buildAllowedKeys(allowedCategories, unrestricted),
+    [allowedCategories, unrestricted]
+  );
+  const accessSignature = useMemo(
+    () => [...allowedKeys].sort().join("|"),
+    [allowedKeys]
+  );
+  const availableEntries = useMemo(
+    () => TABLE_CATALOG.filter((item) => allowedKeys.has(item.key)),
+    [accessSignature]
+  );
+  const availableCompetitions = useMemo(
+    () => ["level1", "level3", "master"].filter((value) => availableEntries.some((item) => item.competition === value)),
+    [accessSignature]
+  );
+
+  const [competition, setCompetition] = useState("level1");
   const [branch, setBranch] = useState("female");
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedKeys, setSelectedKeys] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState("MSM");
   const [advanced, setAdvanced] = useState(false);
   const [tables, setTables] = useState([]);
@@ -225,56 +251,59 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const [lastUpdated, setLastUpdated] = useState(null);
   const abortRef = useRef(null);
 
-  const restriction = useMemo(
-    () => buildStandingsRestriction(allowedCategories, unrestricted),
-    [allowedCategories, unrestricted]
-  );
-  const accessSignature = useMemo(
-    () => ["female", "male"].map((key) => `${key}:${[...restriction[key]].sort().join(",")}`).join("|"),
-    [restriction]
-  );
   const availableBranches = useMemo(
-    () => ["female", "male"].filter((key) => restriction[key].size > 0),
-    [accessSignature]
+    () => ["female", "male"].filter((value) =>
+      availableEntries.some((item) => item.competition === competition && item.branch === value)
+    ),
+    [competition, accessSignature]
   );
+
   const options = useMemo(
-    () => CATEGORY_OPTIONS[branch].filter(([value]) => restriction[branch]?.has(value)),
-    [branch, accessSignature]
+    () => availableEntries.filter((item) => item.competition === competition && item.branch === branch),
+    [competition, branch, accessSignature]
   );
 
   useEffect(() => {
-    if (!availableBranches.length) {
-      setSelectedCategories([]);
+    if (!availableCompetitions.length) {
+      setSelectedKeys([]);
       setTables([]);
-      setSelectedTeam("MSM");
       setLoading(false);
       return;
     }
+    if (!availableCompetitions.includes(competition)) {
+      setCompetition(availableCompetitions[0]);
+    }
+  }, [accessSignature, competition]);
 
+  useEffect(() => {
+    if (!availableBranches.length) {
+      setSelectedKeys([]);
+      return;
+    }
     if (!availableBranches.includes(branch)) {
       setBranch(availableBranches[0]);
       return;
     }
 
-    const permitted = options.map(([value]) => value);
-    const defaults = unrestricted
-      ? DEFAULT_SELECTED[branch].filter((value) => permitted.includes(value))
+    const permitted = options.map((item) => item.key);
+    const defaultKey = `${branch}:${competition}`;
+    const configuredDefaults = DEFAULT_SELECTED[defaultKey] || [];
+    const defaults = unrestricted && configuredDefaults.length
+      ? configuredDefaults.filter((key) => permitted.includes(key))
       : permitted;
 
-    setSelectedCategories(defaults.length ? defaults : permitted.slice(0, 1));
+    setSelectedKeys(defaults.length ? defaults : permitted.slice(0, 1));
     setSelectedTeam("MSM");
-  }, [branch, accessSignature, unrestricted]);
+  }, [competition, branch, accessSignature, unrestricted]);
 
-  function toggleCategory(category) {
-    setSelectedCategories((current) => {
-      if (current.includes(category)) {
+  function toggleCategory(key) {
+    setSelectedKeys((current) => {
+      if (current.includes(key)) {
         if (current.length === 1) return current;
-        return current.filter((item) => item !== category);
+        return current.filter((item) => item !== key);
       }
-      return [...current, category].sort((a, b) => {
-        const order = options.map(([value]) => value);
-        return order.indexOf(a) - order.indexOf(b);
-      });
+      const order = options.map((item) => item.key);
+      return [...current, key].sort((a, b) => order.indexOf(a) - order.indexOf(b));
     });
   }
 
@@ -287,13 +316,29 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     setMessage("");
 
     try {
+      const selectedEntries = options.filter((item) => selectedKeys.includes(item.key));
       const loader = Capacitor.isNativePlatform()
-        ? (category) => loadNativeTable(branch, category)
-        : (category) => loadWebTable(branch, category, controller.signal);
+        ? (entry) => loadNativeTable(entry)
+        : (entry) => loadWebTable(entry, controller.signal);
 
-      const results = await Promise.allSettled(selectedCategories.map(loader));
-      const ok = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+      const results = await Promise.allSettled(selectedEntries.map(loader));
+      let ok = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
       const failed = results.filter((result) => result.status === "rejected");
+
+      if (!unrestricted && competition === "level3") {
+        const sub14Tables = ok.filter((table) => ["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey));
+        if (sub14Tables.length > 1) {
+          const institutionalZones = sub14Tables.filter((table) =>
+            (table.positions || []).some((row) => String(row.id_equipo || "").toUpperCase() === "MSM")
+          );
+          if (institutionalZones.length) {
+            ok = ok.filter((table) =>
+              !["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey) ||
+              institutionalZones.some((zone) => zone.tableKey === table.tableKey)
+            );
+          }
+        }
+      }
 
       if (!ok.length) {
         throw new Error(failed[0]?.reason?.message || "No Se Pudieron Consultar Las Posiciones.");
@@ -302,7 +347,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       setTables(ok);
       setLastUpdated(new Date().toISOString());
       if (failed.length) {
-        setMessage(`Se Actualizaron ${ok.length} De ${selectedCategories.length} Categorías. Reintentá Para Completar Las Restantes.`);
+        setMessage(`Se Actualizaron ${ok.length} De ${selectedEntries.length} Tablas. Reintentá Para Completar Las Restantes.`);
       }
     } catch (error) {
       if (error?.name !== "AbortError") {
@@ -317,7 +362,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   }
 
   useEffect(() => {
-    if (!selectedCategories.length || !availableBranches.includes(branch)) {
+    if (!selectedKeys.length || !availableBranches.includes(branch)) {
       setTables([]);
       setLoading(false);
       setRefreshing(false);
@@ -335,7 +380,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       document.removeEventListener("visibilitychange", onVisible);
       abortRef.current?.abort();
     };
-  }, [branch, selectedCategories.join("|")]);
+  }, [competition, branch, selectedKeys.join("|")]);
 
   const aggregate = useMemo(() => buildAggregate(tables), [tables]);
   const teams = useMemo(() => aggregate.map((row) => row.team), [aggregate]);
@@ -350,20 +395,20 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     () => aggregate.find((row) => row.team === selectedTeam) || null,
     [aggregate, selectedTeam]
   );
-
   const comparisonRows = selectedTeam === "__ALL__" ? aggregate : selectedAggregate ? [selectedAggregate] : [];
+  const selectedLabels = options.filter((item) => selectedKeys.includes(item.key)).map((item) => item.label);
 
-  if (!availableBranches.length) {
+  if (!availableEntries.length) {
     return <section className={`standings-page ${compact ? "compact" : ""}`}>
       <div className="standings-hero">
         <div>
-          <span className="eyebrow">Federación Mendocina De Voleibol · Nivel 1</span>
+          <span className="eyebrow">Federación Mendocina De Voleibol</span>
           <h1>Posiciones y Comparativo Institucional</h1>
           <p>Las Tablas Se Muestran Según Las Categorías Autorizadas Para Tu Perfil.</p>
         </div>
       </div>
       <div className="card standings-no-access">
-        <b>Sin Categorías De Nivel 1 Habilitadas Para Posiciones</b>
+        <b>Sin Categorías Habilitadas Para Posiciones</b>
         <span>Cuando El Super Administrador Te Asigne Permisos Sobre Una Categoría Compatible, Su Tabla Aparecerá Automáticamente Acá.</span>
       </div>
     </section>;
@@ -372,7 +417,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   return <section className={`standings-page ${compact ? "compact" : ""}`}>
     <div className="standings-hero">
       <div>
-        <span className="eyebrow">Federación Mendocina De Voleibol · Nivel 1</span>
+        <span className="eyebrow">Federación Mendocina De Voleibol · {competitionLabel(competition)}</span>
         <h1>Posiciones y Comparativo Institucional</h1>
         <p>Datos Oficiales Actualizados Y Resumen Comparativo Calculado Para Uso Institucional.</p>
       </div>
@@ -386,6 +431,12 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     </div>
 
     <div className="standings-controls card">
+      <label>Competencia
+        <select value={competition} onChange={(event) => setCompetition(event.target.value)}>
+          {availableCompetitions.map((value) => <option key={value} value={value}>{competitionLabel(value)}</option>)}
+        </select>
+      </label>
+
       <label>Rama
         <select value={branch} onChange={(event) => setBranch(event.target.value)}>
           {availableBranches.map((value) => <option key={value} value={value}>{branchLabel(value)}</option>)}
@@ -402,12 +453,12 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       <div className="standings-category-picker">
         <span>Categorías Incluidas</span>
         <div className="standings-category-chips">
-          {options.map(([value, label]) => <button
+          {options.map((item) => <button
             type="button"
-            key={value}
-            className={selectedCategories.includes(value) ? "active" : ""}
-            onClick={() => toggleCategory(value)}
-          >{label}</button>)}
+            key={item.key}
+            className={selectedKeys.includes(item.key) ? "active" : ""}
+            onClick={() => toggleCategory(item.key)}
+          >{item.label}</button>)}
         </div>
       </div>
 
@@ -435,7 +486,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       <div className="standings-table-wrap">
         <table className="standings-table">
           <thead><tr><th>Categoría</th><th>Pos.</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th><th>%V</th></tr></thead>
-          <tbody>{selectedAggregate.details.map((row) => <tr key={row.category}>
+          <tbody>{selectedAggregate.details.map((row) => <tr key={row.tableKey}>
             <td><strong>{row.categoryLabel}</strong></td>
             <td>{row.posicion}</td>
             <td>{row.puntos}</td>
@@ -454,7 +505,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           <h2>{selectedTeam === "__ALL__" ? "Comparativo General De Instituciones" : "Resumen Comparativo"}</h2>
           <p>
             {selectedTeam === "__ALL__"
-              ? `Promedio combinado de ${selectedCategories.map((item) => categoryLabel(branch, item)).join(", ")}. No reemplaza las tablas oficiales por categoría.`
+              ? `Promedio combinado de ${selectedLabels.join(", ")}. No reemplaza las tablas oficiales por categoría.`
               : `Comparación calculada sobre ${selectedAggregate?.appearances || 0} categorías con participación.`}
           </p>
         </div>
@@ -499,7 +550,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     </div>
 
     <div className="standings-official-grid">
-      {tables.map((table) => <div className="standings-card card" key={table.category}>
+      {tables.map((table) => <div className="standings-card card" key={table.tableKey}>
         <div className="standings-card-head">
           <div>
             <h2>{table.categoryLabel} · Tabla Oficial</h2>
@@ -509,7 +560,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
         <div className="standings-table-wrap">
           <table className="standings-table">
             <thead><tr><th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th></tr></thead>
-            <tbody>{table.positions.map((row) => <tr key={`${table.category}:${row.id_equipo}`} className={String(row.id_equipo).toUpperCase() === "MSM" ? "is-msm" : ""}>
+            <tbody>{table.positions.map((row) => <tr key={`${table.tableKey}:${row.id_equipo}`} className={String(row.id_equipo).toUpperCase() === "MSM" ? "is-msm" : ""}>
               <td><span className="standings-position">{row.posicion}</span></td>
               <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.id_equipo}</strong></div></td>
               <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
