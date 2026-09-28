@@ -3,7 +3,20 @@ function clean(v=""){return String(v).replace(/&nbsp;/gi," ").replace(/&quot;/gi
 function norm(v=""){return clean(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\s+/g," ").trim()}
 function team(v){const x=norm(v);return x==="MSM"||x==="MSM B"}
 function send(res,status,body,cache=false){res.status(status);res.setHeader("Content-Type","application/json; charset=utf-8");res.setHeader("Cache-Control",cache?"public, s-maxage=45, stale-while-revalidate=120":"no-store");return res.end(JSON.stringify(body))}
-function candidates(html){const out=[],rx=/(\d{1,2})(?:º|&ordm;|°)\s*FECHA/gi;let m;while((m=rx.exec(html))){const round=Number(m[1]),index=m.index,after=html.slice(index,index+20000);if(Number.isInteger(round)&&/<table\b/i.test(after)&&/MAYORES[\s\S]{0,2500}?(?:NIVEL\s*I|NIVEL\s*1)/i.test(after))out.push({round,index})}const map=new Map();for(const x of out){const c=map.get(x.round);if(!c||x.index>c.index)map.set(x.round,x)}return[...map.values()].sort((a,b)=>a.index-b.index)}
+function candidates(html){
+  const out=[],rx=/(\d{1,2})(?:º|&ordm;|°)\s*FECHA/gi;let m;
+  while((m=rx.exec(html))){
+    const round=Number(m[1]),index=m.index;
+    const before=norm(html.slice(Math.max(0,index-8000),index));
+    const marker=before.lastIndexOf("TORNEO CLAUSURA");
+    const markerDistance=marker>=0?before.length-(marker+"TORNEO CLAUSURA".length):Number.POSITIVE_INFINITY;
+    const after=html.slice(index,index+30000);
+    if(Number.isInteger(round)&&markerDistance<=250&&/<table\b/i.test(after))out.push({round,index});
+  }
+  const map=new Map();
+  for(const x of out){const c=map.get(x.round);if(!c||x.index>c.index)map.set(x.round,x)}
+  return[...map.values()].sort((a,b)=>a.index-b.index);
+}
 function meta(h,b,c){const t=norm(h);if(t.includes("MASCULINO"))b="male";if(t.includes("FEMENINO"))b="female";if(t.includes("MASTER A"))return{branch:"female",competition:"master",permissionKey:"female:master:master_a",categoryLabel:"Master A"};if(t.includes("MASTER C"))return{branch:"female",competition:"master",permissionKey:"female:master:master_c",categoryLabel:"Master C"};if(t.includes("NIVEL III")||t.includes("NIVEL 3"))c="level3";else if(t.includes("NIVEL II")||t.includes("NIVEL 2"))c="level2";else if(t.includes("NIVEL I")||t.includes("NIVEL 1"))c="level1";let k="";if(t.includes("MAYORES"))k="mayores";else if(t.includes("SUB 12"))k="sub12";else if(t.includes("SUB 14"))k="sub14";else if(t.includes("SUB 16"))k="sub16";else if(t.includes("SUB 18"))k="sub18";if(!k)return{branch:b,competition:c,permissionKey:"",categoryLabel:""};if(c==="level3"&&b==="female"){if(k==="sub12")return{branch:b,competition:c,permissionKey:"female:level3:sub12",categoryLabel:"Sub 12 Femenino · Nivel 3"};if(k==="sub14"){const z=t.includes("ZONA A")||t.includes('ZONA "A"')?"A":t.includes("ZONA B")||t.includes('ZONA "B"')?"B":"";if(z)return{branch:b,competition:c,permissionKey:`female:level3:sub14${z.toLowerCase()}`,categoryLabel:`Sub 14 Femenino · Nivel 3 · Zona ${z}`}}return{branch:b,competition:c,permissionKey:"",categoryLabel:""}}if(c!=="level1")return{branch:b,competition:c,permissionKey:"",categoryLabel:""};const base=k==="mayores"?"Primera":k.replace("sub","Sub ");return{branch:b,competition:c,permissionKey:`${b}:level1:${k}`,categoryLabel:`${base} ${b==="female"?"Femenino":"Masculino"}`}}
 function inferMetaFromPrefix(raw){
   const text=norm(raw);
