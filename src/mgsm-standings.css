@@ -23,3 +23,25 @@
   .standings-team img,.standings-logo-fallback{width:24px;height:24px;border-radius:6px}
   .standings-position{width:24px;height:24px}
 }
+
+.standings-category-picker{display:grid;gap:7px}
+.standings-category-picker>span{font-size:11px;font-weight:800}
+.standings-category-chips{display:flex;flex-wrap:wrap;gap:8px}
+.standings-category-chips button{border:1px solid #d0d5dd;background:#fff;color:#344054;border-radius:999px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer}
+.standings-category-chips button.active{background:#c01423;color:#fff;border-color:#c01423}
+.standings-official-grid{display:grid;gap:14px}
+.standings-card-head p{max-width:760px}
+.standings-controls{grid-template-columns:minmax(160px,.8fr) minmax(180px,.9fr) minmax(280px,1.6fr) auto}
+@media(max-width:820px){
+  .standings-controls{grid-template-columns:1fr 1fr}
+  .standings-category-picker{grid-column:1/-1}
+  .standings-refresh{grid-column:1/-1}
+}
+@media(max-width:480px){
+  .standings-controls{grid-template-columns:1fr}
+  .standings-controls>label,.standings-category-picker,.standings-refresh{grid-column:1}
+  .standings-category-chips{gap:6px}
+  .standings-category-chips button{flex:1 1 calc(50% - 6px);min-height:38px}
+  .standings-summary{grid-template-columns:1fr 1fr}
+  .standings-card-head h2{font-size:16px}
+}
