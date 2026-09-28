@@ -123,6 +123,12 @@ export default async function handler(req,res){
 
     if(String(req.query?.debug||"")==="1"){
       const c=candidates(html);
+      const allHeadings=[...html.matchAll(/(\d{1,2})(?:º|&ordm;|°)\s*FECHA/gi)].map(m=>({
+        round:Number(m[1]),
+        index:m.index,
+        before:clean(html.slice(Math.max(0,m.index-800),m.index)).slice(-500),
+        after:clean(html.slice(m.index,m.index+1200)).slice(0,800)
+      })).filter(x=>x.round===8||x.round===9);
       const dm=html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([\s\S]*?)["']\s*\/?>/i);
       const desc=dm?clean(dm[1]):"";
       const nd=norm(desc);
@@ -146,7 +152,7 @@ export default async function handler(req,res){
         }
         return{round:cur.round,index:cur.index,rowCount:rows.length,rows:rows.slice(0,30)};
       });
-      return send(res,200,{candidates:c,descLength:nd.length,debug});
+      return send(res,200,{candidates:c,allHeadings,descLength:nd.length,debug});
     }
 
     return send(res,200,{error:false,source:"Federación Mendocina De Voleibol",sourceUrl:SOURCE_URL,fetchedAt:new Date().toISOString(),rounds:parse(html)},true);
