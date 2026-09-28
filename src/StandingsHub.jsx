@@ -50,6 +50,11 @@ function competitionLabel(value) {
   return "Nivel 1";
 }
 
+function institutionTeamKey(value) {
+  const team = String(value || "").trim().toUpperCase();
+  return team === "MSM" || team === "MSM B" ? "MSM" : String(value || "").trim();
+}
+
 function permissionKeysForCategory(category) {
   const name = normalizeName(category?.name);
   const compact = name.replace(/[^A-Z0-9]/g, "");
@@ -113,7 +118,7 @@ function buildAggregate(tables) {
 
   for (const table of tables) {
     for (const row of table.positions || []) {
-      const team = String(row.id_equipo || "").trim();
+      const team = institutionTeamKey(row.id_equipo);
       if (!team) continue;
       const current = byTeam.get(team) || {
         team,
@@ -329,7 +334,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
         const sub14Tables = ok.filter((table) => ["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey));
         if (sub14Tables.length > 1) {
           const institutionalZones = sub14Tables.filter((table) =>
-            (table.positions || []).some((row) => String(row.id_equipo || "").toUpperCase() === "MSM")
+            (table.positions || []).some((row) => institutionTeamKey(row.id_equipo) === "MSM")
           );
           if (institutionalZones.length) {
             ok = ok.filter((table) =>
@@ -560,7 +565,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
         <div className="standings-table-wrap">
           <table className="standings-table">
             <thead><tr><th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th></tr></thead>
-            <tbody>{table.positions.map((row) => <tr key={`${table.tableKey}:${row.id_equipo}`} className={String(row.id_equipo).toUpperCase() === "MSM" ? "is-msm" : ""}>
+            <tbody>{table.positions.map((row) => <tr key={`${table.tableKey}:${row.id_equipo}`} className={institutionTeamKey(row.id_equipo) === "MSM" ? "is-msm" : ""}>
               <td><span className="standings-position">{row.posicion}</span></td>
               <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.id_equipo}</strong></div></td>
               <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
