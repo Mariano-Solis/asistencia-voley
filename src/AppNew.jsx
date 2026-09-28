@@ -6,6 +6,7 @@ import { CONFLICT_MESSAGE, attendanceWriteError, attendanceFingerprint, readAtte
 import TrainingSchedule from "./TrainingSchedule";
 import ProfessorTrainingHub from "./ProfessorTrainingHub";
 import { AdminPaymentPanel, PlayerPaymentPanel } from "./PaymentHubStable";
+import StandingsHub from "./StandingsHub";
 import officialLogo from "../Logo.jpg";
 import { playerPhotoPath, preparePlayerPhoto, savePendingPlayerPhoto } from "./playerPhoto";
 import { exportAttendanceWorkbook, exportCategoryWorkbook, exportInstitutionAttendanceWorkbook } from "./xlsxCategoryExport";
@@ -1717,7 +1718,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     </main>;
   }
 
-  const nav=[["home","Asistencia"],["players","Jugador@s"],["history","Historial"],["schedule","Horarios"],["payments","Pagos"],["requests","Solicitudes"],["training","Entrenamiento"],["settings","Solapas"]];
+  const nav=[["home","Asistencia"],["players","Jugador@s"],["history","Historial"],["schedule","Horarios"],["standings","Posiciones"],["payments","Pagos"],["requests","Solicitudes"],["training","Entrenamiento"],["settings","Solapas"]];
   const allowedNav=nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav=mergeNavigationOrder(allowedNav,previewOrder);
 
@@ -1741,6 +1742,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       {tab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
+      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version} compact/>}
       {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
       {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
       {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
@@ -1958,7 +1960,7 @@ function App() {
     onAuthEnd={()=>{authIntent.current=null;}}
     onAdmin={acceptAdmin}
     onPlayer={acceptPlayer}/>;
-  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['training','Entrenamiento'],['payments','Pagos'],['requests','Solicitudes']];
+  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['standings','Posiciones'],['training','Entrenamiento'],['payments','Pagos'],['requests','Solicitudes']];
   if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Jugador']);
   if(profile.role==='super_admin'){
     nav.splice(dualPlayerAvailable?3:2,0,['professorPreview','Profe']);
@@ -1978,6 +1980,7 @@ function App() {
     {tab==='players'&&<Players key={`players:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
+    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}`}/>}
     {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
     {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} userId={profile.id} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
     {tab==='requests'&&<RequestsPage profile={profile}/>}
