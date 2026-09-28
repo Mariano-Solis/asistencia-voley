@@ -11,6 +11,16 @@ const FALLBACK = {
   "male:sub16": { tournamentId: 895, stageId: 3638 },
   "male:sub18": { tournamentId: 894, stageId: 3637 },
   "male:mayores": { tournamentId: 893, stageId: 3636 },
+
+  "female:n3_sub12": { tournamentId: 915, stageId: 3694 },
+  "female:n3_sub14_a": { tournamentId: 913, stageId: 3691 },
+  "female:n3_sub14_b": { tournamentId: 913, stageId: 3692 },
+  "female:n3_sub16": { tournamentId: 914, stageId: 3693 },
+  "female:n3_sub18": { tournamentId: 912, stageId: 3690 },
+  "female:n3_mayores": { tournamentId: 906, stageId: 3679 },
+
+  "female:master_a": { tournamentId: 886, stageId: 3626 },
+  "female:master_c": { tournamentId: 888, stageId: 3628 },
 };
 
 function normalize(value) {
@@ -41,19 +51,56 @@ async function courtrack(path) {
 }
 
 function categoryAge(category) {
-  if (category === "mayores") return 0;
-  const match = String(category).match(/^sub(\d+)$/);
+  const clean = String(category || "").replace(/^n3_/, "").replace(/_[ab]$/, "");
+  if (clean === "mayores") return 0;
+  const match = clean.match(/^sub(\d+)$/);
   return match ? Number(match[1]) : null;
 }
 
 function resolveFromLeagues(leagues, branch, category) {
+  const list = Array.isArray(leagues) ? leagues : [];
   const female = branch === "female";
   const branchId = female ? 1 : 2;
+
+  if (category === "master_a" || category === "master_c") {
+    const target = category === "master_a" ? "MASTER A" : "MASTER C";
+    const league = list
+      .filter((item) => normalize(item?.nombre).includes("MASTER"))
+      .sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0))[0];
+    if (!league) return null;
+
+    const tournament = (Array.isArray(league.torneos) ? league.torneos : [])
+      .filter((item) => Number(item?.id_rama) === 1)
+      .filter((item) => normalize(item?.descripcion).includes(target))
+      .sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0))[0];
+    if (!tournament) return null;
+
+    const stages = Array.isArray(league?.torneos_etapas?.[String(tournament.id)])
+      ? league.torneos_etapas[String(tournament.id)]
+      : [];
+    const stage = stages.filter((item) => item?.sistema === "posiciones")[0];
+    if (!stage) return null;
+
+    return {
+      tournamentId: Number(tournament.id),
+      stageId: Number(stage.id),
+      tournament: tournament.descripcion || "",
+      stage: stage.titulo || stage.descripcion || "",
+      leagueId: Number(league.id),
+      league: league.nombre || "",
+    };
+  }
+
+  const isLevel3 = category.startsWith("n3_");
   const age = categoryAge(category);
   if (age === null) return null;
 
-  const candidateLeagues = (Array.isArray(leagues) ? leagues : []).filter((league) => {
+  const candidateLeagues = list.filter((league) => {
     const name = normalize(league?.nombre);
+    if (isLevel3) {
+      if (category === "n3_mayores") return name.includes("MAYORES");
+      return name.includes("INFERIORES") && name.includes("NIVEL 3");
+    }
     if (category === "mayores") return name.includes("MAYORES");
     if (!name.includes("INFERIORES") || !name.includes("NIVEL 1")) return false;
     return female ? name.includes("FEM") : name.includes("MASC");
@@ -63,15 +110,27 @@ function resolveFromLeagues(leagues, branch, category) {
     const tournaments = Array.isArray(league?.torneos) ? league.torneos : [];
     const tournament = tournaments
       .filter((item) => Number(item?.id_rama) === branchId && Number(item?.edad_limite || 0) === age)
-      .filter((item) => category !== "mayores" || /NIVEL\s*1\b/i.test(String(item?.descripcion || "")))
+      .filter((item) => {
+        const desc = normalize(item?.descripcion);
+        if (isLevel3) return desc.includes("NIVEL 3");
+        if (category === "mayores") return desc.includes("NIVEL 1");
+        return true;
+      })
       .sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0))[0];
 
     if (!tournament) continue;
     const stages = Array.isArray(league?.torneos_etapas?.[String(tournament.id)])
       ? league.torneos_etapas[String(tournament.id)]
       : [];
-    const stage = stages
-      .filter((item) => item?.sistema === "posiciones")
+    let positionStages = stages.filter((item) => item?.sistema === "posiciones");
+
+    if (category === "n3_sub14_a") {
+      positionStages = positionStages.filter((item) => normalize(`${item?.titulo || ""} ${item?.descripcion || ""}`).includes("ZONA A"));
+    } else if (category === "n3_sub14_b") {
+      positionStages = positionStages.filter((item) => normalize(`${item?.titulo || ""} ${item?.descripcion || ""}`).includes("ZONA B"));
+    }
+
+    const stage = positionStages
       .sort((a, b) => Number(b?.orden || 0) - Number(a?.orden || 0) || Number(b?.id || 0) - Number(a?.id || 0))[0];
 
     if (stage) return {
@@ -88,49 +147,6 @@ function resolveFromLeagues(leagues, branch, category) {
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: true, message: "Método No Permitido." });
-
-  if (req.query.debug === "tabla") {
-    try {
-      const tournamentId = Number(req.query.tournamentId);
-      const stageId = Number(req.query.stageId);
-      if (!Number.isInteger(tournamentId) || !Number.isInteger(stageId)) {
-        return json(res, 400, { error: true, message: "IDs inválidos." });
-      }
-      const payload = await courtrack(`/getPosiciones?id_torneos=${tournamentId}&id_etapas=${stageId}`);
-      return json(res, 200, payload);
-    } catch (error) {
-      return json(res, 502, { error: true, message: error?.message || "No Se Pudo Consultar La Tabla." });
-    }
-  }
-
-  if (req.query.debug === "ligas") {
-    try {
-      const leagues = await courtrack(`/getLigas?id_cliente=${CLIENT_ID}`);
-      const compact = (Array.isArray(leagues) ? leagues : []).map((league) => ({
-        id: league?.id,
-        nombre: league?.nombre,
-        torneos: (Array.isArray(league?.torneos) ? league.torneos : []).map((t) => ({
-          id: t?.id,
-          descripcion: t?.descripcion,
-          id_rama: t?.id_rama,
-          edad_limite: t?.edad_limite,
-        })),
-        etapas: Object.fromEntries(Object.entries(league?.torneos_etapas || {}).map(([id, stages]) => [
-          id,
-          (Array.isArray(stages) ? stages : []).map((st) => ({
-            id: st?.id,
-            titulo: st?.titulo,
-            descripcion: st?.descripcion,
-            sistema: st?.sistema,
-            orden: st?.orden,
-          })),
-        ])),
-      }));
-      return json(res, 200, { error: false, leagues: compact });
-    } catch (error) {
-      return json(res, 502, { error: true, message: error?.message || "No Se Pudieron Listar Las Ligas." });
-    }
-  }
 
   const branch = String(req.query.branch || "female").toLowerCase();
   const category = String(req.query.category || "mayores").toLowerCase();
