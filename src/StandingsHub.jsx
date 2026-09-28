@@ -322,8 +322,23 @@ export default function StandingsHub({ compact = false, allowedCategories = null
         : (entry) => loadWebTable(entry, controller.signal);
 
       const results = await Promise.allSettled(selectedEntries.map(loader));
-      const ok = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+      let ok = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
       const failed = results.filter((result) => result.status === "rejected");
+
+      if (!unrestricted && competition === "level3") {
+        const sub14Tables = ok.filter((table) => ["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey));
+        if (sub14Tables.length > 1) {
+          const institutionalZones = sub14Tables.filter((table) =>
+            (table.positions || []).some((row) => String(row.id_equipo || "").toUpperCase() === "MSM")
+          );
+          if (institutionalZones.length) {
+            ok = ok.filter((table) =>
+              !["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey) ||
+              institutionalZones.some((zone) => zone.tableKey === table.tableKey)
+            );
+          }
+        }
+      }
 
       if (!ok.length) {
         throw new Error(failed[0]?.reason?.message || "No Se Pudieron Consultar Las Posiciones.");
