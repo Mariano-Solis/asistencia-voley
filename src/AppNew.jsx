@@ -1661,6 +1661,11 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
   );
   const restrictCategoryIds=useMemo(()=>attendanceCategories.map(category=>category.id),[attendanceCategories]);
   const professorCategoryIds=useMemo(()=>[...new Set([...visibleCategories.map(category=>category.id),...restrictCategoryIds])],[visibleCategories,restrictCategoryIds]);
+  const professorStandingsCategories=useMemo(()=>{
+    const byId=new Map();
+    [...visibleCategories,...attendanceCategories].forEach(category=>byId.set(category.id,category));
+    return [...byId.values()];
+  },[visibleCategories,attendanceCategories]);
 
   useEffect(()=>{
     if(!previewProfile){setPendingCount(0);return undefined;}
@@ -1729,7 +1734,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       <span>👨‍🏫 Vista Profe · {previewProfile.full_name}</span>
       <button type="button" className="professor-preview-change" onClick={()=>{setSelectedId("");setTab("home");}}>Cambiar Profe</button>
     </div>
-    <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
+    <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{key==="standings"&&<span className="standings-nav-icon" aria-hidden="true">📊</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
     <div className="content"><div className="watermark"/><div className="content-inner">
       {previewProfile.preview_self&&professorCategoryIds.length===0&&<div className="professor-preview-no-permissions">Tu Perfil Profe Todavía No Tiene Categorías Asignadas. Volvé A Administración → Permisos y Configurá Las Categorías Que Querés Tener Como Profe.</div>}
       {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
@@ -1742,7 +1747,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       {tab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
-      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version} compact/>}
+      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
       {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
       {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
       {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
@@ -1969,7 +1974,7 @@ function App() {
   nav.push(['settings','Solapas']);
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
+  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{k==="standings"&&<span className="standings-nav-icon" aria-hidden="true">📊</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
     {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
         <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
@@ -1980,7 +1985,7 @@ function App() {
     {tab==='players'&&<Players key={`players:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
-    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}`}/>}
+    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"}/>}
     {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
     {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} userId={profile.id} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
     {tab==='requests'&&<RequestsPage profile={profile}/>}
