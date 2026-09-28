@@ -868,7 +868,7 @@ function buildProgrammingSheetXml({
     round.matches.forEach((match, index) => {
       const isConfirmed = match.confirmed === true;
       const baseStyle = isConfirmed ? 11 : 12;
-      const alternateStyle = index % 2 === 0 ? baseStyle : (isConfirmed ? 9 : 12);
+      const alternateStyle = isConfirmed ? 11 : 12;
       rows.push(rowXml(rowNumber, [
         cell("A" + rowNumber, `Fecha ${round.round}`, alternateStyle),
         cell("B" + rowNumber, isConfirmed ? "Confirmado" : "Tentativo", alternateStyle),
