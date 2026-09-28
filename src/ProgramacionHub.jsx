@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import { exportProgramacionWorkbook } from "./xlsxCategoryExport";
 
 const API_PATH = "/api/fmv-programacion";
 const NATIVE_API = "https://www.voleysanmartin.com.ar/api/fmv-programacion";
@@ -57,6 +58,11 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportRoundIds, setExportRoundIds] = useState([]);
+  const [exportBranches, setExportBranches] = useState(["female", "male"]);
+  const [exportCategoryKeys, setExportCategoryKeys] = useState([]);
+  const [exportMessage, setExportMessage] = useState("");
   const abortRef = useRef(null);
 
   const allowedKeys = useMemo(() => {
@@ -136,6 +142,109 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
 
   const latestRound = rounds.length ? Math.max(...rounds.map((round) => Number(round.round || 0))) : null;
 
+  const exportCategories = useMemo(() => {
+    const map = new Map();
+    for (const round of rounds) {
+      for (const match of round.matches || []) {
+        const key = String(match.permissionKey || "").trim();
+        if (!key) continue;
+        const branch = key.startsWith("female:") ? "female" : "male";
+        if (!map.has(key)) map.set(key, { key, label: match.categoryLabel || key, branch });
+      }
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.branch !== b.branch) return a.branch === "female" ? -1 : 1;
+      return a.label.localeCompare(b.label, "es");
+    });
+  }, [rounds]);
+
+  function openExportPanel() {
+    setExportRoundIds(rounds.map((round) => String(round.round)));
+    setExportBranches(["female", "male"]);
+    setExportCategoryKeys(exportCategories.map((category) => category.key));
+    setExportMessage("");
+    setExportOpen(true);
+  }
+
+  function toggleValue(value, list, setter) {
+    setter(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
+  }
+
+  const exportVisibleCategories = useMemo(() => {
+    const selectedRounds = new Set(exportRoundIds);
+    const selectedBranches = new Set(exportBranches);
+    const keys = new Set();
+    for (const round of rounds) {
+      if (!selectedRounds.has(String(round.round))) continue;
+      for (const match of round.matches || []) {
+        const key = String(match.permissionKey || "");
+        const branch = key.startsWith("female:") ? "female" : "male";
+        if (selectedBranches.has(branch)) keys.add(key);
+      }
+    }
+    return exportCategories.filter((category) => keys.has(category.key));
+  }, [rounds, exportRoundIds, exportBranches, exportCategories]);
+
+  function selectAllExportCategories() {
+    setExportCategoryKeys(exportVisibleCategories.map((category) => category.key));
+  }
+
+  function exportProgramming() {
+    setExportMessage("");
+    if (!exportRoundIds.length) {
+      setExportMessage("Elegí Al Menos Una Fecha.");
+      return;
+    }
+    if (!exportBranches.length) {
+      setExportMessage("Elegí Al Menos Una Rama.");
+      return;
+    }
+    if (!exportCategoryKeys.length) {
+      setExportMessage("Elegí Al Menos Una Categoría.");
+      return;
+    }
+
+    const selectedRounds = new Set(exportRoundIds);
+    const selectedBranches = new Set(exportBranches);
+    const selectedCategories = new Set(exportCategoryKeys);
+    const exportRounds = rounds
+      .filter((round) => selectedRounds.has(String(round.round)))
+      .map((round) => ({
+        round: round.round,
+        confirmed: round.matches.length > 0 && round.matches.every((match) => match.confirmed),
+        matches: (round.matches || []).filter((match) => {
+          const key = String(match.permissionKey || "");
+          const branch = key.startsWith("female:") ? "female" : "male";
+          return selectedBranches.has(branch) && selectedCategories.has(key);
+        }),
+      }))
+      .filter((round) => round.matches.length > 0);
+
+    if (!exportRounds.length) {
+      setExportMessage("No Hay Partidos Que Coincidan Con La Selección.");
+      return;
+    }
+
+    const roundLabel = exportRounds.map((round) => `Fecha ${round.round}`).join(" y ");
+    const branchLabel = exportBranches.length === 2
+      ? "Ramas Femenina y Masculina"
+      : exportBranches[0] === "female" ? "Rama Femenina" : "Rama Masculina";
+    const categoryCount = new Set(exportRounds.flatMap((round) => round.matches.map((match) => match.permissionKey))).size;
+    const selectionText = `${roundLabel} · ${branchLabel} · ${categoryCount} ${categoryCount === 1 ? "Categoría" : "Categorías"}`;
+    const exportDate = new Intl.DateTimeFormat("es-AR", {
+      dateStyle: "long",
+      timeZone: "America/Argentina/Mendoza",
+    }).format(new Date());
+
+    exportProgramacionWorkbook({
+      exportDate,
+      selectionText,
+      rounds: exportRounds,
+      filename: `programacion-msm-fechas-${exportRounds.map((round) => round.round).join("-")}.xlsx`,
+    });
+    setExportMessage("Excel Generado Correctamente.");
+  }
+
   return <section className={`programacion-page ${compact ? "compact" : ""}`}>
     <div className="programacion-hero">
       <div>
@@ -152,10 +261,90 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       </div>
     </div>
 
-    <button type="button" className="programacion-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
-      <span className={refreshing ? "spinning" : ""}>↻</span>
-      {refreshing ? "Actualizando..." : "Actualizar Programación"}
-    </button>
+    <div className="programacion-actions">
+      <button type="button" className="programacion-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
+        <span className={refreshing ? "spinning" : ""}>↻</span>
+        {refreshing ? "Actualizando..." : "Actualizar Programación"}
+      </button>
+      <button type="button" className="programacion-export-button" onClick={openExportPanel} disabled={!rounds.length}>
+        <span aria-hidden="true">📊</span>
+        Exportar XLSX
+      </button>
+    </div>
+
+    {exportOpen ? <div className="programacion-export card">
+      <div className="programacion-export-head">
+        <div>
+          <span className="eyebrow">Planilla Para Imprimir</span>
+          <h2>Exportar Programación</h2>
+          <p>Elegí Fechas, Rama y Una o Varias Categorías. Solo Se Exporta La Programación Que Tu Perfil Puede Ver.</p>
+        </div>
+        <button type="button" className="programacion-export-close" onClick={() => setExportOpen(false)} aria-label="Cerrar">×</button>
+      </div>
+
+      <div className="programacion-export-grid">
+        <fieldset>
+          <legend>Fechas</legend>
+          <div className="programacion-export-options">
+            {rounds.map((round) => <label key={round.round}>
+              <input
+                type="checkbox"
+                checked={exportRoundIds.includes(String(round.round))}
+                onChange={() => toggleValue(String(round.round), exportRoundIds, setExportRoundIds)}
+              />
+              <span>Fecha {round.round}</span>
+              <small>{round.matches.length > 0 && round.matches.every((match) => match.confirmed) ? "Confirmada" : "Tentativa"}</small>
+            </label>)}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Rama</legend>
+          <div className="programacion-export-options compact-options">
+            <label>
+              <input type="checkbox" checked={exportBranches.includes("female")} onChange={() => toggleValue("female", exportBranches, setExportBranches)} />
+              <span>Femenina</span>
+            </label>
+            <label>
+              <input type="checkbox" checked={exportBranches.includes("male")} onChange={() => toggleValue("male", exportBranches, setExportBranches)} />
+              <span>Masculina</span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+
+      <fieldset className="programacion-export-categories">
+        <div className="programacion-export-legend-row">
+          <legend>Categorías</legend>
+          <div>
+            <button type="button" onClick={selectAllExportCategories}>Todas</button>
+            <button type="button" onClick={() => setExportCategoryKeys([])}>Ninguna</button>
+          </div>
+        </div>
+        <div className="programacion-category-checks">
+          {exportVisibleCategories.map((category) => <label key={category.key}>
+            <input
+              type="checkbox"
+              checked={exportCategoryKeys.includes(category.key)}
+              onChange={() => toggleValue(category.key, exportCategoryKeys, setExportCategoryKeys)}
+            />
+            <span>{category.label}</span>
+          </label>)}
+        </div>
+      </fieldset>
+
+      <div className="programacion-export-summary">
+        <span>{exportRoundIds.length} {exportRoundIds.length === 1 ? "Fecha" : "Fechas"}</span>
+        <span>{exportBranches.length} {exportBranches.length === 1 ? "Rama" : "Ramas"}</span>
+        <span>{exportCategoryKeys.filter((key) => exportVisibleCategories.some((category) => category.key === key)).length} Categorías</span>
+      </div>
+
+      {exportMessage ? <div className="programacion-export-message">{exportMessage}</div> : null}
+
+      <button type="button" className="programacion-export-confirm" onClick={exportProgramming}>
+        Exportar Excel Para Imprimir
+      </button>
+    </div> : null}
 
     {message && <div className="programacion-message">{message}</div>}
 
