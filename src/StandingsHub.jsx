@@ -223,7 +223,7 @@ async function loadWebTable(entry, signal) {
   };
 }
 
-export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false }) {
+export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false }) {
   const allowedKeys = useMemo(
     () => buildAllowedKeys(allowedCategories, unrestricted),
     [allowedCategories, unrestricted]
@@ -407,18 +407,76 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const selectedLabels = options.filter((item) => selectedKeys.includes(item.key)).map((item) => item.label);
 
   if (!availableEntries.length) {
-    return <section className={`standings-page ${compact ? "compact" : ""}`}>
+    return <section className={`standings-page ${compact ? "compact" : ""} ${playerMode ? "player-standings-mode" : ""}`}>
       <div className="standings-hero">
         <div>
           <span className="eyebrow">Federación Mendocina De Voleibol</span>
-          <h1>Posiciones y Comparativo Institucional</h1>
-          <p>Las Tablas Se Muestran Según Las Categorías Autorizadas Para Tu Perfil.</p>
+          <h1>{playerMode ? "Mi Tabla De Posiciones" : "Posiciones y Comparativo Institucional"}</h1>
+          <p>{playerMode ? "Tu Categoría Todavía No Tiene Una Tabla De Posiciones Vinculada." : "Las Tablas Se Muestran Según Las Categorías Autorizadas Para Tu Perfil."}</p>
         </div>
       </div>
       <div className="card standings-no-access">
-        <b>Sin Categorías Habilitadas Para Posiciones</b>
-        <span>Cuando El Super Administrador Te Asigne Permisos Sobre Una Categoría Compatible, Su Tabla Aparecerá Automáticamente Acá.</span>
+        <b>{playerMode ? "Tabla No Disponible Para Tu Categoría" : "Sin Categorías Habilitadas Para Posiciones"}</b>
+        <span>{playerMode ? "Cuando La Categoría Tenga Una Tabla Oficial Compatible, Aparecerá Automáticamente Acá." : "Cuando El Super Administrador Te Asigne Permisos Sobre Una Categoría Compatible, Su Tabla Aparecerá Automáticamente Acá."}</span>
       </div>
+    </section>;
+  }
+
+  if (playerMode) {
+    const table = tables[0] || null;
+    const entry = table
+      ? availableEntries.find((item) => item.key === table.tableKey) || availableEntries[0]
+      : availableEntries[0];
+    const title = table?.categoryLabel || entry?.label || "Mi Categoría";
+    const branchText = entry ? branchLabel(entry.branch) : "";
+    const competitionText = entry ? competitionLabel(entry.competition) : "";
+
+    return <section className={`standings-page ${compact ? "compact" : ""} player-standings-mode`}>
+      <div className="standings-hero player-standings-hero">
+        <div>
+          <span className="eyebrow">Federación Mendocina De Voleibol · {competitionText}</span>
+          <h1>Mi Tabla De Posiciones</h1>
+          <p>{title}{branchText ? ` · ${branchText}` : ""}. Datos Oficiales Actualizados Desde Courtrack.</p>
+        </div>
+        <div className="standings-live">
+          <span className={refreshing ? "pulse" : ""}>●</span>
+          <div>
+            <b>{refreshing ? "Actualizando..." : "Actualización Automática"}</b>
+            <small>Cada 60 Segundos · Última Consulta {formatTime(lastUpdated)}</small>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" className="standings-refresh player-standings-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
+        <span className={refreshing ? "spinning" : ""}>↻</span> {refreshing ? "Actualizando..." : "Actualizar Posiciones"}
+      </button>
+
+      {message && <div className="message standings-message">{message}</div>}
+
+      {loading ? <div className="standings-loading card">Consultando La Tabla Oficial...</div> : null}
+
+      {!loading && table ? <div className="standings-card card player-standings-table-card">
+        <div className="standings-card-head">
+          <div>
+            <h2>{title} · Tabla Oficial</h2>
+            <p>{table.stage || table.division || branchText}</p>
+          </div>
+        </div>
+        <div className="standings-table-wrap">
+          <table className="standings-table">
+            <thead><tr><th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th></tr></thead>
+            <tbody>{table.positions.map((row) => <tr key={`${table.tableKey}:${row.id_equipo}`} className={institutionTeamKey(row.id_equipo) === "MSM" ? "is-msm" : ""}>
+              <td><span className="standings-position">{row.posicion}</span></td>
+              <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.id_equipo}</strong></div></td>
+              <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <div className="standings-foot">
+          <span><b>PTS</b>: Puntos · <b>PJ</b>: Jugados · <b>PG</b>: Ganados · <b>PP</b>: Perdidos</span>
+          <small>Fuente De Datos: Courtrack · Federación Mendocina De Voleibol.</small>
+        </div>
+      </div> : null}
     </section>;
   }
 
