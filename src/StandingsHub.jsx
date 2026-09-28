@@ -62,7 +62,12 @@ export default function StandingsHub({ compact = false }) {
 
   useEffect(() => {
     if (!options.some(([value]) => value === category)) setCategory(options[0][0]);
+    setQuery("");
   }, [branch]);
+
+  useEffect(() => {
+    setQuery("");
+  }, [category]);
 
   async function load({ quiet = false } = {}) {
     abortRef.current?.abort();
@@ -160,6 +165,10 @@ export default function StandingsHub({ compact = false }) {
   }, [data, query]);
 
   const leader = data?.positions?.[0] || null;
+  const msm = useMemo(() => {
+    const positions = Array.isArray(data?.positions) ? data.positions : [];
+    return positions.find((row) => String(row.id_equipo || "").toUpperCase() === "MSM") || null;
+  }, [data]);
 
   return <section className={`standings-page ${compact ? "compact" : ""}`}>
     <div className="standings-hero">
@@ -186,8 +195,11 @@ export default function StandingsHub({ compact = false }) {
           {options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
-      <label>Buscar Equipo
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ej.: GSM A"/>
+      <label>Filtrar Equipo <small className="standings-optional">(Opcional)</small>
+        <div className="standings-search">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ej.: MSM"/>
+          {query && <button type="button" aria-label="Limpiar Filtro" onClick={() => setQuery("")}>×</button>}
+        </div>
       </label>
       <button type="button" className="standings-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
         <span className={refreshing ? "spinning" : ""}>↻</span> {refreshing ? "Actualizando..." : "Actualizar Ahora"}
@@ -197,10 +209,10 @@ export default function StandingsHub({ compact = false }) {
     {message && <div className="message standings-message">{message}</div>}
 
     {!loading && data && <div className="standings-summary">
-      <div className="card"><span>Rama</span><b>{branchLabel(branch)}</b></div>
+      <div className="card standings-msm-card"><span>Posición MSM</span><b>{msm ? `#${msm.posicion}` : "—"}</b></div>
+      <div className="card standings-msm-card"><span>Puntos MSM</span><b>{msm?.puntos ?? "—"}</b></div>
       <div className="card"><span>Equipos</span><b>{data.positions?.length || 0}</b></div>
       <div className="card"><span>Líder</span><b>{leader?.id_equipo || "—"}</b></div>
-      <div className="card"><span>Puntos Del Líder</span><b>{leader?.puntos ?? "—"}</b></div>
     </div>}
 
     <div className="standings-card card">
@@ -214,18 +226,24 @@ export default function StandingsHub({ compact = false }) {
 
       {loading ? <div className="standings-loading">Consultando La Tabla Oficial...</div> :
         <div className="standings-table-wrap">
-          <table className="standings-table">
+          <div className="standings-results-meta">{query ? `Mostrando ${rows.length} De ${data?.positions?.length || 0} Equipos` : `Mostrando ${rows.length} Equipos`}</div>
+          <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
             <thead><tr>
               <th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th>
               {advanced && <><th>SG</th><th>SP</th><th>TF</th><th>TC</th></>}
             </tr></thead>
             <tbody>
-              {rows.map((row) => <tr key={`${row.posicion}:${row.id_equipo}`} className={row.posicion <= 3 ? `top-${row.posicion}` : ""}>
+              {rows.map((row) => {
+                const classes = [
+                  row.posicion <= 3 ? `top-${row.posicion}` : "",
+                  String(row.id_equipo || "").toUpperCase() === "MSM" ? "is-msm" : "",
+                ].filter(Boolean).join(" ");
+                return <tr key={`${row.posicion}:${row.id_equipo}`} className={classes}>
                 <td><span className="standings-position">{row.posicion}</span></td>
                 <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : <span className="standings-logo-fallback">🏐</span>}<strong>{row.id_equipo}</strong></div></td>
                 <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
                 {advanced && <><td>{row.setGanados}</td><td>{row.setPerdidos}</td><td>{row.tantosGanados}</td><td>{row.tantosPerdidos}</td></>}
-              </tr>)}
+              </tr>})}
               {!rows.length && <tr><td colSpan={advanced ? 10 : 6} className="standings-empty">No Hay Equipos Que Coincidan Con La Búsqueda.</td></tr>}
             </tbody>
           </table>
