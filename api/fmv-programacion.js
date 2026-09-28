@@ -127,7 +127,8 @@ export default async function handler(req,res){
         round:Number(m[1]),
         index:m.index,
         before:clean(html.slice(Math.max(0,m.index-800),m.index)).slice(-500),
-        after:clean(html.slice(m.index,m.index+1200)).slice(0,800)
+        after:clean(html.slice(m.index,m.index+1200)).slice(0,800),
+        raw:html.slice(Math.max(0,m.index-500),m.index+700)
       })).filter(x=>x.round===8||x.round===9);
       const dm=html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([\s\S]*?)["']\s*\/?>/i);
       const desc=dm?clean(dm[1]):"";
