@@ -89,6 +89,20 @@ function resolveFromLeagues(leagues, branch, category) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: true, message: "Método No Permitido." });
 
+  if (req.query.debug === "tabla") {
+    try {
+      const tournamentId = Number(req.query.tournamentId);
+      const stageId = Number(req.query.stageId);
+      if (!Number.isInteger(tournamentId) || !Number.isInteger(stageId)) {
+        return json(res, 400, { error: true, message: "IDs inválidos." });
+      }
+      const payload = await courtrack(`/getPosiciones?id_torneos=${tournamentId}&id_etapas=${stageId}`);
+      return json(res, 200, payload);
+    } catch (error) {
+      return json(res, 502, { error: true, message: error?.message || "No Se Pudo Consultar La Tabla." });
+    }
+  }
+
   if (req.query.debug === "ligas") {
     try {
       const leagues = await courtrack(`/getLigas?id_cliente=${CLIENT_ID}`);
