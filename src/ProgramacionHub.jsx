@@ -218,7 +218,54 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     );
   }
 
+  const exportRoundMode = exportRoundIds.length === rounds.length
+    ? "all"
+    : exportRoundIds.length === 1 ? String(exportRoundIds[0]) : "custom";
+
+  const exportBranchMode = exportBranches.length === 2
+    ? "all"
+    : exportBranches.length === 1 ? exportBranches[0] : "none";
+
+  const selectedCategoryCount = exportCategories.filter((category) =>
+    exportCategoryKeys.includes(category.key) && exportBranches.includes(category.branch)
+  ).length;
+
+  const categorySummary = selectedCategoryCount === 0
+    ? "Elegir Categorías"
+    : selectedCategoryCount === exportCategories.filter((category) => exportBranches.includes(category.branch)).length
+      ? "Todas Las Categorías"
+      : selectedCategoryCount === 1
+        ? exportCategories.find((category) => exportCategoryKeys.includes(category.key) && exportBranches.includes(category.branch))?.label || "1 Categoría"
+        : `${selectedCategoryCount} Categorías Seleccionadas`;
+
+  function changeRoundMode(value) {
+    setExportMessage("");
+    if (value === "all") {
+      setExportRoundIds(rounds.map((round) => Number(round.round)));
+      return;
+    }
+    const round = Number(value);
+    setExportRoundIds(Number.isFinite(round) ? [round] : []);
+  }
+
+  function changeBranchMode(value) {
+    setExportMessage("");
+    if (value === "all") {
+      setExportBranches(["female", "male"]);
+      setExportCategoryKeys(exportCategories.map((category) => category.key));
+      return;
+    }
+    if (value === "female" || value === "male") {
+      setExportBranches([value]);
+      setExportCategoryKeys(exportCategories.filter((category) => category.branch === value).map((category) => category.key));
+      return;
+    }
+    setExportBranches([]);
+    setExportCategoryKeys([]);
+  }
+
   function toggleExportCategory(key) {
+    setExportMessage("");
     setExportCategoryKeys((current) =>
       current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
     );
@@ -285,63 +332,71 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
         <div>
           <span className="programacion-kicker">Exportación Institucional</span>
           <h2>Preparar Planilla XLSX</h2>
-          <p>Elegí Una Fecha, Ambas Fechas, Una Rama o Varias Categorías. El Archivo Queda Preparado Para Imprimir.</p>
+          <p>Elegí Qué Querés Exportar. Los Selectores Se Mantienen Compactos Para Que La Pantalla Sea Clara y Ordenada.</p>
         </div>
         <span className="programacion-export-count">{exportMatchCount} Partido{exportMatchCount === 1 ? "" : "s"}</span>
       </div>
 
-      <div className="programacion-export-grid">
-        <div className="programacion-export-group">
-          <strong>Fechas A Exportar</strong>
-          <div className="programacion-export-options">
-            {rounds.map((round) => <label key={round.round} className={exportRoundIds.includes(Number(round.round)) ? "selected" : ""}>
-              <input type="checkbox" checked={exportRoundIds.includes(Number(round.round))} onChange={() => toggleExportRound(round.round)}/>
-              <span>Fecha {round.round}</span>
-              <small>{round.matches.length > 0 && round.matches.every((match) => match.confirmed) ? "Confirmada" : "Tentativa"}</small>
-            </label>)}
-          </div>
-        </div>
+      <div className="programacion-export-selectors">
+        <label>
+          <span>Fecha</span>
+          <select value={exportRoundMode} onChange={(event) => changeRoundMode(event.target.value)}>
+            <option value="all">Ambas Fechas</option>
+            {rounds.map((round) => <option key={round.round} value={String(round.round)}>
+              Fecha {round.round} · {round.matches.length > 0 && round.matches.every((match) => match.confirmed) ? "Confirmada" : "Tentativa"}
+            </option>)}
+          </select>
+        </label>
 
-        <div className="programacion-export-group">
-          <strong>Rama</strong>
-          <div className="programacion-export-options branch">
-            {["female","male"].map((branch) => <label key={branch} className={exportBranches.includes(branch) ? "selected" : ""}>
-              <input type="checkbox" checked={exportBranches.includes(branch)} onChange={() => toggleExportBranch(branch)}/>
-              <span>{branchLabel(branch)}</span>
-            </label>)}
-          </div>
+        <label>
+          <span>Rama</span>
+          <select value={exportBranchMode} onChange={(event) => changeBranchMode(event.target.value)}>
+            <option value="all">Femenino y Masculino</option>
+            <option value="female">Solo Femenino</option>
+            <option value="male">Solo Masculino</option>
+          </select>
+        </label>
+
+        <div className="programacion-export-category-selector">
+          <span>Categorías</span>
+          <details className="programacion-category-dropdown">
+            <summary>
+              <strong>{categorySummary}</strong>
+              <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="programacion-category-dropdown-menu">
+              <div className="programacion-category-dropdown-actions">
+                <button type="button" onClick={() => setExportCategoryKeys(exportCategories.filter((category) => exportBranches.includes(category.branch)).map((category) => category.key))}>Todas</button>
+                <button type="button" onClick={() => setExportCategoryKeys([])}>Ninguna</button>
+              </div>
+              <div className="programacion-category-dropdown-list">
+                {exportCategories
+                  .filter((category) => exportBranches.includes(category.branch))
+                  .map((category) => <label key={category.key} className={exportCategoryKeys.includes(category.key) ? "selected" : ""}>
+                    <input
+                      type="checkbox"
+                      checked={exportCategoryKeys.includes(category.key)}
+                      onChange={() => toggleExportCategory(category.key)}
+                    />
+                    <span>{category.label}</span>
+                    <small>{branchLabel(category.branch)}</small>
+                  </label>)}
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
-      <div className="programacion-export-group">
-        <div className="programacion-export-group-head">
-          <strong>Categorías</strong>
-          <div>
-            <button type="button" onClick={() => setExportCategoryKeys(exportCategories.map((category) => category.key))}>Seleccionar Todas</button>
-            <button type="button" onClick={() => setExportCategoryKeys([])}>Limpiar</button>
-          </div>
-        </div>
-        <div className="programacion-export-categories">
-          {exportCategories.map((category) => {
-            const branchEnabled = exportBranches.includes(category.branch);
-            return <label key={category.key} className={`${exportCategoryKeys.includes(category.key) ? "selected" : ""} ${!branchEnabled ? "disabled" : ""}`}>
-              <input
-                type="checkbox"
-                checked={exportCategoryKeys.includes(category.key)}
-                disabled={!branchEnabled}
-                onChange={() => toggleExportCategory(category.key)}
-              />
-              <span>{category.label}</span>
-              <small>{branchLabel(category.branch)}</small>
-            </label>;
-          })}
-        </div>
+      <div className="programacion-export-summary-line">
+        <span>{exportRoundIds.length === rounds.length ? "Ambas Fechas" : exportRoundIds.map((round) => `Fecha ${round}`).join(", ") || "Sin Fecha"}</span>
+        <span>{exportBranches.length === 2 ? "Ambas Ramas" : exportBranches.map(branchLabel).join(", ") || "Sin Rama"}</span>
+        <span>{selectedCategoryCount} Categoría{selectedCategoryCount === 1 ? "" : "s"}</span>
       </div>
 
       <div className="programacion-export-actions">
         <div>
           <b>{exportMatchCount ? `Se Exportarán ${exportMatchCount} Partido${exportMatchCount === 1 ? "" : "s"}` : "No Hay Partidos En La Selección"}</b>
-          <small>Formato XLSX · Diseño Institucional · Configurado Para Impresión Horizontal</small>
+          <small>Formato XLSX · Diseño Institucional · Preparado Para Impresión Horizontal</small>
         </div>
         <button type="button" onClick={exportXlsx} disabled={!exportMatchCount}>⬇ Exportar XLSX</button>
       </div>
