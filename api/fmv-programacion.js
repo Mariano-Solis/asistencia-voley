@@ -51,10 +51,12 @@ function inferMetaFromPrefix(raw){
   return{branch,competition,permissionKey:`${branch}:level1:${category}`,categoryLabel:`${label} ${branch==="female"?"Femenino":"Masculino"}`};
 }
 
-function parseRound(segment){
+function parseRound(segment,description=""){
   const out=[];
   const rowRx=/<tr\b[\s\S]*?<\/tr>/gi;
   let rowMatch;
+  const desc=norm(description);
+
   while((rowMatch=rowRx.exec(segment))){
     const row=rowMatch[0];
     const cells=[...row.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1]));
@@ -62,9 +64,15 @@ function parseRound(segment){
     const [date,time,local,visitor,place]=cells;
     if(!/^\d{1,2}(?:[-/][A-Za-zÁÉÍÓÚáéíóú0-9]+){1,2}$/.test(String(date||"").trim()))continue;
     if(!team(local)&&!team(visitor))continue;
-    const prefix=segment.slice(Math.max(0,rowMatch.index-60000),rowMatch.index);
-    const m=inferMetaFromPrefix(prefix);
+
+    let m=inferMetaFromPrefix(segment.slice(Math.max(0,rowMatch.index-60000),rowMatch.index));
+    if(desc){
+      const needle=norm(`${date} ${time} ${local} ${visitor} ${place}`);
+      const idx=needle?desc.indexOf(needle):-1;
+      if(idx>=0)m=inferMetaFromPrefix(desc.slice(Math.max(0,idx-60000),idx));
+    }
     if(!m.permissionKey)continue;
+
     out.push({
       categoryLabel:m.categoryLabel,
       permissionKey:m.permissionKey,
@@ -80,5 +88,17 @@ function parseRound(segment){
   }
   return out;
 }
-function parse(html){const c=candidates(html);if(!c.length)throw new Error("No Se Encontraron Fechas Del Torneo Clausura.");const nums=[...new Set(c.map(x=>x.round))].sort((a,b)=>b-a).slice(0,2).sort((a,b)=>a-b);return nums.map(round=>{const cur=c.filter(x=>x.round===round).sort((a,b)=>b.index-a.index)[0],next=c.find(x=>x.index>cur.index),matches=parseRound(html.slice(cur.index,next?.index||html.length));return{round,confirmed:matches.length>0&&matches.every(x=>x.confirmed),matches}})}
+function parse(html){
+  const c=candidates(html);
+  if(!c.length)throw new Error("No Se Encontraron Fechas Del Torneo Clausura.");
+  const descriptionMatch=html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([\s\S]*?)["']\s*\/?>/i);
+  const description=descriptionMatch?clean(descriptionMatch[1]):"";
+  const nums=[...new Set(c.map(x=>x.round))].sort((a,b)=>b-a).slice(0,2).sort((a,b)=>a-b);
+  return nums.map(round=>{
+    const cur=c.filter(x=>x.round===round).sort((a,b)=>b.index-a.index)[0];
+    const next=c.find(x=>x.index>cur.index);
+    const matches=parseRound(html.slice(cur.index,next?.index||html.length),description);
+    return{round,confirmed:matches.length>0&&matches.every(x=>x.confirmed),matches};
+  });
+}
 export default async function handler(req,res){if(req.method!=="GET")return send(res,405,{error:true,message:"Método No Permitido."});try{const r=await fetch(SOURCE_URL,{headers:{Accept:"text/html,application/xhtml+xml"},cache:"no-store"});if(!r.ok)throw new Error(`La Programación FMV Respondió HTTP ${r.status}.`);const html=await r.text();return send(res,200,{error:false,source:"Federación Mendocina De Voleibol",sourceUrl:SOURCE_URL,fetchedAt:new Date().toISOString(),rounds:parse(html)},true)}catch(error){return send(res,502,{error:true,message:error?.message||"No Se Pudo Consultar La Programación."})}}
