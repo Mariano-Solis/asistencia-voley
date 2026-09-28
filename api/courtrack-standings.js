@@ -15,9 +15,6 @@ const FALLBACK = {
   "female:n3_sub12": { tournamentId: 915, stageId: 3694 },
   "female:n3_sub14_a": { tournamentId: 913, stageId: 3691 },
   "female:n3_sub14_b": { tournamentId: 913, stageId: 3692 },
-  "female:n3_sub16": { tournamentId: 914, stageId: 3693 },
-  "female:n3_sub18": { tournamentId: 912, stageId: 3690 },
-  "female:n3_mayores": { tournamentId: 906, stageId: 3679 },
 
   "female:master_a": { tournamentId: 886, stageId: 3626 },
   "female:master_c": { tournamentId: 888, stageId: 3628 },
