@@ -1,9 +1,9 @@
 const BASE="https://api.courtrack.com/api/torneo";
 export default async function handler(req,res){
   const tests=[
-    ["sub16m","/findPartidos?id_torneos=895"],
-    ["sub14n3","/findPartidos?id_torneos=913"],
-    ["masterA","/findPartidos?id_torneos=886"]
+    ["sub16m","/findPartidos?id_torneos=895&id_etapas=3638"],
+    ["sub14n3b","/findPartidos?id_torneos=913&id_etapas=3692"],
+    ["masterA","/findPartidos?id_torneos=886&id_etapas=3626"]
   ];
   const out={};
   for(const [name,path] of tests){
