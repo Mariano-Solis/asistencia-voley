@@ -70,6 +70,7 @@ import './mgsm-training-library.css'
 import './mgsm-superadmin-views.css'
 import './mgsm-desktop-navigation-final.css'
 import './mgsm-history-analytics.css'
+import './mgsm-standings.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
