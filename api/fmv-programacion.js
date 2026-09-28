@@ -12,16 +12,19 @@ function parseRound(segment){
 
   while((rowMatch=rowRx.exec(segment))){
     const between=norm(segment.slice(previousEnd,rowMatch.index));
-    if(between.includes("FEMENINO")) branch="female";
-    if(between.includes("MASCULINO")) branch="male";
-    if(between.includes("MASTER")) competition="master";
-
     const row=rowMatch[0];
     const cells=[...row.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1]));
     const rowText=norm(cells.join(" "));
+    const context=`${between} ${rowText}`;
+    const lastFem=context.lastIndexOf("FEMENINO");
+    const lastMasc=context.lastIndexOf("MASCULINO");
+    if(lastFem>=0||lastMasc>=0) branch=lastFem>lastMasc?"female":"male";
+    if(context.includes("MASTER")) competition="master";
 
+    const firstCell=String(cells[0]||"").trim();
+    const isData=/^\d{1,2}(?:[-/][A-Za-zÁÉÍÓÚáéíóú0-9]+){1,2}$/.test(firstCell);
     const looksLikeHeading =
-      cells.length <= 2 &&
+      !isData &&
       (
         rowText.includes("MAYORES") ||
         rowText.includes("SUB 12") ||
@@ -44,9 +47,9 @@ function parseRound(segment){
       continue;
     }
 
-    if(cells.length>=5){
+    if(cells.length>=5 && isData && current.permissionKey){
       const [date,time,local,visitor,place]=cells;
-      if(/^\d{1,2}(?:[-/][A-Za-zÁÉÍÓÚáéíóú0-9]+){1,2}$/.test(date||"") && current.permissionKey && (team(local)||team(visitor))){
+      if(team(local)||team(visitor)){
         out.push({
           categoryLabel:current.categoryLabel,
           permissionKey:current.permissionKey,
