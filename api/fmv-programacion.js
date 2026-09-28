@@ -117,7 +117,8 @@ function parse(html){
 export default async function handler(req,res){
   if(req.method!=="GET")return send(res,405,{error:true,message:"Método No Permitido."});
   try{
-    const r=await fetch(SOURCE_URL,{headers:{Accept:"text/html,application/xhtml+xml"},cache:"no-store"});
+    const sourceRequest=`${SOURCE_URL}?_mgsm=${Date.now()}`;
+    const r=await fetch(sourceRequest,{headers:{Accept:"text/html,application/xhtml+xml","User-Agent":"Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36","Cache-Control":"no-cache","Pragma":"no-cache"},cache:"no-store"});
     if(!r.ok)throw new Error(`La Programación FMV Respondió HTTP ${r.status}.`);
     const html=await r.text();
 
