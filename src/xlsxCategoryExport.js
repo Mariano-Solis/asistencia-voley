@@ -751,3 +751,231 @@ export function exportAttendanceWorkbook({
     filename: filename || "informe-asistencia.xlsx",
   });
 }
+
+
+function programmingStylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="8">
+    <font><sz val="10"/><name val="Aptos"/><family val="2"/><color rgb="FF20242A"/></font>
+    <font><b/><sz val="18"/><color rgb="FFFFFFFF"/><name val="Aptos Display"/></font>
+    <font><b/><sz val="13"/><color rgb="FF20242A"/><name val="Aptos Display"/></font>
+    <font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Aptos"/></font>
+    <font><b/><sz val="10"/><color rgb="FF20242A"/><name val="Aptos"/></font>
+    <font><b/><sz val="10"/><color rgb="FF147D4E"/><name val="Aptos"/></font>
+    <font><b/><sz val="10"/><color rgb="FF8A5A00"/><name val="Aptos"/></font>
+    <font><i/><sz val="9"/><color rgb="FF667085"/><name val="Aptos"/></font>
+  </fonts>
+  <fills count="9">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF8A2530"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1F2B3A"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF5F6F8"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFE8F7EF"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF4D9"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF9FA"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="4">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FFE4E7EC"/></left><right style="thin"><color rgb="FFE4E7EC"/></right><top style="thin"><color rgb="FFE4E7EC"/></top><bottom style="thin"><color rgb="FFE4E7EC"/></bottom><diagonal/></border>
+    <border><left style="thin"><color rgb="FFCFE8DA"/></left><right style="thin"><color rgb="FFCFE8DA"/></right><top style="thin"><color rgb="FFCFE8DA"/></top><bottom style="thin"><color rgb="FFCFE8DA"/></bottom><diagonal/></border>
+    <border><left style="thin"><color rgb="FFEAD49E"/></left><right style="thin"><color rgb="FFEAD49E"/></right><top style="thin"><color rgb="FFEAD49E"/></top><bottom style="thin"><color rgb="FFEAD49E"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="15">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="5" fillId="6" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="6" fillId="7" borderId="3" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="5" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="8" borderId="3" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+
+function programmingBranch(permissionKey = "") {
+  return String(permissionKey).startsWith("female:") ? "Femenino" : "Masculino";
+}
+
+function buildProgrammingSheetXml({
+  appName,
+  title,
+  exportDate,
+  selectionText,
+  rounds = [],
+  sourceText,
+}) {
+  const rows = [];
+  const merges = [];
+  let rowNumber = 1;
+
+  rows.push(rowXml(rowNumber, [cell("A" + rowNumber, appName, 1)], 34));
+  merges.push(`A${rowNumber}:I${rowNumber}`);
+  rowNumber++;
+
+  rows.push(rowXml(rowNumber, [cell("A" + rowNumber, title, 2)], 28));
+  merges.push(`A${rowNumber}:I${rowNumber}`);
+  rowNumber++;
+
+  rows.push(rowXml(rowNumber, [cell("A" + rowNumber, "Fecha De Exportación", 3), cell("B" + rowNumber, exportDate, 4)], 22));
+  merges.push(`B${rowNumber}:I${rowNumber}`);
+  rowNumber++;
+
+  rows.push(rowXml(rowNumber, [cell("A" + rowNumber, "Selección", 3), cell("B" + rowNumber, selectionText, 4)], 34));
+  merges.push(`B${rowNumber}:I${rowNumber}`);
+  rowNumber += 2;
+
+  const tableRanges = [];
+
+  rounds.forEach((round, roundIndex) => {
+    const confirmed = round.matches.length > 0 && round.matches.every(match => match.confirmed);
+    const status = confirmed ? "Confirmada" : "Tentativa";
+    const sectionStyle = confirmed ? 6 : 7;
+
+    rows.push(rowXml(rowNumber, [
+      cell("A" + rowNumber, `Fecha ${round.round} · ${status}`, sectionStyle),
+    ], 27));
+    merges.push(`A${rowNumber}:I${rowNumber}`);
+    rowNumber++;
+
+    const headerRow = rowNumber;
+    rows.push(rowXml(rowNumber, [
+      cell("A" + rowNumber, "Fecha", 8),
+      cell("B" + rowNumber, "Estado", 8),
+      cell("C" + rowNumber, "Rama", 8),
+      cell("D" + rowNumber, "Categoría", 8),
+      cell("E" + rowNumber, "Local", 8),
+      cell("F" + rowNumber, "Visitante", 8),
+      cell("G" + rowNumber, "Día", 8),
+      cell("H" + rowNumber, "Hora", 8),
+      cell("I" + rowNumber, "Lugar", 8),
+    ], 28));
+    rowNumber++;
+
+    const dataStart = rowNumber;
+    round.matches.forEach((match, index) => {
+      const isConfirmed = match.confirmed === true;
+      const alternateStyle = isConfirmed ? 11 : 12;
+      rows.push(rowXml(rowNumber, [
+        cell("A" + rowNumber, `Fecha ${round.round}`, alternateStyle),
+        cell("B" + rowNumber, isConfirmed ? "Confirmado" : "Tentativo", alternateStyle),
+        cell("C" + rowNumber, programmingBranch(match.permissionKey), alternateStyle),
+        cell("D" + rowNumber, match.categoryLabel || "—", alternateStyle),
+        cell("E" + rowNumber, match.local || "—", alternateStyle),
+        cell("F" + rowNumber, match.visitor || "—", alternateStyle),
+        cell("G" + rowNumber, match.date || "A Confirmar", alternateStyle),
+        cell("H" + rowNumber, match.time || "A Confirmar", alternateStyle),
+        cell("I" + rowNumber, match.place || "Lugar A Confirmar", alternateStyle),
+      ], 24));
+      rowNumber++;
+    });
+
+    if (!round.matches.length) {
+      rows.push(rowXml(rowNumber, [cell("A" + rowNumber, "No Hay Partidos Para La Selección Elegida.", 14)], 24));
+      merges.push(`A${rowNumber}:I${rowNumber}`);
+      rowNumber++;
+    }
+
+    const dataEnd = Math.max(dataStart, rowNumber - 1);
+    if (round.matches.length) tableRanges.push(`A${headerRow}:I${dataEnd}`);
+
+    if (!confirmed && round.matches.length) {
+      rows.push(rowXml(rowNumber, [
+        cell("A" + rowNumber, "Programación Tentativa: Los Datos Pueden Cambiar Hasta Que La FMV Confirme La Fecha.", 13),
+      ], 30));
+      merges.push(`A${rowNumber}:I${rowNumber}`);
+      rowNumber++;
+    }
+
+    if (roundIndex < rounds.length - 1) rowNumber++;
+  });
+
+  rowNumber++;
+  rows.push(rowXml(rowNumber, [
+    cell("A" + rowNumber, sourceText || "Fuente: Federación Mendocina De Voleibol · Programación Oficial Del Torneo Clausura.", 13),
+  ], 28));
+  merges.push(`A${rowNumber}:I${rowNumber}`);
+
+  const lastRow = rowNumber;
+  const autoFilter = tableRanges.length === 1 ? `<autoFilter ref="${tableRanges[0]}"/>` : "";
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  <dimension ref="A1:I${lastRow}"/>
+  <sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="1" width="12" customWidth="1"/>
+    <col min="2" max="2" width="14" customWidth="1"/>
+    <col min="3" max="3" width="14" customWidth="1"/>
+    <col min="4" max="4" width="30" customWidth="1"/>
+    <col min="5" max="6" width="18" customWidth="1"/>
+    <col min="7" max="8" width="14" customWidth="1"/>
+    <col min="9" max="9" width="22" customWidth="1"/>
+  </cols>
+  <sheetData>${rows.join("")}</sheetData>
+  <mergeCells count="${merges.length}">${merges.map(ref => '<mergeCell ref="' + ref + '"/>').join("")}</mergeCells>
+  ${autoFilter}
+  <pageMargins left="0.3" right="0.3" top="0.45" bottom="0.45" header="0.2" footer="0.2"/>
+  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0" paperSize="9"/>
+</worksheet>`;
+}
+
+export function exportProgrammingWorkbook({
+  appName = "Municipalidad De San Martín - VOLEY",
+  title = "Programación Institucional",
+  exportDate,
+  selectionText,
+  rounds = [],
+  sourceText,
+  filename = "programacion-msm.xlsx",
+}) {
+  resetSharedStrings();
+  const sheetXml = buildProgrammingSheetXml({
+    appName,
+    title,
+    exportDate,
+    selectionText,
+    rounds,
+    sourceText,
+  });
+  const created = new Date().toISOString();
+  const stringsXml = sharedStringsXml();
+
+  const files = [
+    { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
+    { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>` },
+    { name: "docProps/app.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>MGSM VOLEY</Application><AppVersion>1.0</AppVersion></Properties>` },
+    { name: "docProps/core.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEscape(title)}</dc:title><dc:creator>Municipalidad De San Martín - VOLEY</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${created}</dcterms:modified></cp:coreProperties>` },
+    { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="16000" windowHeight="9000"/></bookViews><sheets><sheet name="Programación" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>` },
+    { name: "xl/styles.xml", data: programmingStylesXml() },
+    { name: "xl/sharedStrings.xml", data: stringsXml },
+    { name: "xl/worksheets/sheet1.xml", data: sheetXml },
+  ];
+
+  const bytes = zipStore(files);
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
