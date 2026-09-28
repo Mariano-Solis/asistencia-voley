@@ -16,9 +16,6 @@ const TABLE_CATALOG = [
   { key: "female:level3:sub12", branch: "female", competition: "level3", category: "sub12", apiCategory: "n3_sub12", label: "Sub 12", tournamentId: 915, stageId: 3694 },
   { key: "female:level3:sub14a", branch: "female", competition: "level3", category: "sub14a", apiCategory: "n3_sub14_a", label: "Sub 14 · Zona A", tournamentId: 913, stageId: 3691 },
   { key: "female:level3:sub14b", branch: "female", competition: "level3", category: "sub14b", apiCategory: "n3_sub14_b", label: "Sub 14 · Zona B", tournamentId: 913, stageId: 3692 },
-  { key: "female:level3:sub16", branch: "female", competition: "level3", category: "sub16", apiCategory: "n3_sub16", label: "Sub 16", tournamentId: 914, stageId: 3693 },
-  { key: "female:level3:sub18", branch: "female", competition: "level3", category: "sub18", apiCategory: "n3_sub18", label: "Sub 18", tournamentId: 912, stageId: 3690 },
-  { key: "female:level3:mayores", branch: "female", competition: "level3", category: "mayores", apiCategory: "n3_mayores", label: "Primera", tournamentId: 906, stageId: 3679 },
 
   { key: "female:master:master_a", branch: "female", competition: "master", category: "master_a", apiCategory: "master_a", label: "Master A", tournamentId: 886, stageId: 3626 },
   { key: "female:master:master_c", branch: "female", competition: "master", category: "master_c", apiCategory: "master_c", label: "Master C", tournamentId: 888, stageId: 3628 },
@@ -329,6 +326,11 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       const results = await Promise.allSettled(selectedEntries.map(loader));
       let ok = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
       const failed = results.filter((result) => result.status === "rejected");
+      const meaningfulFailures = failed.filter((result) => {
+        const reason = result?.reason;
+        const message = String(reason?.message || reason || "").toLowerCase();
+        return reason?.name !== "AbortError" && !message.includes("aborted") && !message.includes("abort");
+      });
 
       if (!unrestricted && competition === "level3") {
         const sub14Tables = ok.filter((table) => ["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey));
@@ -346,12 +348,13 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       }
 
       if (!ok.length) {
-        throw new Error(failed[0]?.reason?.message || "No Se Pudieron Consultar Las Posiciones.");
+        if (failed.length && !meaningfulFailures.length) return;
+        throw new Error(meaningfulFailures[0]?.reason?.message || "No Se Pudieron Consultar Las Posiciones.");
       }
 
       setTables(ok);
       setLastUpdated(new Date().toISOString());
-      if (failed.length) {
+      if (meaningfulFailures.length) {
         setMessage(`Se Actualizaron ${ok.length} De ${selectedEntries.length} Tablas. Reintentá Para Completar Las Restantes.`);
       }
     } catch (error) {
