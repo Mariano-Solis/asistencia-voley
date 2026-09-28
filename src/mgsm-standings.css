@@ -57,3 +57,18 @@
   .standings-category-picker{grid-column:1/-1}
   .standings-refresh{grid-column:1/-1}
 }
+
+
+.player-standings-wrap{display:grid;gap:14px}
+.player-standings-mode{gap:14px}
+.player-standings-hero{margin-bottom:0}
+.player-standings-refresh{width:100%}
+.player-standings-table-card{overflow:hidden}
+.player-standings-mode .standings-card-head h2{margin-bottom:4px}
+.player-standings-mode .standings-foot{display:grid;gap:4px}
+@media(max-width:700px){
+  .player-standings-mode .standings-hero{display:grid;gap:10px}
+  .player-standings-mode .standings-live{width:100%;min-width:0}
+  .player-standings-mode .standings-table th,
+  .player-standings-mode .standings-table td{padding-left:7px;padding-right:7px}
+}
