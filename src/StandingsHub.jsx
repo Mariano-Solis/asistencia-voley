@@ -1,4 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
+
+const NATIVE_STANDINGS = {
+  "female:sub12": { tournamentId: 897, stageId: 3640 },
+  "female:sub14": { tournamentId: 898, stageId: 3641 },
+  "female:sub16": { tournamentId: 899, stageId: 3642 },
+  "female:sub18": { tournamentId: 900, stageId: 3643 },
+  "female:mayores": { tournamentId: 901, stageId: 3644 },
+  "male:sub14": { tournamentId: 896, stageId: 3639 },
+  "male:sub16": { tournamentId: 895, stageId: 3638 },
+  "male:sub18": { tournamentId: 894, stageId: 3637 },
+  "male:mayores": { tournamentId: 893, stageId: 3636 },
+};
 
 const CATEGORY_OPTIONS = {
   female: [
@@ -59,13 +72,58 @@ export default function StandingsHub({ compact = false }) {
     else setLoading(true);
     setMessage("");
     try {
-      const params = new URLSearchParams({ branch, category });
-      const response = await fetch(`/api/courtrack-standings?${params.toString()}`, {
-        signal: controller.signal,
-        headers: { Accept: "application/json" },
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload?.error) throw new Error(payload?.message || "No Se Pudo Actualizar La Tabla.");
+      let payload;
+
+      if (Capacitor.isNativePlatform()) {
+        const ids = NATIVE_STANDINGS[`${branch}:${category}`];
+        if (!ids) throw new Error("Rama O Categoría No Válida.");
+
+        const response = await CapacitorHttp.get({
+          url: "https://api.courtrack.com/api/torneo/getPosiciones",
+          params: {
+            id_torneos: String(ids.tournamentId),
+            id_etapas: String(ids.stageId),
+          },
+          headers: { Accept: "application/json" },
+          connectTimeout: 12000,
+          readTimeout: 12000,
+        });
+
+        const nativePayload = typeof response.data === "string"
+          ? JSON.parse(response.data || "{}")
+          : (response.data || {});
+
+        if (response.status < 200 || response.status >= 300 || nativePayload?.error) {
+          throw new Error(nativePayload?.message || `Courtrack Respondió HTTP ${response.status}.`);
+        }
+
+        const table = Array.isArray(nativePayload?.data) ? nativePayload.data[0] : null;
+        if (!table) throw new Error("No Se Encontró La Tabla Solicitada.");
+
+        payload = {
+          error: false,
+          source: "Courtrack · Federación Mendocina De Voleibol",
+          fetchedAt: new Date().toISOString(),
+          branch,
+          category,
+          tournamentId: Number(table.id_torneo || ids.tournamentId),
+          stageId: Number(table.id_etapa || ids.stageId),
+          stage: table.titulo || table.descripcion_etapa || "",
+          division: table.division || "",
+          positions: Array.isArray(table.posicionesObj) ? table.posicionesObj : [],
+        };
+      } else {
+        const params = new URLSearchParams({ branch, category });
+        const response = await fetch(`/api/courtrack-standings?${params.toString()}`, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
+        payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.error) {
+          throw new Error(payload?.message || "No Se Pudo Actualizar La Tabla.");
+        }
+      }
+
       setData(payload);
     } catch (error) {
       if (error?.name !== "AbortError") setMessage(error?.message || "No Se Pudo Actualizar La Tabla.");
