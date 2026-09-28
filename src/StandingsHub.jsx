@@ -34,6 +34,47 @@ const DEFAULT_SELECTED = {
   male: ["sub14", "sub16", "sub18", "mayores"],
 };
 
+function localCategoryToStanding(category) {
+  const rawName = String(category?.name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+  const compactName = rawName.replace(/[^A-Z0-9]/g, "");
+  const rawGender = String(category?.gender || "").toLowerCase();
+  const branch = ["female", "femenino", "femenina", "mujer", "f"].includes(rawGender)
+    ? "female"
+    : "male";
+
+  let categoryKey = null;
+  if (compactName.includes("SUB12")) categoryKey = "sub12";
+  else if (compactName.includes("SUB14")) categoryKey = "sub14";
+  else if (compactName.includes("SUB16")) categoryKey = "sub16";
+  else if (compactName.includes("SUB18")) categoryKey = "sub18";
+  else if (compactName.includes("PRIMERA") || compactName.includes("MAYORES") || compactName.includes("MAYOR")) categoryKey = "mayores";
+
+  if (!categoryKey) return null;
+  if (!CATEGORY_OPTIONS[branch]?.some(([value]) => value === categoryKey)) return null;
+  return { branch, category: categoryKey };
+}
+
+function buildStandingsRestriction(allowedCategories, unrestricted) {
+  const result = { female: new Set(), male: new Set() };
+
+  if (unrestricted) {
+    for (const branch of ["female", "male"]) {
+      for (const [value] of CATEGORY_OPTIONS[branch]) result[branch].add(value);
+    }
+    return result;
+  }
+
+  for (const category of Array.isArray(allowedCategories) ? allowedCategories : []) {
+    const mapped = localCategoryToStanding(category);
+    if (mapped) result[mapped.branch].add(mapped.category);
+  }
+
+  return result;
+}
+
 function branchLabel(value) {
   return value === "female" ? "Femenino" : "Masculino";
 }
@@ -172,9 +213,9 @@ async function loadWebTable(branch, category, signal) {
   };
 }
 
-export default function StandingsHub({ compact = false }) {
+export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false }) {
   const [branch, setBranch] = useState("female");
-  const [selectedCategories, setSelectedCategories] = useState(DEFAULT_SELECTED.female);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState("MSM");
   const [advanced, setAdvanced] = useState(false);
   const [tables, setTables] = useState([]);
@@ -184,12 +225,45 @@ export default function StandingsHub({ compact = false }) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const abortRef = useRef(null);
 
-  const options = CATEGORY_OPTIONS[branch];
+  const restriction = useMemo(
+    () => buildStandingsRestriction(allowedCategories, unrestricted),
+    [allowedCategories, unrestricted]
+  );
+  const accessSignature = useMemo(
+    () => ["female", "male"].map((key) => `${key}:${[...restriction[key]].sort().join(",")}`).join("|"),
+    [restriction]
+  );
+  const availableBranches = useMemo(
+    () => ["female", "male"].filter((key) => restriction[key].size > 0),
+    [accessSignature]
+  );
+  const options = useMemo(
+    () => CATEGORY_OPTIONS[branch].filter(([value]) => restriction[branch]?.has(value)),
+    [branch, accessSignature]
+  );
 
   useEffect(() => {
-    setSelectedCategories(DEFAULT_SELECTED[branch]);
+    if (!availableBranches.length) {
+      setSelectedCategories([]);
+      setTables([]);
+      setSelectedTeam("MSM");
+      setLoading(false);
+      return;
+    }
+
+    if (!availableBranches.includes(branch)) {
+      setBranch(availableBranches[0]);
+      return;
+    }
+
+    const permitted = options.map(([value]) => value);
+    const defaults = unrestricted
+      ? DEFAULT_SELECTED[branch].filter((value) => permitted.includes(value))
+      : permitted;
+
+    setSelectedCategories(defaults.length ? defaults : permitted.slice(0, 1));
     setSelectedTeam("MSM");
-  }, [branch]);
+  }, [branch, accessSignature, unrestricted]);
 
   function toggleCategory(category) {
     setSelectedCategories((current) => {
@@ -243,6 +317,13 @@ export default function StandingsHub({ compact = false }) {
   }
 
   useEffect(() => {
+    if (!selectedCategories.length || !availableBranches.includes(branch)) {
+      setTables([]);
+      setLoading(false);
+      setRefreshing(false);
+      return undefined;
+    }
+
     void load();
     const interval = window.setInterval(() => void load({ quiet: true }), 60000);
     const onVisible = () => {
@@ -272,6 +353,22 @@ export default function StandingsHub({ compact = false }) {
 
   const comparisonRows = selectedTeam === "__ALL__" ? aggregate : selectedAggregate ? [selectedAggregate] : [];
 
+  if (!availableBranches.length) {
+    return <section className={`standings-page ${compact ? "compact" : ""}`}>
+      <div className="standings-hero">
+        <div>
+          <span className="eyebrow">Federación Mendocina De Voleibol · Nivel 1</span>
+          <h1>Posiciones y Comparativo Institucional</h1>
+          <p>Las Tablas Se Muestran Según Las Categorías Autorizadas Para Tu Perfil.</p>
+        </div>
+      </div>
+      <div className="card standings-no-access">
+        <b>Sin Categorías De Nivel 1 Habilitadas Para Posiciones</b>
+        <span>Cuando El Super Administrador Te Asigne Permisos Sobre Una Categoría Compatible, Su Tabla Aparecerá Automáticamente Acá.</span>
+      </div>
+    </section>;
+  }
+
   return <section className={`standings-page ${compact ? "compact" : ""}`}>
     <div className="standings-hero">
       <div>
@@ -291,8 +388,7 @@ export default function StandingsHub({ compact = false }) {
     <div className="standings-controls card">
       <label>Rama
         <select value={branch} onChange={(event) => setBranch(event.target.value)}>
-          <option value="female">Femenino</option>
-          <option value="male">Masculino</option>
+          {availableBranches.map((value) => <option key={value} value={value}>{branchLabel(value)}</option>)}
         </select>
       </label>
 
