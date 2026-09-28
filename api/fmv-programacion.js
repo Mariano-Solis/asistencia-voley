@@ -21,6 +21,24 @@ function parseRound(segment){
     if(lastFem>=0||lastMasc>=0) branch=lastFem>lastMasc?"female":"male";
     if(context.includes("MASTER")) competition="master";
 
+    const betweenHasHeading =
+      between.includes("MAYORES") ||
+      between.includes("SUB 12") ||
+      between.includes("SUB 14") ||
+      between.includes("SUB 16") ||
+      between.includes("SUB 18") ||
+      between.includes("MASTER A") ||
+      between.includes("MASTER B") ||
+      between.includes("MASTER C") ||
+      between.includes("MASTER D") ||
+      between.includes("MASTER E");
+    if(betweenHasHeading){
+      const contextual=meta(between,branch,competition);
+      branch=contextual.branch||branch;
+      competition=contextual.competition||competition;
+      current=contextual;
+    }
+
     const firstCell=String(cells[0]||"").trim();
     const isData=/^\d{1,2}(?:[-/][A-Za-zÁÉÍÓÚáéíóú0-9]+){1,2}$/.test(firstCell);
     const looksLikeHeading =
