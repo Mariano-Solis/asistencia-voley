@@ -7,6 +7,7 @@ const BASE_TABS = [
   'Jugador@s',
   'Historial',
   'Horarios',
+  'Programación',
   'Posiciones',
   'Profes',
   'Categorías',
@@ -39,6 +40,7 @@ function canonicalLabel(value = '') {
   if (text.includes('jugador')) return 'Jugador@s'
   if (text.includes('historial')) return 'Historial'
   if (text.includes('horario')) return 'Horarios'
+  if (text.includes('programacion')) return 'Programación'
   if (text.includes('posicion')) return 'Posiciones'
   if (text.includes('profe')) return 'Profes'
   if (text.includes('categor')) return 'Categorías'
