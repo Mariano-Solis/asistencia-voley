@@ -751,3 +751,107 @@ export function exportAttendanceWorkbook({
     filename: filename || "informe-asistencia.xlsx",
   });
 }
+
+
+function buildProgramacionSheetXml({
+  appName,
+  title,
+  exportDate,
+  selectionText,
+  rounds,
+}) {
+  const headers = ["Estado", "Categoría", "Fecha", "Hora", "Local", "Visitante", "Lugar"];
+  const rows = [];
+  rows.push(rowXml(1, [cell("A1", appName, 1)], 32));
+  rows.push(rowXml(2, [cell("A2", title, 2)], 24));
+  rows.push(rowXml(3, [cell("A3", "Fecha De Exportación", 3), cell("B3", exportDate, 4)], 22));
+  rows.push(rowXml(4, [cell("A4", "Selección", 3), cell("B4", selectionText, 4)], 30));
+
+  let r = 6;
+  for (const round of rounds) {
+    const roundStatus = round.confirmed ? "CONFIRMADA" : "TENTATIVA";
+    rows.push(rowXml(r, [cell("A" + r, `Fecha ${round.round} · ${roundStatus}`, 7)], 26));
+    const roundHeaderRow = r + 1;
+    rows.push(rowXml(roundHeaderRow, headers.map((header, index) => cell(colName(index) + roundHeaderRow, header, 8)), 24));
+    r += 2;
+
+    const matches = Array.isArray(round.matches) ? round.matches : [];
+    matches.forEach((match, index) => {
+      const textStyle = index % 2 === 0 ? 9 : 11;
+      const centerStyle = index % 2 === 0 ? 10 : 12;
+      const status = match.confirmed ? "Confirmado" : "Tentativo";
+      rows.push(rowXml(r, [
+        cell("A" + r, status, centerStyle),
+        cell("B" + r, match.categoryLabel || "—", textStyle),
+        cell("C" + r, match.date || "—", centerStyle),
+        cell("D" + r, match.time || "—", centerStyle),
+        cell("E" + r, match.local || "—", centerStyle),
+        cell("F" + r, match.visitor || "—", centerStyle),
+        cell("G" + r, match.place || "Lugar A Confirmar", textStyle),
+      ], 23));
+      r++;
+    });
+
+    if (!matches.length) {
+      rows.push(rowXml(r, [cell("A" + r, "Sin Partidos Para La Selección", 4)], 24));
+      r++;
+    }
+    r++;
+  }
+
+  const lastRow = Math.max(8, r - 1);
+  const mergeRefs = ["A1:G1", "A2:G2", "B3:G3", "B4:G4"];
+  let cursor = 6;
+  for (const round of rounds) {
+    mergeRefs.push(`A${cursor}:G${cursor}`);
+    const size = Array.isArray(round.matches) ? round.matches.length : 0;
+    if (!size) mergeRefs.push(`A${cursor + 2}:G${cursor + 2}`);
+    cursor += 3 + Math.max(1, size);
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:G${lastRow}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0" showGridLines="0">
+      <pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/>
+    </sheetView>
+  </sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="1" width="14" customWidth="1"/>
+    <col min="2" max="2" width="34" customWidth="1"/>
+    <col min="3" max="4" width="14" customWidth="1"/>
+    <col min="5" max="6" width="16" customWidth="1"/>
+    <col min="7" max="7" width="24" customWidth="1"/>
+  </cols>
+  <sheetData>${rows.join("")}</sheetData>
+  <mergeCells count="${mergeRefs.length}">${mergeRefs.map(ref => '<mergeCell ref="' + ref + '"/>').join("")}</mergeCells>
+  <pageMargins left="0.3" right="0.3" top="0.45" bottom="0.45" header="0.2" footer="0.2"/>
+  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+  <printOptions horizontalCentered="1"/>
+</worksheet>`;
+}
+
+export function exportProgramacionWorkbook({
+  appName = "Municipalidad De San Martín - VOLEY",
+  exportDate,
+  selectionText,
+  rounds = [],
+  filename,
+}) {
+  resetSharedStrings();
+  const sheetXml = buildProgramacionSheetXml({
+    appName,
+    title: "Programación Institucional · MSM",
+    exportDate,
+    selectionText,
+    rounds,
+  });
+  downloadXlsx({
+    title: "Programación Institucional · MSM",
+    sheetName: "Programación",
+    sheetXml,
+    filename: filename || "programacion-msm.xlsx",
+  });
+}
