@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">VOLEY PRUEBA</string>
-    <string name="title_activity_main">VOLEY PRUEBA</string>
-    <string name="package_name">com.asistenciavoley.app.prueba</string>
-    <string name="custom_url_scheme">com.asistenciavoley.app.prueba</string>
+    <string name="app_name">Municipalidad de San Martín - VOLEY</string>
+    <string name="title_activity_main">Municipalidad de San Martín - VOLEY</string>
+    <string name="package_name">com.asistenciavoley.app</string>
+    <string name="custom_url_scheme">com.asistenciavoley.app</string>
 </resources>
