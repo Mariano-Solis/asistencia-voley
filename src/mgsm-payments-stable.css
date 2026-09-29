@@ -202,12 +202,36 @@
   margin-bottom:12px;
 }
 
-.stable-pay-analytics-summary>div{
+.stable-pay-analytics-summary>div,
+.stable-pay-analytics-summary>button{
   min-width:0;
   padding:12px 8px;
   border-radius:15px;
   background:#f7f8fa;
   text-align:center;
+}
+
+.stable-pay-analytics-summary>button{
+  width:100%;
+  border:1px solid transparent;
+  font:inherit;
+  cursor:pointer;
+  transition:transform .14s ease,border-color .14s ease,background .14s ease,box-shadow .14s ease;
+}
+
+.stable-pay-analytics-summary.is-filterable>button:active{
+  transform:scale(.98);
+}
+
+.stable-pay-analytics-summary.is-filterable>button.active{
+  border-color:rgba(181,18,27,.32);
+  background:#fff5f6;
+  box-shadow:0 0 0 3px rgba(181,18,27,.06);
+}
+
+.stable-pay-analytics-summary.is-filterable>button.active b,
+.stable-pay-analytics-summary.is-filterable>button.active span{
+  color:#b5121b;
 }
 
 .stable-pay-analytics-summary b{
