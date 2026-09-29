@@ -113,11 +113,20 @@ function remainingKey(permissionKey,local,visitor){
   return [permissionKey,norm(local),norm(visitor)].join("|");
 }
 
+function canonicalMatchKey(permissionKey,local,visitor){
+  const teams=[norm(local),norm(visitor)].sort();
+  return [permissionKey,...teams].join("|");
+}
+
 async function remainingFixtureFromCourtrack(rounds){
-  const used=new Set();
+  const usedExact=new Set();
+  const usedTentative=new Set();
   for(const round of Array.isArray(rounds)?rounds:[]){
     for(const match of Array.isArray(round.matches)?round.matches:[]){
-      used.add(remainingKey(match.permissionKey,match.local,match.visitor));
+      usedExact.add(remainingKey(match.permissionKey,match.local,match.visitor));
+      if(round?.confirmed===false || match?.confirmed===false){
+        usedTentative.add(canonicalMatchKey(match.permissionKey,match.local,match.visitor));
+      }
     }
   }
 
@@ -134,7 +143,11 @@ async function remainingFixtureFromCourtrack(rounds){
         const a=norm(row.id_equipo_a),b=norm(row.id_equipo_b);
         if(!config.teams.some(team=>norm(team)===a||norm(team)===b))return false;
         if(row.status!=="upcoming")return false;
-        return !used.has(remainingKey(config.permissionKey,row.id_equipo_a,row.id_equipo_b));
+        const exactKey=remainingKey(config.permissionKey,row.id_equipo_a,row.id_equipo_b);
+        const canonicalKey=canonicalMatchKey(config.permissionKey,row.id_equipo_a,row.id_equipo_b);
+        if(usedExact.has(exactKey))return false;
+        if(usedTentative.has(canonicalKey))return false;
+        return true;
       })
       .map(row=>{
         const scheduled=validScheduledDate(row.fecha);
