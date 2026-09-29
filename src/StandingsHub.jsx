@@ -223,7 +223,7 @@ async function loadWebTable(entry, signal) {
   };
 }
 
-export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false }) {
+export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false, staffMode = false }) {
   const allowedKeys = useMemo(
     () => buildAllowedKeys(allowedCategories, unrestricted),
     [allowedCategories, unrestricted]
@@ -251,6 +251,9 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [staffTables, setStaffTables] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffMessage, setStaffMessage] = useState("");
   const abortRef = useRef(null);
 
   const availableBranches = useMemo(
@@ -412,7 +415,64 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     };
   }, [competition, branch, selectedKeys.join("|")]);
 
-  const aggregate = useMemo(() => buildAggregate(tables), [tables]);
+  useEffect(() => {
+    if (!staffMode) return undefined;
+    const controller = new AbortController();
+    let stopped = false;
+
+    async function loadStaffTables() {
+      setStaffLoading(true);
+      setStaffMessage("");
+      try {
+        const loader = Capacitor.isNativePlatform()
+          ? (entry) => loadNativeTable(entry)
+          : (entry) => loadWebTable(entry, controller.signal);
+
+        const results = await Promise.allSettled(availableEntries.map(loader));
+        let ok = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+
+        const sub14Tables = ok.filter((table) => ["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey));
+        if (sub14Tables.length > 1) {
+          const institutionalZones = sub14Tables.filter((table) =>
+            (table.positions || []).some((row) => institutionTeamKey(row.id_equipo) === "MSM")
+          );
+          if (institutionalZones.length) {
+            ok = ok.filter((table) =>
+              !["female:level3:sub14a", "female:level3:sub14b"].includes(table.tableKey) ||
+              institutionalZones.some((zone) => zone.tableKey === table.tableKey)
+            );
+          }
+        }
+
+        if (!stopped) {
+          setStaffTables(ok);
+          setLastUpdated(new Date().toISOString());
+          const failed = results.filter((result) => result.status === "rejected");
+          if (failed.length && ok.length) setStaffMessage("Algunas Tablas No Pudieron Actualizarse. Reintentá En Unos Instantes.");
+          if (!ok.length && availableEntries.length) setStaffMessage("No Se Pudieron Consultar Las Tablas De Tus Categorías.");
+        }
+      } catch (error) {
+        if (!stopped && error?.name !== "AbortError") setStaffMessage(error?.message || "No Se Pudieron Consultar Las Posiciones.");
+      } finally {
+        if (!stopped) setStaffLoading(false);
+      }
+    }
+
+    void loadStaffTables();
+    const interval = window.setInterval(() => void loadStaffTables(), 60000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadStaffTables();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      controller.abort();
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [staffMode, accessSignature]);
+
+    const aggregate = useMemo(() => buildAggregate(tables), [tables]);
   const teams = useMemo(() => aggregate.map((row) => row.team), [aggregate]);
 
   useEffect(() => {
@@ -444,7 +504,59 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     </section>;
   }
 
-  if (playerMode) {
+  if (staffMode) {
+    return <section className={`standings-page ${compact ? "compact" : ""} staff-standings-mode`}>
+      <div className="standings-hero">
+        <div>
+          <span className="eyebrow">Federación Mendocina De Voleibol</span>
+          <h1>Posiciones De Mis Categorías</h1>
+          <p>Tablas Oficiales Correspondientes Exclusivamente A Las Categorías Que Tenés Asignadas.</p>
+        </div>
+        <div className="standings-live">
+          <span className={staffLoading ? "pulse" : ""}>●</span>
+          <div>
+            <b>{staffLoading ? "Actualizando..." : "Actualización Automática"}</b>
+            <small>Cada 60 Segundos · Última Consulta {formatTime(lastUpdated)}</small>
+          </div>
+        </div>
+      </div>
+
+      {staffMessage && <div className="message standings-message">{staffMessage}</div>}
+      {staffLoading && !staffTables.length ? <div className="standings-loading card">Consultando Las Tablas De Tus Categorías...</div> : null}
+
+      {!staffLoading && !staffTables.length ? <div className="card standings-no-access">
+        <b>Sin Tablas Disponibles</b>
+        <span>No Hay Una Tabla Oficial Vinculada A Tus Categorías Actuales.</span>
+      </div> : null}
+
+      <div className="staff-standings-list">
+        {staffTables.map((table) => {
+          const entry = availableEntries.find((item) => item.key === table.tableKey);
+          const title = table.categoryLabel || entry?.label || "Categoría";
+          return <div key={table.tableKey} className="standings-card card player-standings-table-card">
+            <div className="standings-card-head">
+              <div>
+                <h2>{title} · Tabla Oficial</h2>
+                <p>{table.stage || table.division || (entry ? `${branchLabel(entry.branch)} · ${competitionLabel(entry.competition)}` : "")}</p>
+              </div>
+            </div>
+            <div className="standings-table-wrap">
+              <table className="standings-table">
+                <thead><tr><th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th></tr></thead>
+                <tbody>{table.positions.map((row) => <tr key={`${table.tableKey}:${row.id_equipo}`} className={institutionTeamKey(row.id_equipo) === "MSM" ? "is-msm" : ""}>
+                  <td><span className="standings-position">{row.posicion}</span></td>
+                  <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.id_equipo}</strong></div></td>
+                  <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          </div>;
+        })}
+      </div>
+    </section>;
+  }
+
+    if (playerMode) {
     const table = tables[0] || null;
     const entry = table
       ? availableEntries.find((item) => item.key === table.tableKey) || availableEntries[0]
