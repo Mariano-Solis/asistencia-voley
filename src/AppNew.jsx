@@ -1483,13 +1483,71 @@ function Categories({profile,categories,refresh}) {
   </section>;
 }
 function Permissions({profile,categories}) {
-  const [admins,setAdmins]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({});
-  useEffect(()=>{async function load(){const a=await supabase.from("profiles").select("id,full_name").eq("role","admin").order("full_name");setAdmins([{id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,preview_self:true},...(a.data||[])]);const p=await supabase.from("admin_category_permissions").select("*");setPerms(Object.fromEntries((p.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])))}void load();},[profile.id,profile.full_name]);
+  const [admins,setAdmins]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({}),[capabilityMsg,setCapabilityMsg]=useState(""),[capabilityBusy,setCapabilityBusy]=useState(false);
+
+  useEffect(()=>{async function load(){
+    const a=await supabase.from("profiles").select("id,full_name,can_view_standings_comparison").eq("role","admin").order("full_name");
+    setAdmins([{id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,preview_self:true,can_view_standings_comparison:true},...(a.data||[])]);
+    const p=await supabase.from("admin_category_permissions").select("*");
+    setPerms(Object.fromEntries((p.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])));
+  }void load();},[profile.id,profile.full_name]);
+
   if(profile.role!=="super_admin")return null;
-  async function setP(c,field,value){if(!selected)return;const key=`${selected}:${c.id}`,cur=perms[key]||{can_view:false,can_edit:false,can_attendance:false},next={...cur,[field]:value};if(next.can_edit)next.can_view=true;const r=!next.can_view&&!next.can_edit&&!next.can_attendance?await supabase.from("admin_category_permissions").delete().eq("admin_id",selected).eq("category_id",c.id):await supabase.from("admin_category_permissions").upsert({admin_id:selected,category_id:c.id,can_view:next.can_view,can_edit:next.can_edit,can_attendance:next.can_attendance},{onConflict:"admin_id,category_id"});if(!r.error)setPerms(p=>({...p,[key]:next}));}
-  return <section><PageTitle title="Permisos" text="Definí Qué Categorías Puede Ver, Editar O Usar Sólo Para Asistencia Cada Profe."/>
-    <div className="card permission-professor-picker"><label>Profe<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Seleccione Profe</option>{admins.map(a=><option key={a.id} value={a.id}>{a.full_name}</option>)}</select></label></div>
-    {!selected?<div className="card empty permission-empty">Seleccione Profe Para Configurar Sus Permisos.</div>:<div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>}
+
+  const selectedAdmin=admins.find(item=>item.id===selected)||null;
+
+  async function setP(c,field,value){
+    if(!selected)return;
+    const key=`${selected}:${c.id}`,cur=perms[key]||{can_view:false,can_edit:false,can_attendance:false},next={...cur,[field]:value};
+    if(next.can_edit)next.can_view=true;
+    const r=!next.can_view&&!next.can_edit&&!next.can_attendance
+      ? await supabase.from("admin_category_permissions").delete().eq("admin_id",selected).eq("category_id",c.id)
+      : await supabase.from("admin_category_permissions").upsert({admin_id:selected,category_id:c.id,can_view:next.can_view,can_edit:next.can_edit,can_attendance:next.can_attendance},{onConflict:"admin_id,category_id"});
+    if(!r.error)setPerms(p=>({...p,[key]:next}));
+  }
+
+  async function setComparisonPermission(value){
+    if(!selectedAdmin||selectedAdmin.preview_self)return;
+    setCapabilityBusy(true);
+    setCapabilityMsg("");
+    try{
+      const r=await supabase.from("profiles")
+        .update({can_view_standings_comparison:value})
+        .eq("id",selectedAdmin.id)
+        .eq("role","admin")
+        .select("id,can_view_standings_comparison")
+        .single();
+      if(r.error)throw r.error;
+      setAdmins(current=>current.map(item=>item.id===selectedAdmin.id?{...item,can_view_standings_comparison:r.data.can_view_standings_comparison}:item));
+      setCapabilityMsg(value?"✓ Comparativo General Habilitado Para Este Profe.":"✓ Comparativo General Deshabilitado Para Este Profe.");
+    }catch(e){
+      setCapabilityMsg(errorText(e));
+    }finally{
+      setCapabilityBusy(false);
+    }
+  }
+
+  return <section><PageTitle title="Permisos" text="Definí Qué Categorías Puede Ver, Editar O Usar Para Asistencia y Qué Herramientas Institucionales Puede Consultar Cada Profe."/>
+    <div className="card permission-professor-picker"><label>Profe<select value={selected} onChange={e=>{setSelected(e.target.value);setCapabilityMsg("");}}><option value="">Seleccione Profe</option>{admins.map(a=><option key={a.id} value={a.id}>{a.full_name}</option>)}</select></label></div>
+    {!selected?<div className="card empty permission-empty">Seleccione Profe Para Configurar Sus Permisos.</div>:<>
+      <div className="card permission-capability-card">
+        <div>
+          <b>📊 Comparativo General De Instituciones</b>
+          <span>Permite Ver El Comparativo General De Posiciones Entre Instituciones, Calculado Solamente Con Las Categorías Que Este Profe Tiene Asignadas.</span>
+        </div>
+        <label className="permission-capability-toggle">
+          <input
+            type="checkbox"
+            checked={selectedAdmin?.preview_self?true:selectedAdmin?.can_view_standings_comparison===true}
+            disabled={capabilityBusy||selectedAdmin?.preview_self}
+            onChange={e=>void setComparisonPermission(e.target.checked)}
+          />
+          <strong>{selectedAdmin?.preview_self?"Siempre Habilitado":selectedAdmin?.can_view_standings_comparison?"Habilitado":"Deshabilitado"}</strong>
+        </label>
+      </div>
+      {capabilityMsg&&<div className="message">{capabilityMsg}</div>}
+      <div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>
+    </>}
   </section>;
 }
 function RequestsPage({ profile, allowedCategoryIds = null }) {
@@ -1631,7 +1689,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     let cancelled=false;
     async function loadProfessors(){
       const r=await supabase.from("profiles")
-        .select("id,full_name,role,active,approval_status,can_approve_payments")
+        .select("id,full_name,role,active,approval_status,can_approve_payments,can_view_standings_comparison")
         .eq("role","admin")
         .eq("active",true)
         .eq("approval_status","approved")
@@ -1780,7 +1838,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
       {tab==="programming"&&<ProgramacionHub key={"preview-programming:"+version+":"+previewProfile.id} compact simpleMode allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
-      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact staffMode allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
+      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact staffMode allowComparison={previewProfile.can_view_standings_comparison===true||previewProfile.preview_self===true} allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
       {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
       {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
       {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
@@ -2019,7 +2077,7 @@ function App() {
     {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
     {tab==='programming'&&<ProgramacionHub key={`programming:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} simpleMode={profile.role!=="super_admin"}/>} 
-    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} staffMode={profile.role!=="super_admin"}/>} 
+    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} staffMode={profile.role!=="super_admin"} allowComparison={profile.can_view_standings_comparison===true}/>} 
     {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
     {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} userId={profile.id} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
     {tab==='requests'&&<RequestsPage profile={profile}/>}

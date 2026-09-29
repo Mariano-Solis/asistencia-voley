@@ -223,7 +223,7 @@ async function loadWebTable(entry, signal) {
   };
 }
 
-export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false, staffMode = false }) {
+export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false, staffMode = false, allowComparison = false }) {
   const allowedKeys = useMemo(
     () => buildAllowedKeys(allowedCategories, unrestricted),
     [allowedCategories, unrestricted]
@@ -472,7 +472,8 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     };
   }, [staffMode, accessSignature]);
 
-    const aggregate = useMemo(() => buildAggregate(tables), [tables]);
+  const staffAggregate = useMemo(() => buildAggregate(staffTables), [staffTables]);
+  const aggregate = useMemo(() => buildAggregate(tables), [tables]);
   const teams = useMemo(() => aggregate.map((row) => row.team), [aggregate]);
 
   useEffect(() => {
@@ -552,6 +553,51 @@ export default function StandingsHub({ compact = false, allowedCategories = null
             </div>
           </div>;
         })}
+
+      {allowComparison && staffAggregate.length > 0 ? <div className="standings-card card staff-comparison-card">
+        <div className="standings-card-head">
+          <div>
+            <h2>Comparativo General De Instituciones</h2>
+            <p>Promedio Calculado Únicamente Sobre Las Categorías Que Tenés Asignadas. No Reemplaza Las Tablas Oficiales Por Categoría.</p>
+          </div>
+          <label className="standings-advanced">
+            <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)}/>
+            Estadísticas Avanzadas
+          </label>
+        </div>
+
+        <div className="standings-table-wrap">
+          <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
+            <thead><tr>
+              <th>#</th>
+              <th>Equipo</th>
+              <th>Cat.</th>
+              <th>Pos. Prom.</th>
+              <th>PTS Prom.</th>
+              <th>%V</th>
+              {advanced && <><th>PJ</th><th>PG</th><th>PP</th><th>SG</th><th>SP</th></>}
+            </tr></thead>
+            <tbody>
+              {staffAggregate.map((row) => <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
+                <td><span className="standings-position">{row.computedRank}</span></td>
+                <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
+                <td>{row.appearances}</td>
+                <td><b>{row.avgPosition}</b></td>
+                <td>{row.avgPoints}</td>
+                <td>{row.winPct}%</td>
+                {advanced && <><td>{row.played}</td><td>{row.won}</td><td>{row.lost}</td><td>{row.setsWon}</td><td>{row.setsLost}</td></>}
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="standings-foot">
+          <span><b>Pos. Prom.</b>: promedio aritmético de la posición del equipo en las categorías asignadas.</span>
+          <span><b>PTS Prom.</b>: promedio de puntos oficiales entre las categorías donde participa.</span>
+          <span><b>%V</b>: victorias totales ÷ partidos jugados totales.</span>
+          <small>Fuente De Datos: Courtrack · Federación Mendocina De Voleibol. El Comparativo General Es Un Cálculo Institucional Propio.</small>
+        </div>
+      </div> : null}
       </div>
     </section>;
   }
