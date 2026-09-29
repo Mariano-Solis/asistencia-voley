@@ -472,7 +472,6 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     };
   }, [staffMode, accessSignature]);
 
-  const staffAggregate = useMemo(() => buildAggregate(staffTables), [staffTables]);
   const aggregate = useMemo(() => buildAggregate(tables), [tables]);
   const teams = useMemo(() => aggregate.map((row) => row.team), [aggregate]);
 
@@ -554,50 +553,83 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           </div>;
         })}
 
-      {allowComparison && staffAggregate.length > 0 ? <div className="standings-card card staff-comparison-card">
-        <div className="standings-card-head">
-          <div>
-            <h2>Comparativo General De Instituciones</h2>
-            <p>Promedio Calculado Únicamente Sobre Las Categorías Que Tenés Asignadas. No Reemplaza Las Tablas Oficiales Por Categoría.</p>
-          </div>
-          <label className="standings-advanced">
-            <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)}/>
-            Estadísticas Avanzadas
+      {allowComparison ? <section className="staff-comparison-section">
+        <div className="standings-controls card staff-comparison-controls">
+          <label>Competencia
+            <select value={competition} onChange={(event) => changeCompetition(event.target.value)}>
+              {availableCompetitions.map((value) => <option key={value} value={value}>{competitionLabel(value)}</option>)}
+            </select>
           </label>
+
+          <label>Rama
+            <select value={branch} onChange={(event) => changeBranch(event.target.value)}>
+              {availableBranches.map((value) => <option key={value} value={value}>{branchLabel(value)}</option>)}
+            </select>
+          </label>
+
+          <div className="standings-category-picker">
+            <span>Categorías Incluidas</span>
+            <div className="standings-category-chips">
+              {options.map((item) => <button
+                type="button"
+                key={item.key}
+                className={selectedKeys.includes(item.key) ? "active" : ""}
+                onClick={() => toggleCategory(item.key)}
+              >{item.label}</button>)}
+            </div>
+          </div>
+
+          <button type="button" className="standings-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
+            <span className={refreshing ? "spinning" : ""}>↻</span> {refreshing ? "Actualizando..." : "Actualizar Comparativo"}
+          </button>
         </div>
 
-        <div className="standings-table-wrap">
-          <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
-            <thead><tr>
-              <th>#</th>
-              <th>Equipo</th>
-              <th>Cat.</th>
-              <th>Pos. Prom.</th>
-              <th>PTS Prom.</th>
-              <th>%V</th>
-              {advanced && <><th>PJ</th><th>PG</th><th>PP</th><th>SG</th><th>SP</th></>}
-            </tr></thead>
-            <tbody>
-              {staffAggregate.map((row) => <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
-                <td><span className="standings-position">{row.computedRank}</span></td>
-                <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
-                <td>{row.appearances}</td>
-                <td><b>{row.avgPosition}</b></td>
-                <td>{row.avgPoints}</td>
-                <td>{row.winPct}%</td>
-                {advanced && <><td>{row.played}</td><td>{row.won}</td><td>{row.lost}</td><td>{row.setsWon}</td><td>{row.setsLost}</td></>}
-              </tr>)}
-            </tbody>
-          </table>
-        </div>
+        <div className="standings-card card staff-comparison-card">
+          <div className="standings-card-head">
+            <div>
+              <h2>Comparativo General De Instituciones</h2>
+              <p>{competitionLabel(competition)} · {branchLabel(branch)} · Promedio Calculado Sólo Sobre Las Categorías Seleccionadas De Este Nivel.</p>
+            </div>
+            <label className="standings-advanced">
+              <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)}/>
+              Estadísticas Avanzadas
+            </label>
+          </div>
 
-        <div className="standings-foot">
-          <span><b>Pos. Prom.</b>: promedio aritmético de la posición del equipo en las categorías asignadas.</span>
-          <span><b>PTS Prom.</b>: promedio de puntos oficiales entre las categorías donde participa.</span>
-          <span><b>%V</b>: victorias totales ÷ partidos jugados totales.</span>
-          <small>Fuente De Datos: Courtrack · Federación Mendocina De Voleibol. El Comparativo General Es Un Cálculo Institucional Propio.</small>
+          {loading && !aggregate.length ? <div className="standings-loading">Consultando Las Tablas Seleccionadas...</div> :
+          aggregate.length ? <div className="standings-table-wrap">
+            <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
+              <thead><tr>
+                <th>#</th>
+                <th>Equipo</th>
+                <th>Cat.</th>
+                <th>Pos. Prom.</th>
+                <th>PTS Prom.</th>
+                <th>%V</th>
+                {advanced && <><th>PJ</th><th>PG</th><th>PP</th><th>SG</th><th>SP</th></>}
+              </tr></thead>
+              <tbody>
+                {aggregate.map((row) => <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
+                  <td><span className="standings-position">{row.computedRank}</span></td>
+                  <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
+                  <td>{row.appearances}</td>
+                  <td><b>{row.avgPosition}</b></td>
+                  <td>{row.avgPoints}</td>
+                  <td>{row.winPct}%</td>
+                  {advanced && <><td>{row.played}</td><td>{row.won}</td><td>{row.lost}</td><td>{row.setsWon}</td><td>{row.setsLost}</td></>}
+                </tr>)}
+              </tbody>
+            </table>
+          </div> : <div className="standings-loading">No Hay Datos Para Las Categorías Seleccionadas.</div>}
+
+          <div className="standings-foot">
+            <span><b>Pos. Prom.</b>: promedio aritmético de la posición del equipo únicamente dentro del nivel y categorías seleccionados.</span>
+            <span><b>PTS Prom.</b>: promedio de puntos oficiales entre las categorías seleccionadas donde participa.</span>
+            <span><b>%V</b>: victorias totales ÷ partidos jugados totales.</span>
+            <small>No Se Mezclan Nivel 1, Nivel 3 y Master En Un Mismo Comparativo. Fuente De Datos: Courtrack · Federación Mendocina De Voleibol.</small>
+          </div>
         </div>
-      </div> : null}
+      </section> : null}
       </div>
     </section>;
   }
