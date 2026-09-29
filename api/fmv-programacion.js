@@ -188,6 +188,68 @@ async function remainingFixtureFromCourtrack(rounds){
     });
 }
 
+async function leagueUpcomingFixtures(rounds){
+  const tentativeKeys=new Set();
+  for(const round of Array.isArray(rounds)?rounds:[]){
+    for(const match of Array.isArray(round.matches)?round.matches:[]){
+      if(round?.confirmed===false || match?.confirmed===false){
+        tentativeKeys.add(canonicalMatchKey(match.permissionKey,match.local,match.visitor));
+      }
+    }
+  }
+
+  const today=new Date();
+  today.setUTCHours(0,0,0,0);
+
+  const settled=await Promise.allSettled(SCHEDULE_TABLES.map(async config=>{
+    const r=await fetch(`${COURTRACK_BASE}/findPartidos?id_torneos=${config.tournamentId}&id_etapas=${config.stageId}`,{headers:{Accept:"application/json"},cache:"no-store"});
+    if(!r.ok)return[];
+    const payload=await r.json().catch(()=>({}));
+    const rows=Array.isArray(payload?.data)?payload.data:[];
+    return rows
+      .filter(row=>row.status==="upcoming")
+      .map(row=>{
+        const scheduled=validScheduledDate(row.fecha);
+        const local=String(row.id_equipo_a||"").trim();
+        const visitor=String(row.id_equipo_b||"").trim();
+        if(!local||!visitor)return null;
+        const overdue=Boolean(scheduled && scheduled<today);
+        const scheduleState=overdue?"reprogramming":scheduled?"scheduled":"unscheduled";
+        return{
+          id:`${config.permissionKey}:${row.id||local+"-"+visitor}`,
+          categoryLabel:config.categoryLabel,
+          permissionKey:config.permissionKey,
+          local,
+          visitor,
+          place:scheduled?(String(row.id_cancha||"").trim()||"Lugar A Confirmar"):"Lugar A Confirmar",
+          date:scheduled?displayDate(row.fecha):"Fecha A Confirmar",
+          time:scheduled?displayTime(row.horario):"Hora A Confirmar",
+          scheduled:Boolean(scheduled),
+          overdue,
+          scheduleState,
+          scheduledAt:scheduled?scheduled.toISOString():null,
+          courtrackStatus:String(row.status||""),
+          overlapsTentative:tentativeKeys.has(canonicalMatchKey(config.permissionKey,local,visitor)),
+          source:"courtrack",
+        };
+      })
+      .filter(Boolean);
+  }));
+
+  const unique=new Map();
+  for(const item of settled.filter(x=>x.status==="fulfilled").flatMap(x=>x.value)){
+    const key=item.id;
+    if(!unique.has(key))unique.set(key,item);
+  }
+
+  return [...unique.values()].sort((a,b)=>{
+    const rank={reprogramming:0,scheduled:1,unscheduled:2};
+    if(rank[a.scheduleState]!==rank[b.scheduleState])return rank[a.scheduleState]-rank[b.scheduleState];
+    if(a.scheduled&&b.scheduled)return new Date(a.scheduledAt)-new Date(b.scheduledAt);
+    return a.categoryLabel.localeCompare(b.categoryLabel,"es")||a.local.localeCompare(b.local,"es")||a.visitor.localeCompare(b.visitor,"es");
+  });
+}
+
 async function tentativeFromCourtrack(cutoff){
   const settled=await Promise.allSettled(SCHEDULE_TABLES.map(async config=>{
     const rows=await courtrackMatches(config,cutoff);const row=rows[0];if(!row)return null;
@@ -222,7 +284,10 @@ export default async function handler(req,res){
     const r=await fetch(url,{headers:{Accept:"text/html,application/xhtml+xml","User-Agent":"Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36","Cache-Control":"no-cache","Pragma":"no-cache"},cache:"no-store"});
     if(!r.ok)throw new Error(`La Programación FMV Respondió HTTP ${r.status}.`);
     const html=await r.text(),rounds=await buildRounds(html);
-    const remainingFixtures=await remainingFixtureFromCourtrack(rounds);
+    const [remainingFixtures,leagueFixtures]=await Promise.all([
+      remainingFixtureFromCourtrack(rounds),
+      leagueUpcomingFixtures(rounds),
+    ]);
     return send(res,200,{
       error:false,
       source:"Federación Mendocina De Voleibol",
@@ -231,7 +296,8 @@ export default async function handler(req,res){
       remainingSource:"Courtrack · Partidos Con Estado Upcoming",
       fetchedAt:new Date().toISOString(),
       rounds,
-      remainingFixtures
+      remainingFixtures,
+      leagueFixtures
     },true);
   }catch(error){return send(res,502,{error:true,message:error?.message||"No Se Pudo Consultar La Programación."})}
 }
