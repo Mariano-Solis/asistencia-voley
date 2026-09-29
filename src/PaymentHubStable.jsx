@@ -195,6 +195,7 @@ function buildPaymentStats(players = [], paymentByPlayer = {}) {
   };
 }
 
+// Los casilleros del resumen pueden actuar como filtros rápidos en la vista administrativa.
 function PaymentAnalytics({ stats, period, title = "Resumen De Pagos", subtitle = "", badgeLabel = "", activeFilter = "all", onFilter = null }) {
   const charts = [
     { key: "paid", label: "Pagados", value: stats.validated, pct: stats.validatedPct },
