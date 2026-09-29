@@ -86,7 +86,7 @@ function exportDateText() {
   }).format(new Date());
 }
 
-export default function ProgramacionHub({ allowedCategories = null, unrestricted = false, compact = false }) {
+export default function ProgramacionHub({ allowedCategories = null, unrestricted = false, compact = false, simpleMode = false }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -408,8 +408,8 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     <div className="programacion-hero">
       <div>
         <span className="eyebrow">Federación Mendocina De Voleibol</span>
-        <h1>Programación MSM</h1>
-        <p>Últimas Dos Fechas Del Torneo Clausura, Filtradas Exclusivamente Para Municipalidad De San Martín.</p>
+        <h1>{simpleMode ? "Mi Programación" : "Programación MSM"}</h1>
+        <p>{simpleMode ? "Fecha Confirmada y Próxima Fecha Tentativa De Tus Categorías." : "Últimas Dos Fechas Del Torneo Clausura, Filtradas Exclusivamente Para Municipalidad De San Martín."}</p>
       </div>
       <div className="programacion-live">
         <span className={refreshing ? "pulse" : ""}>●</span>
@@ -425,6 +425,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       {refreshing ? "Actualizando..." : "Actualizar Programación"}
     </button>
 
+    {!simpleMode && <>
     <button type="button" className="programacion-export-open" onClick={() => showExport ? setShowExport(false) : openExportPanel()} disabled={!rounds.length}>
       <span>📊</span>
       {showExport ? "Cerrar Exportación" : "Exportar Programación A Excel"}
@@ -507,6 +508,8 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       {exportMessage && <div className="programacion-export-message">{exportMessage}</div>}
     </section>}
 
+    </>}
+
     {message && <div className="programacion-message">{message}</div>}
 
     {loading && !data ? <div className="card programacion-loading">Consultando La Programación Oficial...</div> : null}
@@ -548,7 +551,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       </article>;
     })}
 
-    {!loading && leagueFixtures.length > 0 ? <section className="programacion-fixture-general card">
+    {!simpleMode && !loading && leagueFixtures.length > 0 ? <section className="programacion-fixture-general card">
       <div className="programacion-fixture-head">
         <div>
           <span className="programacion-kicker">Fixture General</span>
@@ -619,6 +622,6 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       </div> : <div className="programacion-empty">No Hay Partidos Restantes Que Coincidan Con Estos Filtros.</div>}
     </section> : null}
 
-    <div className="programacion-source">Fuente: Federación Mendocina De Voleibol para la programación publicada · Courtrack para determinar qué partidos continúan pendientes de juego.</div>
+    <div className="programacion-source">{simpleMode ? "Fuente: Federación Mendocina De Voleibol · Programación Oficial Del Torneo Clausura." : "Fuente: Federación Mendocina De Voleibol para la programación publicada · Courtrack para determinar qué partidos continúan pendientes de juego."}</div>
   </section>;
 }
