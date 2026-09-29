@@ -197,7 +197,7 @@ function AttendanceAnalytics({ title, subtitle, rows = [], sessionsCount = 0, pl
 function Attendance({ profile, players, categories, permissions, refresh, restrictCategoryIds = null }) {
   const editable = useMemo(() => categories.filter(c => canAttend(profile, c, permissions)), [categories, profile, permissions]);
   const [date, setDate] = useState(today()); const [categoryId, setCategoryId] = useState(""); const [type, setType] = useState("training"); const [open, setOpen] = useState(true);
-  const [att, setAtt] = useState({}); const [details, setDetails] = useState({ opponent: "", location: "", start: today(), end: today(), dates: [today()] }); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
+  const [att, setAtt] = useState({}); const [details, setDetails] = useState({ opponent: "", location: "", start: today(), end: today(), dates: [today()] }); const [observation,setObservation]=useState(""); const [showObservation,setShowObservation]=useState(false); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
   const [attendanceRoster, setAttendanceRoster] = useState([]);
   const [guestCategoryIds, setGuestCategoryIds] = useState([]);
   const [openGuestCategories, setOpenGuestCategories] = useState({});
@@ -310,6 +310,8 @@ function Attendance({ profile, players, categories, permissions, refresh, restri
         baselineRef.current = loaded; setLoadedAt(loaded.loadedAt);
         setAtt(Object.fromEntries(loaded.rows.map(row=>[row.player_id,row.status])));
         setDetails({opponent:session?.opponent||'',location:session?.tournament_location||session?.event_location||'',start:session?.tournament_start_date||session?.event_start_date||date,end:session?.tournament_end_date||session?.event_end_date||date,dates:Array.isArray(session?.tournament_dates)&&session.tournament_dates.length?session.tournament_dates:[date]});
+        setObservation(session?.observation||"");
+        setShowObservation(Boolean(session?.observation));
         setLoading(false);
       } catch(error) { if(!cancelled)setMsg(errorText(error)); }
     }
@@ -342,7 +344,8 @@ function Attendance({ profile, players, categories, permissions, refresh, restri
       event_start_date:type==='tournament'?details.start||date:null,event_end_date:type==='tournament'?details.end||date:null,
       tournament_location:type==='tournament'?clean(details.location)||null:null,
       tournament_start_date:type==='tournament'?details.start||date:null,tournament_end_date:type==='tournament'?details.end||date:null,
-      tournament_dates:type==='tournament'?details.dates.filter(Boolean):null};
+      tournament_dates:type==='tournament'?details.dates.filter(Boolean):null,
+      observation:clean(observation)||null};
     const desiredRows=list.filter(p=>att[p.id]).map(p=>({player_id:p.id,status:att[p.id]}));
     const desired=attendanceFingerprint(payload,desiredRows);
     try {
@@ -424,6 +427,33 @@ function Attendance({ profile, players, categories, permissions, refresh, restri
           </div>;
         })}
       </div>}
+
+      <div className={`attendance-observation ${showObservation ? "open" : ""}`}>
+        <button
+          type="button"
+          className="attendance-observation-toggle"
+          disabled={saving || loading}
+          onClick={()=>setShowObservation(value=>!value)}
+        >
+          <span>📝 Observaciones</span>
+          <small>{observation.trim() ? "Con Nota Guardable" : "Opcional"}</small>
+          <b>{showObservation ? "▲" : "▼"}</b>
+        </button>
+        {showObservation && <div className="attendance-observation-editor">
+          <textarea
+            value={observation}
+            disabled={saving || loading}
+            maxLength={1500}
+            rows={4}
+            placeholder='Ej.: “Maxi La Rompió Hoy”, “Trabajamos Recepción”, “Muy Buena Actitud Del Grupo”.'
+            onChange={e=>{markDirty();setObservation(e.target.value);}}
+          />
+          <div className="attendance-observation-meta">
+            <span>Ayuda Memoria Del Entrenamiento, Partido O Torneo.</span>
+            <small>{observation.length}/1500</small>
+          </div>
+        </div>}
+      </div>
 
       <button className="primary wide" disabled={saving || loading || conflict || !open || !list.length} onClick={save}>{saving ? "Guardando..." : "Guardar / Modificar Registro"}</button>
       {msg && <div className="message" role="status">{msg}</div>}
@@ -1119,6 +1149,10 @@ function History({profile,categories,permissions,players,refresh}) {
         playersCount={rows.length}
         compact
       />
+      {selected.observation && <div className="history-observation card">
+        <span>📝 Observaciones De La Sesión</span>
+        <p>{selected.observation}</p>
+      </div>}
             <div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={historySaving || !can(profile, selected.categories, permissions, true)} onChange={status=>{setRows(current=>current.map(row=>row.player_id===r.player_id?{...row,status}:row));setMsg("");}}/></div>})}</div>
       {can(profile, selected.categories, permissions, true) && <div className="history-save-actions">
         <button type="button" className="primary wide" disabled={historySaving || !historyChangedRows.length} onClick={saveHistoryChanges}>
