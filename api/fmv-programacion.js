@@ -104,6 +104,73 @@ async function courtrackMatches(config,cutoff){
   }).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)||Number(a.horario||0)-Number(b.horario||0));
 }
 
+function validScheduledDate(value){
+  const d=new Date(value);
+  return !Number.isNaN(d.getTime()) && d.getUTCFullYear()>2000 ? d : null;
+}
+
+function remainingKey(permissionKey,local,visitor){
+  return [permissionKey,norm(local),norm(visitor)].join("|");
+}
+
+async function remainingFixtureFromCourtrack(rounds){
+  const used=new Set();
+  for(const round of Array.isArray(rounds)?rounds:[]){
+    for(const match of Array.isArray(round.matches)?round.matches:[]){
+      used.add(remainingKey(match.permissionKey,match.local,match.visitor));
+    }
+  }
+
+  const today=new Date();
+  today.setUTCHours(0,0,0,0);
+
+  const settled=await Promise.allSettled(SCHEDULE_TABLES.map(async config=>{
+    const r=await fetch(`${COURTRACK_BASE}/findPartidos?id_torneos=${config.tournamentId}&id_etapas=${config.stageId}`,{headers:{Accept:"application/json"},cache:"no-store"});
+    if(!r.ok)return[];
+    const payload=await r.json().catch(()=>({}));
+    const rows=Array.isArray(payload?.data)?payload.data:[];
+    return rows
+      .filter(row=>{
+        const a=norm(row.id_equipo_a),b=norm(row.id_equipo_b);
+        if(!config.teams.some(team=>norm(team)===a||norm(team)===b))return false;
+        if(row.status!=="upcoming")return false;
+        const scheduled=validScheduledDate(row.fecha);
+        if(scheduled && scheduled<today)return false;
+        return !used.has(remainingKey(config.permissionKey,row.id_equipo_a,row.id_equipo_b));
+      })
+      .map(row=>{
+        const scheduled=validScheduledDate(row.fecha);
+        const local=String(row.id_equipo_a||"").trim();
+        const visitor=String(row.id_equipo_b||"").trim();
+        const team=config.teams.find(item=>[norm(local),norm(visitor)].includes(norm(item)))||config.teams[0];
+        const opponent=norm(local)===norm(team)?visitor:local;
+        return{
+          id:`${config.permissionKey}:${row.id||local+"-"+visitor}`,
+          categoryLabel:config.categoryLabel,
+          permissionKey:config.permissionKey,
+          local,
+          visitor,
+          opponent,
+          place:scheduled?(String(row.id_cancha||"").trim()||"Lugar A Confirmar"):"Lugar A Confirmar",
+          date:scheduled?displayDate(row.fecha):"Fecha A Confirmar",
+          time:scheduled?displayTime(row.horario):"Hora A Confirmar",
+          scheduled:Boolean(scheduled),
+          scheduledAt:scheduled?scheduled.toISOString():null,
+          source:"fixture",
+        };
+      });
+  }));
+
+  return settled
+    .filter(item=>item.status==="fulfilled")
+    .flatMap(item=>item.value)
+    .sort((a,b)=>{
+      if(a.scheduled&&b.scheduled)return new Date(a.scheduledAt)-new Date(b.scheduledAt);
+      if(a.scheduled!==b.scheduled)return a.scheduled?-1:1;
+      return a.categoryLabel.localeCompare(b.categoryLabel,"es")||a.opponent.localeCompare(b.opponent,"es");
+    });
+}
+
 async function tentativeFromCourtrack(cutoff){
   const settled=await Promise.allSettled(SCHEDULE_TABLES.map(async config=>{
     const rows=await courtrackMatches(config,cutoff);const row=rows[0];if(!row)return null;
@@ -138,6 +205,15 @@ export default async function handler(req,res){
     const r=await fetch(url,{headers:{Accept:"text/html,application/xhtml+xml","User-Agent":"Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36","Cache-Control":"no-cache","Pragma":"no-cache"},cache:"no-store"});
     if(!r.ok)throw new Error(`La Programación FMV Respondió HTTP ${r.status}.`);
     const html=await r.text(),rounds=await buildRounds(html);
-    return send(res,200,{error:false,source:"Federación Mendocina De Voleibol",sourceUrl:SOURCE_URL,fetchedAt:new Date().toISOString(),rounds},true);
+    const remainingFixtures=await remainingFixtureFromCourtrack(rounds);
+    return send(res,200,{
+      error:false,
+      source:"Federación Mendocina De Voleibol",
+      sourceUrl:SOURCE_URL,
+      fixtureSourceUrl:"https://programacionvoley.jimdofree.com/fixtures-generales/",
+      fetchedAt:new Date().toISOString(),
+      rounds,
+      remainingFixtures
+    },true);
   }catch(error){return send(res,502,{error:true,message:error?.message||"No Se Pudo Consultar La Programación."})}
 }
