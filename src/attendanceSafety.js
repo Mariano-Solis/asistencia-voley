@@ -6,7 +6,7 @@ export function attendanceWriteError(error) {
   return message || 'No Se Pudo Guardar La Asistencia. Volvé A Intentarlo.';
 }
 export function attendanceFingerprint(session, rows) {
-  const fields = ['opponent','event_location','event_start_date','event_end_date','tournament_location','tournament_start_date','tournament_end_date'];
+  const fields = ['opponent','event_location','event_start_date','event_end_date','tournament_location','tournament_start_date','tournament_end_date','observation'];
   return JSON.stringify([
     fields.map(field=>session?.[field] || null),
     [...(session?.tournament_dates || [])].sort(),
