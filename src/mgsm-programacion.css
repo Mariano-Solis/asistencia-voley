@@ -78,7 +78,7 @@
 .programacion-fixture-head h2{margin:4px 0 6px;font-size:22px}
 .programacion-fixture-head p{margin:0;color:#667085;font-size:12px;line-height:1.5;max-width:760px}
 .programacion-fixture-count{flex:0 0 auto;background:#1f2b3a;color:#fff;border-radius:999px;padding:8px 11px;font-size:11px;font-weight:900}
-.programacion-fixture-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.programacion-fixture-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .programacion-fixture-filters label{display:grid;gap:7px;font-size:11px;font-weight:900;color:#344054}
 .programacion-fixture-filters select{width:100%;min-height:46px;border:1px solid #d0d5dd;border-radius:13px;background:#fff;color:#344054;padding:0 12px;font-size:13px;font-weight:800}
 .programacion-fixture-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}

@@ -61,6 +61,20 @@ function branchLabel(branch) {
   return branch === "female" ? "Femenino" : "Masculino";
 }
 
+function institutionKey(value) {
+  const team = String(value || "").trim().toUpperCase();
+  return team === "MSM B" ? "MSM" : team;
+}
+
+function opponentFor(match, institution) {
+  const selected = institutionKey(institution);
+  const local = institutionKey(match?.local);
+  const visitor = institutionKey(match?.visitor);
+  if (local === selected) return String(match?.visitor || "").trim();
+  if (visitor === selected) return String(match?.local || "").trim();
+  return "";
+}
+
 function exportDateText() {
   return new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
@@ -84,6 +98,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   const [exportMessage, setExportMessage] = useState("");
   const [fixtureBranch, setFixtureBranch] = useState("all");
   const [fixtureCategory, setFixtureCategory] = useState("all");
+  const [fixtureInstitution, setFixtureInstitution] = useState("MSM");
   const [fixtureOpponent, setFixtureOpponent] = useState("all");
   const abortRef = useRef(null);
 
@@ -164,16 +179,28 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
 
   const latestRound = rounds.length ? Math.max(...rounds.map((round) => Number(round.round || 0))) : null;
 
-  const remainingFixtures = useMemo(() => {
-    const source = Array.isArray(data?.remainingFixtures) ? data.remainingFixtures : [];
+  const leagueFixtures = useMemo(() => {
+    const source = Array.isArray(data?.leagueFixtures) ? data.leagueFixtures : [];
     return unrestricted || !allowedKeys
       ? source
       : source.filter((match) => allowedKeys.has(match.permissionKey));
   }, [data, unrestricted, allowedKeys]);
 
+  const fixtureInstitutions = useMemo(() => {
+    const set = new Set();
+    for (const match of leagueFixtures) {
+      const branch = matchBranch(match);
+      if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
+      if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) continue;
+      set.add(institutionKey(match.local));
+      set.add(institutionKey(match.visitor));
+    }
+    return [...set].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"));
+  }, [leagueFixtures, fixtureBranch, fixtureCategory]);
+
   const fixtureCategories = useMemo(() => {
     const map = new Map();
-    for (const match of remainingFixtures) {
+    for (const match of leagueFixtures) {
       if (!match?.permissionKey) continue;
       const branch = matchBranch(match);
       if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
@@ -182,26 +209,36 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       }
     }
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "es"));
-  }, [remainingFixtures, fixtureBranch]);
+  }, [leagueFixtures, fixtureBranch]);
 
   const fixtureOpponents = useMemo(() => {
     const set = new Set();
-    for (const match of remainingFixtures) {
+    for (const match of leagueFixtures) {
       const branch = matchBranch(match);
       if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
       if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) continue;
-      if (match.opponent) set.add(match.opponent);
+      if (fixtureInstitution !== "all" && ![institutionKey(match.local), institutionKey(match.visitor)].includes(institutionKey(fixtureInstitution))) continue;
+      const opponent = fixtureInstitution === "all" ? "" : opponentFor(match, fixtureInstitution);
+      if (opponent) set.add(opponent);
     }
     return [...set].sort((a, b) => a.localeCompare(b, "es"));
-  }, [remainingFixtures, fixtureBranch, fixtureCategory]);
+  }, [leagueFixtures, fixtureBranch, fixtureCategory, fixtureInstitution]);
 
-  const filteredFixtures = useMemo(() => remainingFixtures.filter((match) => {
+  const filteredFixtures = useMemo(() => leagueFixtures.filter((match) => {
     const branch = matchBranch(match);
     if (fixtureBranch !== "all" && branch !== fixtureBranch) return false;
     if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) return false;
-    if (fixtureOpponent !== "all" && match.opponent !== fixtureOpponent) return false;
+
+    const localInstitution = institutionKey(match.local);
+    const visitorInstitution = institutionKey(match.visitor);
+    if (fixtureInstitution !== "all" && ![localInstitution, visitorInstitution].includes(institutionKey(fixtureInstitution))) return false;
+
+    if (fixtureInstitution === "MSM" && match.overlapsTentative) return false;
+
+    const opponent = fixtureInstitution === "all" ? "" : opponentFor(match, fixtureInstitution);
+    if (fixtureOpponent !== "all" && opponent !== fixtureOpponent) return false;
     return true;
-  }), [remainingFixtures, fixtureBranch, fixtureCategory, fixtureOpponent]);
+  }), [leagueFixtures, fixtureBranch, fixtureCategory, fixtureInstitution, fixtureOpponent]);
 
   const fixtureStatusCounts = useMemo(() => ({
     reprogramming: filteredFixtures.filter((match) => match.scheduleState === "reprogramming").length,
@@ -216,10 +253,16 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   }, [fixtureBranch, fixtureCategories, fixtureCategory]);
 
   useEffect(() => {
+    if (fixtureInstitution !== "all" && !fixtureInstitutions.includes(fixtureInstitution)) {
+      setFixtureInstitution(fixtureInstitutions.includes("MSM") ? "MSM" : (fixtureInstitutions[0] || "all"));
+    }
+  }, [fixtureBranch, fixtureCategory, fixtureInstitutions, fixtureInstitution]);
+
+  useEffect(() => {
     if (fixtureOpponent !== "all" && !fixtureOpponents.includes(fixtureOpponent)) {
       setFixtureOpponent("all");
     }
-  }, [fixtureCategory, fixtureBranch, fixtureOpponents, fixtureOpponent]);
+  }, [fixtureCategory, fixtureBranch, fixtureInstitution, fixtureOpponents, fixtureOpponent]);
 
   const exportCategories = useMemo(() => {
     const byKey = new Map();
@@ -505,7 +548,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       </article>;
     })}
 
-    {!loading && remainingFixtures.length > 0 ? <section className="programacion-fixture-general card">
+    {!loading && leagueFixtures.length > 0 ? <section className="programacion-fixture-general card">
       <div className="programacion-fixture-head">
         <div>
           <span className="programacion-kicker">Fixture General</span>
@@ -528,6 +571,13 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
           <select value={fixtureCategory} onChange={(event) => setFixtureCategory(event.target.value)}>
             <option value="all">Todas Las Categorías</option>
             {fixtureCategories.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+          </select>
+        </label>
+
+        <label>Institución
+          <select value={fixtureInstitution} onChange={(event) => { setFixtureInstitution(event.target.value); setFixtureOpponent("all"); }}>
+            {fixtureInstitutions.includes("MSM") ? <option value="MSM">MSM · Municipalidad De San Martín</option> : null}
+            {fixtureInstitutions.filter((team) => team !== "MSM").map((team) => <option key={team} value={team}>{team}</option>)}
           </select>
         </label>
 
@@ -564,7 +614,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
             <span>📍 {match.place}</span>
           </div>
           {match.scheduleState === "reprogramming" ? <div className="programacion-reprogramming-note">Courtrack Todavía Lo Marca Como No Jugado. La Fecha Mostrada Ya Pasó y Debe Considerarse Pendiente De Reprogramación.</div> : null}
-          <div className="programacion-fixture-opponent">Rival De MSM: <b>{match.opponent}</b></div>
+          <div className="programacion-fixture-opponent">Rival De {fixtureInstitution}: <b>{opponentFor(match, fixtureInstitution)}</b></div>
         </article>)}
       </div> : <div className="programacion-empty">No Hay Partidos Restantes Que Coincidan Con Estos Filtros.</div>}
     </section> : null}
