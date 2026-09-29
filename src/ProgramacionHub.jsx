@@ -82,6 +82,9 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   const [exportBranches, setExportBranches] = useState(["female", "male"]);
   const [exportCategoryKeys, setExportCategoryKeys] = useState([]);
   const [exportMessage, setExportMessage] = useState("");
+  const [fixtureBranch, setFixtureBranch] = useState("all");
+  const [fixtureCategory, setFixtureCategory] = useState("all");
+  const [fixtureOpponent, setFixtureOpponent] = useState("all");
   const abortRef = useRef(null);
 
   const allowedKeys = useMemo(() => {
@@ -160,6 +163,57 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   }, [data, unrestricted, allowedKeys]);
 
   const latestRound = rounds.length ? Math.max(...rounds.map((round) => Number(round.round || 0))) : null;
+
+  const remainingFixtures = useMemo(() => {
+    const source = Array.isArray(data?.remainingFixtures) ? data.remainingFixtures : [];
+    return unrestricted || !allowedKeys
+      ? source
+      : source.filter((match) => allowedKeys.has(match.permissionKey));
+  }, [data, unrestricted, allowedKeys]);
+
+  const fixtureCategories = useMemo(() => {
+    const map = new Map();
+    for (const match of remainingFixtures) {
+      if (!match?.permissionKey) continue;
+      const branch = matchBranch(match);
+      if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
+      if (!map.has(match.permissionKey)) {
+        map.set(match.permissionKey, { key: match.permissionKey, label: match.categoryLabel || match.permissionKey, branch });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "es"));
+  }, [remainingFixtures, fixtureBranch]);
+
+  const fixtureOpponents = useMemo(() => {
+    const set = new Set();
+    for (const match of remainingFixtures) {
+      const branch = matchBranch(match);
+      if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
+      if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) continue;
+      if (match.opponent) set.add(match.opponent);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  }, [remainingFixtures, fixtureBranch, fixtureCategory]);
+
+  const filteredFixtures = useMemo(() => remainingFixtures.filter((match) => {
+    const branch = matchBranch(match);
+    if (fixtureBranch !== "all" && branch !== fixtureBranch) return false;
+    if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) return false;
+    if (fixtureOpponent !== "all" && match.opponent !== fixtureOpponent) return false;
+    return true;
+  }), [remainingFixtures, fixtureBranch, fixtureCategory, fixtureOpponent]);
+
+  useEffect(() => {
+    if (fixtureCategory !== "all" && !fixtureCategories.some((item) => item.key === fixtureCategory)) {
+      setFixtureCategory("all");
+    }
+  }, [fixtureBranch, fixtureCategories, fixtureCategory]);
+
+  useEffect(() => {
+    if (fixtureOpponent !== "all" && !fixtureOpponents.includes(fixtureOpponent)) {
+      setFixtureOpponent("all");
+    }
+  }, [fixtureCategory, fixtureBranch, fixtureOpponents, fixtureOpponent]);
 
   const exportCategories = useMemo(() => {
     const byKey = new Map();
@@ -445,6 +499,61 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       </article>;
     })}
 
-    <div className="programacion-source">Fuente: Federación Mendocina De Voleibol · Programación Oficial Del Torneo Clausura.</div>
+    {!loading && remainingFixtures.length > 0 ? <section className="programacion-fixture-general card">
+      <div className="programacion-fixture-head">
+        <div>
+          <span className="programacion-kicker">Fixture General</span>
+          <h2>Lo Que Queda Por Jugar</h2>
+          <p>Partidos Restantes De Municipalidad De San Martín. Los Que Todavía No Tienen Fecha Confirmada Se Muestran Como “A Confirmar”.</p>
+        </div>
+        <span className="programacion-fixture-count">{filteredFixtures.length} Partido{filteredFixtures.length === 1 ? "" : "s"}</span>
+      </div>
+
+      <div className="programacion-fixture-filters">
+        <label>Rama
+          <select value={fixtureBranch} onChange={(event) => setFixtureBranch(event.target.value)}>
+            <option value="all">Todas Las Ramas</option>
+            <option value="female">Femenino</option>
+            <option value="male">Masculino</option>
+          </select>
+        </label>
+
+        <label>Equipo / Categoría
+          <select value={fixtureCategory} onChange={(event) => setFixtureCategory(event.target.value)}>
+            <option value="all">Todas Las Categorías</option>
+            {fixtureCategories.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+          </select>
+        </label>
+
+        <label>Rival
+          <select value={fixtureOpponent} onChange={(event) => setFixtureOpponent(event.target.value)}>
+            <option value="all">Todos Los Rivales</option>
+            {fixtureOpponents.map((opponent) => <option key={opponent} value={opponent}>{opponent}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {filteredFixtures.length ? <div className="programacion-fixture-list">
+        {filteredFixtures.map((match) => <article key={match.id} className="programacion-fixture-match">
+          <div className="programacion-fixture-match-top">
+            <strong>{match.categoryLabel}</strong>
+            <span className={match.scheduled ? "scheduled" : "pending"}>{match.scheduled ? "Tentativo" : "Fixture General"}</span>
+          </div>
+          <div className="programacion-versus">
+            <b>{displayTeam(match.local)}</b>
+            <span>vs.</span>
+            <b>{displayTeam(match.visitor)}</b>
+          </div>
+          <div className="programacion-details">
+            <span>📆 {match.date}</span>
+            <span>🕐 {match.time}</span>
+            <span>📍 {match.place}</span>
+          </div>
+          <div className="programacion-fixture-opponent">Rival De MSM: <b>{match.opponent}</b></div>
+        </article>)}
+      </div> : <div className="programacion-empty">No Hay Partidos Restantes Que Coincidan Con Estos Filtros.</div>}
+    </section> : null}
+
+    <div className="programacion-source">Fuente: Federación Mendocina De Voleibol · Programación Oficial Del Torneo Clausura y Fixture General.</div>
   </section>;
 }
