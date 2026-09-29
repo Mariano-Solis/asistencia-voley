@@ -134,8 +134,6 @@ async function remainingFixtureFromCourtrack(rounds){
         const a=norm(row.id_equipo_a),b=norm(row.id_equipo_b);
         if(!config.teams.some(team=>norm(team)===a||norm(team)===b))return false;
         if(row.status!=="upcoming")return false;
-        const scheduled=validScheduledDate(row.fecha);
-        if(scheduled && scheduled<today)return false;
         return !used.has(remainingKey(config.permissionKey,row.id_equipo_a,row.id_equipo_b));
       })
       .map(row=>{
@@ -144,6 +142,8 @@ async function remainingFixtureFromCourtrack(rounds){
         const visitor=String(row.id_equipo_b||"").trim();
         const team=config.teams.find(item=>[norm(local),norm(visitor)].includes(norm(item)))||config.teams[0];
         const opponent=norm(local)===norm(team)?visitor:local;
+        const overdue=Boolean(scheduled && scheduled<today);
+        const scheduleState=overdue?"reprogramming":scheduled?"scheduled":"unscheduled";
         return{
           id:`${config.permissionKey}:${row.id||local+"-"+visitor}`,
           categoryLabel:config.categoryLabel,
@@ -155,8 +155,11 @@ async function remainingFixtureFromCourtrack(rounds){
           date:scheduled?displayDate(row.fecha):"Fecha A Confirmar",
           time:scheduled?displayTime(row.horario):"Hora A Confirmar",
           scheduled:Boolean(scheduled),
+          overdue,
+          scheduleState,
           scheduledAt:scheduled?scheduled.toISOString():null,
-          source:"fixture",
+          courtrackStatus:String(row.status||""),
+          source:"courtrack",
         };
       });
   }));
@@ -165,8 +168,9 @@ async function remainingFixtureFromCourtrack(rounds){
     .filter(item=>item.status==="fulfilled")
     .flatMap(item=>item.value)
     .sort((a,b)=>{
+      const rank={reprogramming:0,scheduled:1,unscheduled:2};
+      if(rank[a.scheduleState]!==rank[b.scheduleState])return rank[a.scheduleState]-rank[b.scheduleState];
       if(a.scheduled&&b.scheduled)return new Date(a.scheduledAt)-new Date(b.scheduledAt);
-      if(a.scheduled!==b.scheduled)return a.scheduled?-1:1;
       return a.categoryLabel.localeCompare(b.categoryLabel,"es")||a.opponent.localeCompare(b.opponent,"es");
     });
 }
@@ -211,6 +215,7 @@ export default async function handler(req,res){
       source:"Federación Mendocina De Voleibol",
       sourceUrl:SOURCE_URL,
       fixtureSourceUrl:"https://programacionvoley.jimdofree.com/fixtures-generales/",
+      remainingSource:"Courtrack · Partidos Con Estado Upcoming",
       fetchedAt:new Date().toISOString(),
       rounds,
       remainingFixtures

@@ -203,6 +203,12 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     return true;
   }), [remainingFixtures, fixtureBranch, fixtureCategory, fixtureOpponent]);
 
+  const fixtureStatusCounts = useMemo(() => ({
+    reprogramming: filteredFixtures.filter((match) => match.scheduleState === "reprogramming").length,
+    scheduled: filteredFixtures.filter((match) => match.scheduleState === "scheduled").length,
+    unscheduled: filteredFixtures.filter((match) => match.scheduleState === "unscheduled").length,
+  }), [filteredFixtures]);
+
   useEffect(() => {
     if (fixtureCategory !== "all" && !fixtureCategories.some((item) => item.key === fixtureCategory)) {
       setFixtureCategory("all");
@@ -504,7 +510,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
         <div>
           <span className="programacion-kicker">Fixture General</span>
           <h2>Lo Que Queda Por Jugar</h2>
-          <p>Partidos Restantes De Municipalidad De San Martín. Los Que Todavía No Tienen Fecha Confirmada Se Muestran Como “A Confirmar”.</p>
+          <p>Partidos Que Courtrack Mantiene Con Estado Pendiente De Juego. Así No Se Pierden Encuentros Postergados, Reprogramados o Todavía Sin Fecha.</p>
         </div>
         <span className="programacion-fixture-count">{filteredFixtures.length} Partido{filteredFixtures.length === 1 ? "" : "s"}</span>
       </div>
@@ -533,11 +539,19 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
         </label>
       </div>
 
+      <div className="programacion-fixture-status-summary">
+        <span><b>{fixtureStatusCounts.reprogramming}</b> Reprogramación Pendiente</span>
+        <span><b>{fixtureStatusCounts.scheduled}</b> Con Fecha Cargada</span>
+        <span><b>{fixtureStatusCounts.unscheduled}</b> Sin Fecha</span>
+      </div>
+
       {filteredFixtures.length ? <div className="programacion-fixture-list">
         {filteredFixtures.map((match) => <article key={match.id} className="programacion-fixture-match">
           <div className="programacion-fixture-match-top">
             <strong>{match.categoryLabel}</strong>
-            <span className={match.scheduled ? "scheduled" : "pending"}>{match.scheduled ? "Tentativo" : "Fixture General"}</span>
+            <span className={match.scheduleState === "reprogramming" ? "reprogramming" : match.scheduled ? "scheduled" : "pending"}>
+              {match.scheduleState === "reprogramming" ? "Pendiente De Reprogramación" : match.scheduled ? "Tentativo" : "Fixture General"}
+            </span>
           </div>
           <div className="programacion-versus">
             <b>{displayTeam(match.local)}</b>
@@ -545,15 +559,16 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
             <b>{displayTeam(match.visitor)}</b>
           </div>
           <div className="programacion-details">
-            <span>📆 {match.date}</span>
+            <span>📆 {match.date}{match.scheduleState === "reprogramming" ? " · Fecha Original" : ""}</span>
             <span>🕐 {match.time}</span>
             <span>📍 {match.place}</span>
           </div>
+          {match.scheduleState === "reprogramming" ? <div className="programacion-reprogramming-note">Courtrack Todavía Lo Marca Como No Jugado. La Fecha Mostrada Ya Pasó y Debe Considerarse Pendiente De Reprogramación.</div> : null}
           <div className="programacion-fixture-opponent">Rival De MSM: <b>{match.opponent}</b></div>
         </article>)}
       </div> : <div className="programacion-empty">No Hay Partidos Restantes Que Coincidan Con Estos Filtros.</div>}
     </section> : null}
 
-    <div className="programacion-source">Fuente: Federación Mendocina De Voleibol · Programación Oficial Del Torneo Clausura y Fixture General.</div>
+    <div className="programacion-source">Fuente: Federación Mendocina De Voleibol para la programación publicada · Courtrack para determinar qué partidos continúan pendientes de juego.</div>
   </section>;
 }
