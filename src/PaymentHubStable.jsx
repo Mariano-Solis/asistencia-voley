@@ -195,7 +195,7 @@ function buildPaymentStats(players = [], paymentByPlayer = {}) {
   };
 }
 
-function PaymentAnalytics({ stats, period, title = "Resumen De Pagos", subtitle = "", badgeLabel = "" }) {
+function PaymentAnalytics({ stats, period, title = "Resumen De Pagos", subtitle = "", badgeLabel = "", activeFilter = "all", onFilter = null }) {
   const charts = [
     { key: "paid", label: "Pagados", value: stats.validated, pct: stats.validatedPct },
     { key: "review", label: "En Revisión", value: stats.review, pct: stats.reviewPct },
@@ -203,6 +203,13 @@ function PaymentAnalytics({ stats, period, title = "Resumen De Pagos", subtitle 
   ];
   const resolvedSubtitle = subtitle || (period ? `${periodLabel(period)} · Estado General Del Período Seleccionado.` : "");
   const resolvedBadge = badgeLabel || `${stats.total} Jugador@s`;
+  const summaryItems = [
+    { key: "all", label: "Total", value: stats.total },
+    { key: "validated", label: "Pagados", value: stats.validated },
+    { key: "review", label: "En Revisión", value: stats.review },
+    { key: "pending_group", label: "Pendientes", value: stats.pending },
+    { key: "rejected", label: "Rechazados", value: stats.rejected },
+  ];
 
   return (
     <section className="stable-pay-analytics">
@@ -214,12 +221,20 @@ function PaymentAnalytics({ stats, period, title = "Resumen De Pagos", subtitle 
         <span>{resolvedBadge}</span>
       </div>
 
-      <div className="stable-pay-analytics-summary">
-        <div><b>{stats.total}</b><span>Total</span></div>
-        <div><b>{stats.validated}</b><span>Pagados</span></div>
-        <div><b>{stats.review}</b><span>En Revisión</span></div>
-        <div><b>{stats.pending}</b><span>Pendientes</span></div>
-        <div><b>{stats.rejected}</b><span>Rechazados</span></div>
+      <div className={`stable-pay-analytics-summary ${onFilter ? "is-filterable" : ""}`}>
+        {summaryItems.map((item) => onFilter ? (
+          <button
+            type="button"
+            key={item.key}
+            className={activeFilter === item.key ? "active" : ""}
+            aria-pressed={activeFilter === item.key}
+            onClick={() => onFilter(item.key)}
+          >
+            <b>{item.value}</b><span>{item.label}</span>
+          </button>
+        ) : (
+          <div key={item.key}><b>{item.value}</b><span>{item.label}</span></div>
+        ))}
       </div>
 
       <div className="stable-pay-financial-summary">
@@ -457,6 +472,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
   const [period, setPeriod] = useState(defaultPeriod);
   const paymentsStarted = !!maxEligiblePeriod;
   const refreshInFlightRef = useRef(false);
+  const paymentListRef = useRef(null);
   const [players, setPlayers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -571,12 +587,22 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
     const q = search.trim().toLowerCase();
     if (q && !player.full_name.toLowerCase().includes(q)) return false;
     if (status === "validated" && payment?.validation_status !== "validated") return false;
+    if (status === "review" && !["pending_validation", "manual_review"].includes(payment?.validation_status)) return false;
     if (status === "pending_validation" && payment?.validation_status !== "pending_validation") return false;
     if (status === "manual_review" && payment?.validation_status !== "manual_review") return false;
     if (status === "pending" && payment) return false;
+    if (status === "pending_group" && payment && payment.validation_status !== "rejected") return false;
     if (status === "rejected" && payment?.validation_status !== "rejected") return false;
     return true;
   }), [analyticsPlayers, paymentByPlayer, search, status]);
+
+  function applyAnalyticsFilter(nextStatus) {
+    setStatus(nextStatus);
+    setSearch("");
+    window.requestAnimationFrame(() => {
+      paymentListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   const analytics = useMemo(() => buildPaymentStats(analyticsPlayers, paymentByPlayer), [analyticsPlayers, paymentByPlayer]);
   const receiptsCount = payments.filter((p) => !!p.receipt_path).length;
@@ -687,13 +713,17 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
           period={period}
           subtitle={`${periodLabel(period)} · ${analyticsScopeLabel}.`}
           badgeLabel={`${analytics.total} Jugador@${analytics.total === 1 ? "" : "s"}`}
+          activeFilter={status}
+          onFilter={applyAnalyticsFilter}
         />
 
-        <div className="stable-pay-filters">
+        <div ref={paymentListRef} className="stable-pay-filters">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar Jugador@" />
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">Todos</option>
             <option value="validated">Validados</option>
+            <option value="review">En Revisión</option>
+            <option value="pending_group">Pendientes</option>
             <option value="pending_validation">Verificando</option>
             <option value="manual_review">Pendientes De Revisión</option>
             <option value="pending">Sin Comprobante</option>
