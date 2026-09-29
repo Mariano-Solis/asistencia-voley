@@ -529,30 +529,6 @@ export default function StandingsHub({ compact = false, allowedCategories = null
         <span>No Hay Una Tabla Oficial Vinculada A Tus Categorías Actuales.</span>
       </div> : null}
 
-      <div className="staff-standings-list">
-        {staffTables.map((table) => {
-          const entry = availableEntries.find((item) => item.key === table.tableKey);
-          const title = table.categoryLabel || entry?.label || "Categoría";
-          return <div key={table.tableKey} className="standings-card card player-standings-table-card">
-            <div className="standings-card-head">
-              <div>
-                <h2>{title} · Tabla Oficial</h2>
-                <p>{table.stage || table.division || (entry ? `${branchLabel(entry.branch)} · ${competitionLabel(entry.competition)}` : "")}</p>
-              </div>
-            </div>
-            <div className="standings-table-wrap">
-              <table className="standings-table">
-                <thead><tr><th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th></tr></thead>
-                <tbody>{table.positions.map((row) => <tr key={`${table.tableKey}:${row.id_equipo}`} className={institutionTeamKey(row.id_equipo) === "MSM" ? "is-msm" : ""}>
-                  <td><span className="standings-position">{row.posicion}</span></td>
-                  <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.id_equipo}</strong></div></td>
-                  <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
-                </tr>)}</tbody>
-              </table>
-            </div>
-          </div>;
-        })}
-
       {allowComparison ? <section className="staff-comparison-section">
         <div className="standings-controls card staff-comparison-controls">
           <label>Competencia
@@ -579,7 +555,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
             </div>
           </div>
 
-          <button type="button" className="standings-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
+          <button type="button" className="standings-refresh staff-comparison-refresh" onClick={() => void load({ quiet: true })} disabled={refreshing}>
             <span className={refreshing ? "spinning" : ""}>↻</span> {refreshing ? "Actualizando..." : "Actualizar Comparativo"}
           </button>
         </div>
@@ -597,7 +573,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           </div>
 
           {loading && !aggregate.length ? <div className="standings-loading">Consultando Las Tablas Seleccionadas...</div> :
-          aggregate.length ? <div className="standings-table-wrap">
+          aggregate.length ? <div className="standings-table-wrap staff-comparison-table-wrap">
             <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
               <thead><tr>
                 <th>#</th>
@@ -630,6 +606,30 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           </div>
         </div>
       </section> : null}
+
+      <div className="staff-standings-list">
+        {staffTables.map((table) => {
+          const entry = availableEntries.find((item) => item.key === table.tableKey);
+          const title = table.categoryLabel || entry?.label || "Categoría";
+          return <div key={table.tableKey} className="standings-card card player-standings-table-card">
+            <div className="standings-card-head">
+              <div>
+                <h2>{title} · Tabla Oficial</h2>
+                <p>{table.stage || table.division || (entry ? `${branchLabel(entry.branch)} · ${competitionLabel(entry.competition)}` : "")}</p>
+              </div>
+            </div>
+            <div className="standings-table-wrap">
+              <table className="standings-table">
+                <thead><tr><th>Pos.</th><th>Equipo</th><th>PTS</th><th>PJ</th><th>PG</th><th>PP</th></tr></thead>
+                <tbody>{table.positions.map((row) => <tr key={`${table.tableKey}:${row.id_equipo}`} className={institutionTeamKey(row.id_equipo) === "MSM" ? "is-msm" : ""}>
+                  <td><span className="standings-position">{row.posicion}</span></td>
+                  <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.id_equipo}</strong></div></td>
+                  <td><b>{row.puntos}</b></td><td>{row.jugados}</td><td>{row.ganados}</td><td>{row.perdidos}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          </div>;
+        })}
       </div>
     </section>;
   }
