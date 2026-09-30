@@ -84,6 +84,70 @@ function extractPaymentDate(text) {
   return null;
 }
 
+function isoDate(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
+function paymentWindow(period) {
+  if (!/^\d{4}-\d{2}$/.test(period)) return null;
+  const [year, month] = period.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 2, 25, 12));
+  const end = new Date(Date.UTC(year, month, 0, 12));
+  return { start: isoDate(start), end: isoDate(end) };
+}
+
+function dateInsideWindow(paymentDate, period) {
+  const window = paymentWindow(period);
+  if (!paymentDate || !window) return false;
+  return paymentDate >= window.start && paymentDate <= window.end;
+}
+
+function extractCvuCandidates(text) {
+  const raw = String(text || "");
+  const candidates = [];
+  const pattern = /(?:\d[\s.\-]*){22}/g;
+  for (const match of raw.matchAll(pattern)) {
+    const digits = compactDigits(match[0]);
+    if (digits.length !== 22) continue;
+    const start = Math.max(0, (match.index || 0) - 180);
+    const end = Math.min(raw.length, (match.index || 0) + match[0].length + 180);
+    candidates.push({
+      value: digits,
+      context: normalizeText(raw.slice(start, end)),
+    });
+  }
+  return candidates;
+}
+
+function destinationCvuStatus(text) {
+  const candidates = extractCvuCandidates(text);
+  const destinationWords = /(destino|destinatari|a quien|para quien|transferiste a|transferencia a|cuenta de destino|cvu destino|receptor|beneficiario)/;
+  const marked = candidates.filter((item) => destinationWords.test(item.context));
+  const official = OFFICIAL_DESTINATION.cvu;
+
+  if (marked.some((item) => item.value === official)) {
+    return { verified: true, explicitWrong: false, detected: official };
+  }
+  if (marked.length && !marked.some((item) => item.value === official)) {
+    return { verified: false, explicitWrong: true, detected: marked[0].value };
+  }
+
+  const officialCandidate = candidates.find((item) => item.value === official);
+  const normalized = normalizeText(text);
+  const nameOk = normalized.includes(normalizeText(OFFICIAL_DESTINATION.name));
+  if (officialCandidate && nameOk) {
+    return { verified: true, explicitWrong: false, detected: official };
+  }
+
+  return {
+    verified: false,
+    explicitWrong: false,
+    detected: candidates.length === 1 ? candidates[0].value : null,
+  };
+}
+
 function extractAmount(text) {
   const match = String(text || "").match(/\$\s*([0-9]{1,3}(?:\.[0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+)/);
   if (!match) return null;
@@ -105,71 +169,85 @@ function receiptSignals(normalized) {
 
 function analyzeOcr(text, confidence, period) {
   const normalized = normalizeText(text);
-  const digits = compactDigits(text);
   const paymentDate = extractPaymentDate(text);
   const amount = extractAmount(text);
-  const cvuOk = digits.includes(OFFICIAL_DESTINATION.cvu);
-  const nameOk = normalized.includes(normalizeText(OFFICIAL_DESTINATION.name));
   const providerOk = normalized.includes("mercado pago") || normalized.includes("mercadopago");
+  const nameOk = normalized.includes(normalizeText(OFFICIAL_DESTINATION.name));
   const signalCount = receiptSignals(normalized);
-  const dateOk = paymentDate?.slice(0, 7) === period;
+  const window = paymentWindow(period);
+  const dateOk = paymentDate ? dateInsideWindow(paymentDate, period) : false;
+  const destination = destinationCvuStatus(text);
+
+  const common = {
+    payment_date: paymentDate,
+    amount,
+    provider: providerOk ? OFFICIAL_DESTINATION.provider : null,
+    recipient_name: nameOk ? OFFICIAL_DESTINATION.name : null,
+    recipient_cvu: destination.verified ? OFFICIAL_DESTINATION.cvu : destination.detected,
+    window_start: window?.start || null,
+    window_end: window?.end || null,
+    confidence,
+  };
 
   if (paymentDate && !dateOk) {
     return {
       status: "rejected",
-      reason: "Comprobante no válido: la fecha de la transferencia corresponde a otro mes.",
-      payment_date: paymentDate,
-      amount,
-      provider: providerOk ? OFFICIAL_DESTINATION.provider : null,
-      recipient_name: nameOk ? OFFICIAL_DESTINATION.name : null,
-      recipient_cvu: cvuOk ? OFFICIAL_DESTINATION.cvu : null,
+      invalid_code: "date_out_of_window",
+      reason: `Comprobante inválido: fecha de pago fuera del período permitido (${window?.start || "—"} al ${window?.end || "—"}).`,
       destination_verified: false,
-      confidence,
+      ...common,
+    };
+  }
+
+  if (destination.explicitWrong) {
+    return {
+      status: "rejected",
+      invalid_code: "destination_incorrect",
+      reason: "Comprobante inválido: cuenta de destino incorrecta.",
+      destination_verified: false,
+      ...common,
     };
   }
 
   if (signalCount < 2) {
     return {
       status: "rejected",
-      reason: "Comprobante no válido: el archivo no presenta la estructura esperada de un comprobante de transferencia.",
-      payment_date: paymentDate,
-      amount,
-      provider: providerOk ? OFFICIAL_DESTINATION.provider : null,
-      recipient_name: nameOk ? OFFICIAL_DESTINATION.name : null,
-      recipient_cvu: cvuOk ? OFFICIAL_DESTINATION.cvu : null,
+      invalid_code: "invalid_receipt",
+      reason: "Comprobante inválido: el archivo no presenta la estructura esperada de un comprobante de transferencia.",
       destination_verified: false,
-      confidence,
+      ...common,
     };
   }
 
-  if (dateOk && cvuOk && providerOk) {
+  if (!paymentDate) {
     return {
-      status: "validated",
-      reason: "Comprobante válido: Mercado Pago, período y CVU oficial verificados automáticamente.",
-      payment_date: paymentDate,
-      amount,
-      provider: OFFICIAL_DESTINATION.provider,
-      recipient_name: nameOk ? OFFICIAL_DESTINATION.name : OFFICIAL_DESTINATION.name,
-      recipient_cvu: OFFICIAL_DESTINATION.cvu,
-      destination_verified: true,
-      confidence,
+      status: "manual_review",
+      reason: "Comprobante cargado. No se pudo leer con seguridad la fecha real de la transferencia y requiere revisión manual.",
+      destination_verified: false,
+      ...common,
     };
   }
 
-  const missing = [];
-  if (!paymentDate) missing.push("la fecha");
-  if (!cvuOk) missing.push("el CVU oficial");
-  if (!providerOk) missing.push("Mercado Pago");
+  if (!destination.verified) {
+    return {
+      status: "manual_review",
+      reason: "Comprobante cargado. No se pudo confirmar con seguridad que el CVU de destino sea la cuenta oficial y requiere revisión manual.",
+      destination_verified: false,
+      ...common,
+    };
+  }
 
   return {
-    status: "manual_review",
-    reason: `Comprobante cargado. La lectura automática no pudo confirmar con seguridad ${missing.join(" y ") || "todos los datos"}. Será revisado por el Super Administrador.`,
+    status: "validated",
+    reason: `Comprobante válido: fecha dentro del período permitido (${window.start} al ${window.end}) y CVU oficial de destino verificado.`,
+    destination_verified: true,
+    provider: OFFICIAL_DESTINATION.provider,
+    recipient_name: nameOk ? OFFICIAL_DESTINATION.name : OFFICIAL_DESTINATION.name,
+    recipient_cvu: OFFICIAL_DESTINATION.cvu,
     payment_date: paymentDate,
     amount,
-    provider: providerOk ? OFFICIAL_DESTINATION.provider : null,
-    recipient_name: nameOk ? OFFICIAL_DESTINATION.name : null,
-    recipient_cvu: cvuOk ? OFFICIAL_DESTINATION.cvu : null,
-    destination_verified: false,
+    window_start: window.start,
+    window_end: window.end,
     confidence,
   };
 }
