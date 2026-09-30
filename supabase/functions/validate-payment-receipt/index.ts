@@ -384,6 +384,7 @@ Deno.serve(async (req: Request) => {
                 detected_provider: ocr.provider,
                 detected_recipient_name: ocr.recipient_name,
                 detected_recipient_cvu: ocr.recipient_cvu,
+                destination_verified: false,
               });
               return;
             }
@@ -395,6 +396,7 @@ Deno.serve(async (req: Request) => {
               detected_provider: ocr.provider || "Revisión manual",
               detected_recipient_name: ocr.recipient_name,
               detected_recipient_cvu: ocr.recipient_cvu,
+              destination_verified: ocr.destination_verified === true,
             });
             return;
           } catch (ocrError) {
