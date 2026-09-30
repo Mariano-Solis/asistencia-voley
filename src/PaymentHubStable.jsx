@@ -432,7 +432,7 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
           <b className={`stable-pay-state ${currentState.cls}`}>{currentState.label}</b>
         </section>
 
-        <p className="stable-pay-help">La Validación Automática Comprueba La Fecha Real De La Transferencia y El CVU Oficial De Destino. Para Cada Cuota Se Admite Desde El Día 25 Del Mes Anterior Hasta El Último Día Del Mes Pagado. Si La Fecha Está Fuera De Esa Ventana O La Cuenta De Destino Es Incorrecta, El Comprobante Se Marca Como Inválido. Si Algún Dato No Puede Leerse Con Seguridad, Pasa A Revisión Manual.</p>
+        <p className="stable-pay-help">La Validación Automática Comprueba La Fecha Real De La Transferencia y El CVU Oficial De Destino. Para Cada Cuota Se Admite Desde El Día 25 Del Mes Anterior Hasta El Último Día Del Mes Pagado. Fecha Válida + CVU Oficial = Aprobado Automáticamente. CVU De Destino Incorrecto = Rechazado Automáticamente. Si El CVU Es Correcto Pero La Fecha Está Fuera De La Ventana, Queda Pendiente De Revisión Manual.</p>
 
         {current?.validation_reason && current.validation_status !== "validated" && (
           <div className="stable-pay-note">{current.validation_reason}</div>
@@ -766,9 +766,9 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
                 <b className={`stable-pay-state ${state.cls}`}>{state.label}</b>
                 <div className="stable-pay-row-actions">
                   {payment?.receipt_path ? <button type="button" onClick={() => openReceipt(payment.receipt_path, setMessage)}>👁 Ver</button> : <span>Sin Archivo</span>}
-                  {canApprovePayments && payment?.receipt_path && ["manual_review", "pending_validation", "rejected"].includes(payment.validation_status) && <>
+                  {canApprovePayments && payment?.receipt_path && ["manual_review", "pending_validation"].includes(payment.validation_status) && <>
                     <button type="button" className="approve" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "validated")}>✓ Aprobar</button>
-                    {payment.validation_status !== "rejected" && <button type="button" className="reject" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "rejected")}>✕ Rechazar</button>}
+                    <button type="button" className="reject" disabled={reviewing === payment.id || bulkReviewing} onClick={() => reviewPayment(payment.id, "rejected")}>✕ Rechazar</button>
                   </>}
                   {canApprovePayments && payment?.validation_status === "validated" && (
                     <button type="button" className="revoke" disabled={reviewing === payment.id || bulkReviewing} onClick={() => revokePayment(payment.id, player.full_name)}>↩ Revocar Aprobación</button>
