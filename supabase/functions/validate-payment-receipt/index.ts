@@ -317,7 +317,7 @@ Deno.serve(async (req: Request) => {
         detected_amount: extras.detected_amount ?? null,
         detected_provider: extras.detected_provider ?? (status === "validated" ? "Verificación automática" : "Revisión manual"),
         validated_at: status === "validated" ? finishedAt : null,
-        destination_verified: status === "validated",
+        destination_verified: typeof extras.destination_verified === "boolean" ? extras.destination_verified : status === "validated",
         detected_recipient_name: extras.detected_recipient_name ?? null,
         detected_recipient_alias: extras.detected_recipient_alias ?? null,
         detected_recipient_cvu: extras.detected_recipient_cvu ?? null,
@@ -371,6 +371,7 @@ Deno.serve(async (req: Request) => {
                 detected_provider: ocr.provider || "Mercado Pago",
                 detected_recipient_name: ocr.recipient_name,
                 detected_recipient_cvu: ocr.recipient_cvu,
+                destination_verified: ocr.destination_verified === true,
               });
               return;
             }
@@ -411,22 +412,24 @@ Deno.serve(async (req: Request) => {
         const normalized = normalizeText(text);
         const nameOk = normalized.includes(normalizeText(OFFICIAL.name));
 
-        if (paymentDate && !dateInsideWindow(paymentDate, periodMonth)) {
-          await finalize("rejected", `Comprobante inválido: fecha de pago fuera del período permitido (${window?.start || "—"} al ${window?.end || "—"}).`, {
-            detected_payment_date: paymentDate,
-            detected_provider: "Mercado Pago",
-            detected_recipient_name: nameOk ? OFFICIAL.name : null,
-            detected_recipient_cvu: destination.detected,
-          });
-          return;
-        }
-
         if (destination.explicitWrong) {
           await finalize("rejected", "Comprobante inválido: cuenta de destino incorrecta.", {
             detected_payment_date: paymentDate,
             detected_provider: "Mercado Pago",
             detected_recipient_name: null,
             detected_recipient_cvu: destination.detected,
+            destination_verified: false,
+          });
+          return;
+        }
+
+        if (paymentDate && !dateInsideWindow(paymentDate, periodMonth)) {
+          await finalize("manual_review", `Comprobante inválido: fecha de pago fuera del período permitido (${window?.start || "—"} al ${window?.end || "—"}). Pendiente de verificación manual.`, {
+            detected_payment_date: paymentDate,
+            detected_provider: "Mercado Pago",
+            detected_recipient_name: nameOk ? OFFICIAL.name : null,
+            detected_recipient_cvu: destination.detected,
+            destination_verified: destination.verified,
           });
           return;
         }
