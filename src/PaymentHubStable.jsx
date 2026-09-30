@@ -103,7 +103,7 @@ function stateOf(payment) {
   if (payment.validation_status === "validated") return { cls: "paid", label: "✓ Comprobante Válido" };
   if (payment.validation_status === "pending_validation") return { cls: "review", label: "⏳ Verificando Comprobante" };
   if (payment.validation_status === "manual_review") return { cls: "review", label: "⚠ Pendiente De Revisión" };
-  if (payment.validation_status === "rejected") return { cls: "rejected", label: "✕ Rechazado" };
+  if (payment.validation_status === "rejected") return { cls: "rejected", label: "✕ Comprobante Inválido" };
   return { cls: "review", label: "⏳ Verificando Comprobante" };
 }
 
@@ -294,7 +294,7 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
     try {
       const { data, error } = await supabase
         .from("monthly_payments")
-        .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason,detected_provider,validated_at")
+        .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason,detected_payment_date,detected_provider,destination_verified,detected_recipient_cvu,validated_at")
         .eq("player_id", player.id)
         .order("period_month", { ascending: false });
       if (error) setMessage("No Se Pudieron Cargar Tus Pagos.");
@@ -432,7 +432,7 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
           <b className={`stable-pay-state ${currentState.cls}`}>{currentState.label}</b>
         </section>
 
-        <p className="stable-pay-help">Los Comprobantes Descargados De Mercado Pago Se Leen Automáticamente Buscando La Fecha Del Mes En Curso y El CVU Oficial. Si El Archivo No Puede Leerse Con Seguridad, Queda Pendiente De Revisión Manual. El Pagador Puede Ser Otra Persona.</p>
+        <p className="stable-pay-help">La Validación Automática Comprueba La Fecha Real De La Transferencia y El CVU Oficial De Destino. Para Cada Cuota Se Admite Desde El Día 25 Del Mes Anterior Hasta El Último Día Del Mes Pagado. Si La Fecha Está Fuera De Esa Ventana O La Cuenta De Destino Es Incorrecta, El Comprobante Se Marca Como Inválido. Si Algún Dato No Puede Leerse Con Seguridad, Pasa A Revisión Manual.</p>
 
         {current?.validation_reason && current.validation_status !== "validated" && (
           <div className="stable-pay-note">{current.validation_reason}</div>
@@ -505,7 +505,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
 
       const [p, pay, cat, perm] = await Promise.all([
         supabase.from("players").select("id,full_name,monthly_fee,category_id,team,active").eq("active", true).order("full_name"),
-        supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_provider").eq("period_month", period),
+        supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_payment_date,detected_provider,destination_verified,detected_recipient_cvu").eq("period_month", period),
         supabase.from("categories").select("id,name,gender,active").eq("active", true).order("name"),
         permissionRequest,
       ]);
@@ -607,7 +607,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
 
   const analytics = useMemo(() => buildPaymentStats(analyticsPlayers, paymentByPlayer), [analyticsPlayers, paymentByPlayer]);
   const receiptsCount = payments.filter((p) => !!p.receipt_path).length;
-  const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && p.validation_status !== "validated").length;
+  const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && ["pending_validation", "manual_review"].includes(p.validation_status)).length;
 
   async function updateFee(playerId, value) {
     if (role !== "super_admin") return;
@@ -752,7 +752,13 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
             const state = stateOf(payment);
             return (
               <article className="stable-pay-admin-row" key={player.id}>
-                <div className="stable-pay-person"><b>{player.full_name}</b><small>{player.team ? `Equipo ${player.team}` : "Sin Equipo"}</small>{payment?.validation_reason && <small>{payment.validation_reason}</small>}</div>
+                <div className="stable-pay-person">
+                  <b>{player.full_name}</b>
+                  <small>{player.team ? `Equipo ${player.team}` : "Sin Equipo"}</small>
+                  {payment?.detected_payment_date && <small>Fecha De Transferencia Detectada: {new Date(`${payment.detected_payment_date}T12:00:00`).toLocaleDateString("es-AR")}</small>}
+                  {payment?.destination_verified && <small>Destino: ✓ CVU Oficial Verificado</small>}
+                  {payment?.validation_reason && <small>{payment.validation_reason}</small>}
+                </div>
                 <div className="stable-pay-fee">
                   <span>Cuota</span>
                   {role === "super_admin" ? <select value={player.monthly_fee || 20000} onChange={(e) => updateFee(player.id, e.target.value)}>{FEES.map((fee) => <option key={fee} value={fee}>{money(fee)}</option>)}</select> : <b>{money(player.monthly_fee)}</b>}
