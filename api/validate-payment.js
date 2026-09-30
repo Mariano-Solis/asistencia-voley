@@ -122,22 +122,34 @@ function extractCvuCandidates(text) {
 }
 
 function destinationCvuStatus(text) {
-  const candidates = extractCvuCandidates(text);
-  const destinationWords = /(destino|destinatari|a quien|para quien|transferiste a|transferencia a|cuenta de destino|cvu destino|receptor|beneficiario)/;
-  const marked = candidates.filter((item) => destinationWords.test(item.context));
+  const raw = String(text || "");
+  const candidates = extractCvuCandidates(raw);
+  const normalized = normalizeText(raw);
   const official = OFFICIAL_DESTINATION.cvu;
 
-  if (marked.some((item) => item.value === official)) {
-    return { verified: true, explicitWrong: false, detected: official };
+  const originDestinationIndex = normalized.indexOf("origen y destino");
+  if (originDestinationIndex >= 0 && candidates.length >= 2) {
+    const destination = candidates[candidates.length - 1];
+    return {
+      verified: destination.value === official,
+      explicitWrong: destination.value !== official,
+      detected: destination.value,
+    };
   }
-  if (marked.length && !marked.some((item) => item.value === official)) {
-    return { verified: false, explicitWrong: true, detected: marked[0].value };
+
+  const explicitDestinationWords = /(destino|destinatari|a quien|para quien|transferiste a|transferencia a|cuenta de destino|cvu destino|receptor|beneficiario)/;
+  const marked = candidates.filter((item) => explicitDestinationWords.test(item.context));
+  if (marked.length === 1) {
+    return {
+      verified: marked[0].value === official,
+      explicitWrong: marked[0].value !== official,
+      detected: marked[0].value,
+    };
   }
 
   const officialCandidate = candidates.find((item) => item.value === official);
-  const normalized = normalizeText(text);
   const nameOk = normalized.includes(normalizeText(OFFICIAL_DESTINATION.name));
-  if (officialCandidate && nameOk) {
+  if (candidates.length === 1 && officialCandidate && nameOk) {
     return { verified: true, explicitWrong: false, detected: official };
   }
 
@@ -189,16 +201,6 @@ function analyzeOcr(text, confidence, period) {
     confidence,
   };
 
-  if (paymentDate && !dateOk) {
-    return {
-      status: "rejected",
-      invalid_code: "date_out_of_window",
-      reason: `Comprobante inválido: fecha de pago fuera del período permitido (${window?.start || "—"} al ${window?.end || "—"}).`,
-      destination_verified: false,
-      ...common,
-    };
-  }
-
   if (destination.explicitWrong) {
     return {
       status: "rejected",
@@ -209,11 +211,21 @@ function analyzeOcr(text, confidence, period) {
     };
   }
 
+  if (paymentDate && !dateOk) {
+    return {
+      status: "manual_review",
+      invalid_code: "date_out_of_window",
+      reason: `Comprobante inválido: fecha de pago fuera del período permitido (${window?.start || "—"} al ${window?.end || "—"}). Pendiente de verificación manual.`,
+      destination_verified: destination.verified,
+      ...common,
+    };
+  }
+
   if (signalCount < 2) {
     return {
-      status: "rejected",
-      invalid_code: "invalid_receipt",
-      reason: "Comprobante inválido: el archivo no presenta la estructura esperada de un comprobante de transferencia.",
+      status: "manual_review",
+      invalid_code: "insufficient_receipt_structure",
+      reason: "Comprobante cargado. No se pudo verificar con seguridad la estructura del comprobante y requiere revisión manual.",
       destination_verified: false,
       ...common,
     };
@@ -222,8 +234,9 @@ function analyzeOcr(text, confidence, period) {
   if (!paymentDate) {
     return {
       status: "manual_review",
+      invalid_code: "date_unreadable",
       reason: "Comprobante cargado. No se pudo leer con seguridad la fecha real de la transferencia y requiere revisión manual.",
-      destination_verified: false,
+      destination_verified: destination.verified,
       ...common,
     };
   }
@@ -231,6 +244,7 @@ function analyzeOcr(text, confidence, period) {
   if (!destination.verified) {
     return {
       status: "manual_review",
+      invalid_code: "destination_unverified",
       reason: "Comprobante cargado. No se pudo confirmar con seguridad que el CVU de destino sea la cuenta oficial y requiere revisión manual.",
       destination_verified: false,
       ...common,
@@ -242,7 +256,7 @@ function analyzeOcr(text, confidence, period) {
     reason: `Comprobante válido: fecha dentro del período permitido (${window.start} al ${window.end}) y CVU oficial de destino verificado.`,
     destination_verified: true,
     provider: OFFICIAL_DESTINATION.provider,
-    recipient_name: nameOk ? OFFICIAL_DESTINATION.name : OFFICIAL_DESTINATION.name,
+    recipient_name: OFFICIAL_DESTINATION.name,
     recipient_cvu: OFFICIAL_DESTINATION.cvu,
     payment_date: paymentDate,
     amount,

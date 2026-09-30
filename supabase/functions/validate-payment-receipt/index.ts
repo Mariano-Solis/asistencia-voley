@@ -155,22 +155,35 @@ function extractCvuCandidates(text: string) {
 }
 
 function destinationCvuStatus(text: string) {
-  const candidates = extractCvuCandidates(text);
-  const destinationWords = /(destino|destinatari|a quien|para quien|transferiste a|transferencia a|cuenta de destino|cvu destino|receptor|beneficiario)/;
-  const marked = candidates.filter((item) => destinationWords.test(item.context));
+  const raw = String(text || "");
+  const candidates = extractCvuCandidates(raw);
+  const normalized = normalizeText(raw);
+  const official = OFFICIAL.cvu;
 
-  if (marked.some((item) => item.value === OFFICIAL.cvu)) {
-    return { verified: true, explicitWrong: false, detected: OFFICIAL.cvu };
-  }
-  if (marked.length && !marked.some((item) => item.value === OFFICIAL.cvu)) {
-    return { verified: false, explicitWrong: true, detected: marked[0].value };
+  const originDestinationIndex = normalized.indexOf("origen y destino");
+  if (originDestinationIndex >= 0 && candidates.length >= 2) {
+    const destination = candidates[candidates.length - 1];
+    return {
+      verified: destination.value === official,
+      explicitWrong: destination.value !== official,
+      detected: destination.value,
+    };
   }
 
-  const officialCandidate = candidates.find((item) => item.value === OFFICIAL.cvu);
-  const normalized = normalizeText(text);
+  const explicitDestinationWords = /(destino|destinatari|a quien|para quien|transferiste a|transferencia a|cuenta de destino|cvu destino|receptor|beneficiario)/;
+  const marked = candidates.filter((item) => explicitDestinationWords.test(item.context));
+  if (marked.length === 1) {
+    return {
+      verified: marked[0].value === official,
+      explicitWrong: marked[0].value !== official,
+      detected: marked[0].value,
+    };
+  }
+
+  const officialCandidate = candidates.find((item) => item.value === official);
   const nameOk = normalized.includes(normalizeText(OFFICIAL.name));
-  if (officialCandidate && nameOk) {
-    return { verified: true, explicitWrong: false, detected: OFFICIAL.cvu };
+  if (candidates.length === 1 && officialCandidate && nameOk) {
+    return { verified: true, explicitWrong: false, detected: official };
   }
 
   return {
@@ -317,7 +330,7 @@ Deno.serve(async (req: Request) => {
         detected_amount: extras.detected_amount ?? null,
         detected_provider: extras.detected_provider ?? (status === "validated" ? "Verificación automática" : "Revisión manual"),
         validated_at: status === "validated" ? finishedAt : null,
-        destination_verified: status === "validated",
+        destination_verified: typeof extras.destination_verified === "boolean" ? extras.destination_verified : status === "validated",
         detected_recipient_name: extras.detected_recipient_name ?? null,
         detected_recipient_alias: extras.detected_recipient_alias ?? null,
         detected_recipient_cvu: extras.detected_recipient_cvu ?? null,
@@ -371,6 +384,7 @@ Deno.serve(async (req: Request) => {
                 detected_provider: ocr.provider || "Mercado Pago",
                 detected_recipient_name: ocr.recipient_name,
                 detected_recipient_cvu: ocr.recipient_cvu,
+                destination_verified: ocr.destination_verified === true,
               });
               return;
             }
@@ -383,6 +397,7 @@ Deno.serve(async (req: Request) => {
                 detected_provider: ocr.provider,
                 detected_recipient_name: ocr.recipient_name,
                 detected_recipient_cvu: ocr.recipient_cvu,
+                destination_verified: false,
               });
               return;
             }
@@ -394,6 +409,7 @@ Deno.serve(async (req: Request) => {
               detected_provider: ocr.provider || "Revisión manual",
               detected_recipient_name: ocr.recipient_name,
               detected_recipient_cvu: ocr.recipient_cvu,
+              destination_verified: ocr.destination_verified === true,
             });
             return;
           } catch (ocrError) {
@@ -411,22 +427,24 @@ Deno.serve(async (req: Request) => {
         const normalized = normalizeText(text);
         const nameOk = normalized.includes(normalizeText(OFFICIAL.name));
 
-        if (paymentDate && !dateInsideWindow(paymentDate, periodMonth)) {
-          await finalize("rejected", `Comprobante inválido: fecha de pago fuera del período permitido (${window?.start || "—"} al ${window?.end || "—"}).`, {
-            detected_payment_date: paymentDate,
-            detected_provider: "Mercado Pago",
-            detected_recipient_name: nameOk ? OFFICIAL.name : null,
-            detected_recipient_cvu: destination.detected,
-          });
-          return;
-        }
-
         if (destination.explicitWrong) {
           await finalize("rejected", "Comprobante inválido: cuenta de destino incorrecta.", {
             detected_payment_date: paymentDate,
             detected_provider: "Mercado Pago",
             detected_recipient_name: null,
             detected_recipient_cvu: destination.detected,
+            destination_verified: false,
+          });
+          return;
+        }
+
+        if (paymentDate && !dateInsideWindow(paymentDate, periodMonth)) {
+          await finalize("manual_review", `Comprobante inválido: fecha de pago fuera del período permitido (${window?.start || "—"} al ${window?.end || "—"}). Pendiente de verificación manual.`, {
+            detected_payment_date: paymentDate,
+            detected_provider: "Mercado Pago",
+            detected_recipient_name: nameOk ? OFFICIAL.name : null,
+            detected_recipient_cvu: destination.detected,
+            destination_verified: destination.verified,
           });
           return;
         }

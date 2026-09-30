@@ -124,7 +124,7 @@ Deno.serve(async (req: Request) => {
         validation_confidence: null,
       })
       .eq("id", paymentId)
-      .in("validation_status", ["manual_review", "pending_validation", "rejected"])
+      .in("validation_status", ["manual_review", "pending_validation"])
       .select("id,validation_status,validation_reason,destination_verified")
       .maybeSingle();
 
