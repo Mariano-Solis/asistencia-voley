@@ -90,6 +90,24 @@ function paymentCategoryLabel(category) {
   return `${category.gender === "male" ? "Masculino" : "Femenino"} · ${name}`;
 }
 
+function paymentPlayerIdentityLabel(player, categories = []) {
+  const category = categories.find((item) => item.id === player?.category_id);
+  const team = String(player?.team || "").trim().toUpperCase();
+
+  if (!category) {
+    return team ? `Equipo ${team}` : "Sin Categoría";
+  }
+
+  const categoryName = String(category.name || "Categoría").trim();
+  const categoryAlreadyIncludesVersion = /\s[A-E]$/i.test(categoryName);
+  const versionedCategory = team && !categoryAlreadyIncludesVersion
+    ? `${categoryName} ${team}`
+    : categoryName;
+  const branch = category.gender === "male" ? "Masculino" : "Femenino";
+
+  return `${versionedCategory} - ${branch}`;
+}
+
 function safeName(name) {
   return String(name || "comprobante")
     .normalize("NFD")
@@ -754,7 +772,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
               <article className="stable-pay-admin-row" key={player.id}>
                 <div className="stable-pay-person">
                   <b>{player.full_name}</b>
-                  <small>{player.team ? `Equipo ${player.team}` : "Sin Equipo"}</small>
+                  <small>{paymentPlayerIdentityLabel(player, categories)}</small>
                   {payment?.detected_payment_date && <small>Fecha De Transferencia Detectada: {new Date(`${payment.detected_payment_date}T12:00:00`).toLocaleDateString("es-AR")}</small>}
                   {payment?.destination_verified && <small>Destino: ✓ CVU Oficial Verificado</small>}
                   {payment?.validation_reason && <small>{payment.validation_reason}</small>}
