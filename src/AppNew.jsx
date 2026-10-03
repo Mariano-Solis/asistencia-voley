@@ -74,6 +74,17 @@ function mergeNavigationOrder(items, savedOrder = []) {
 
 function Brand({ compact = false }) { return <div className={`brand ${compact ? "compact" : ""}`}><img src={LOGO} alt="MGSM VOLEY MENDOZA"/><div><strong>{APP_NAME}</strong><span>{TAGLINE}</span></div></div>; }
 
+function PasswordInput({value,onChange,placeholder="Contraseña",...props}) {
+  const [visible,setVisible]=useState(false);
+  return <div className="password-input-wrap">
+    <input {...props} type={visible?"text":"password"} placeholder={placeholder} value={value} onChange={onChange}/>
+    <button type="button" className="password-visibility-toggle" aria-pressed={visible} aria-label={visible?"Ocultar Contraseña":"Mostrar Contraseña"} title={visible?"Ocultar Contraseña":"Mostrar Contraseña"} onClick={()=>setVisible(v=>!v)}>
+      <span aria-hidden="true">{visible?"🙈":"👁"}</span>
+      <b>{visible?"Ocultar":"Mostrar"}</b>
+    </button>
+  </div>;
+}
+
 function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
   const [mode, setMode] = useState("player");
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
@@ -133,9 +144,9 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
     <Brand/><div className="auth-tabs"><button type="button" className={mode === "player" ? "active" : ""} onClick={() => setMode("player")}>Jugador@s</button><button type="button" className={mode === "admin" ? "active" : ""} onClick={() => setMode("admin")}>Profe</button><button type="button" className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>Crear Cuenta</button></div>
     <p className="auth-subtitle">{mode === "signup" ? "Creá Tu Cuenta Personal De Jugador@." : mode === "admin" ? "Acceso Para Profes y Administradores." : "Ingresá Para Consultar Tu Asistencia."}</p>
     <form onSubmit={submit}>
-      {mode === "player" && <><input type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><div className="or">O Acceso Con Código Personal</div><input placeholder="Nombre y Apellido" value={name} onChange={e => setName(e.target.value)}/><input placeholder="Código Personal" value={code} onChange={e => setCode(e.target.value.toUpperCase())}/><button className="primary" disabled={loading}>{loading ? "Ingresando..." : "Ingresar"}</button></>}
-      {mode === "admin" && <><input required type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><input required type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><button className="primary" disabled={loading}>{loading ? "Ingresando..." : "Ingresar Como Profe"}</button></>}
-      {mode === "signup" && <><div className="two"><input required placeholder="Nombre" value={first} onChange={e => setFirst(e.target.value)}/><input required placeholder="Apellido" value={last} onChange={e => setLast(e.target.value)}/></div><div className="two"><select value={sex} onChange={e => setSex(e.target.value)}><option value="female">Femenino</option><option value="male">Masculino</option></select><input required placeholder="DNI" value={dni} onChange={e => setDni(e.target.value)}/></div><label className="field-label">Fecha De Nacimiento<input required type="date" value={birth} onChange={e => setBirth(e.target.value)}/></label><label className="selfie-field"><span>Foto De Perfil</span><span className="file-button" role="button" tabIndex={0} onClick={() => fileRef.current?.click()} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); } }}>📷 Agregar Foto / Selfie</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" onChange={e => setSelfie(e.target.files?.[0] || e.target.__voleySelectedFile || null)}/>{selfie && <span className="file-name">✓ Foto Seleccionada: {selfie.name}</span>}</label><input required type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><input required type="password" minLength={6} placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><div className="mgsm-turnstile-slot" data-turnstile-slot="player-signup" /><button className="primary" disabled={loading}>{loading ? "Creando..." : "Crear Mi Cuenta"}</button></>}
+      {mode === "player" && <><input type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><PasswordInput autoComplete="current-password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><div className="or">O Acceso Con Código Personal</div><input placeholder="Nombre y Apellido" value={name} onChange={e => setName(e.target.value)}/><input placeholder="Código Personal" value={code} onChange={e => setCode(e.target.value.toUpperCase())}/><button className="primary" disabled={loading}>{loading ? "Ingresando..." : "Ingresar"}</button></>}
+      {mode === "admin" && <><input required type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><PasswordInput required autoComplete="current-password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><button className="primary" disabled={loading}>{loading ? "Ingresando..." : "Ingresar Como Profe"}</button></>}
+      {mode === "signup" && <><div className="two"><input required placeholder="Nombre" value={first} onChange={e => setFirst(e.target.value)}/><input required placeholder="Apellido" value={last} onChange={e => setLast(e.target.value)}/></div><div className="two"><select value={sex} onChange={e => setSex(e.target.value)}><option value="female">Femenino</option><option value="male">Masculino</option></select><input required placeholder="DNI" value={dni} onChange={e => setDni(e.target.value)}/></div><label className="field-label">Fecha De Nacimiento<input required type="date" value={birth} onChange={e => setBirth(e.target.value)}/></label><label className="selfie-field"><span>Foto De Perfil</span><span className="file-button" role="button" tabIndex={0} onClick={() => fileRef.current?.click()} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); } }}>📷 Agregar Foto / Selfie</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" onChange={e => setSelfie(e.target.files?.[0] || e.target.__voleySelectedFile || null)}/>{selfie && <span className="file-name">✓ Foto Seleccionada: {selfie.name}</span>}</label><input required type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)}/><PasswordInput required minLength={6} autoComplete="new-password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}/><div className="mgsm-turnstile-slot" data-turnstile-slot="player-signup" /><button className="primary" disabled={loading}>{loading ? "Creando..." : "Crear Mi Cuenta"}</button></>}
     </form>{message && <div className="message">{message}</div>}<small className="legal">La Profe Asignará La Categoría y Equipo Cuando Corresponda.</small>
   </section></main>;
 }
@@ -1383,7 +1394,7 @@ function AdminUsers({ profile }) {
         </div>
         <div className="two">
           <input required type="email" placeholder="Correo Electrónico" value={email} onChange={e=>setEmail(e.target.value)}/>
-          <input required minLength={8} type="password" placeholder="Contraseña Inicial" value={password} onChange={e=>setPassword(e.target.value)}/>
+          <PasswordInput required minLength={8} autoComplete="new-password" placeholder="Contraseña Inicial" value={password} onChange={e=>setPassword(e.target.value)}/>
         </div>
         <div className="professor-create-actions">
           <button type="button" onClick={()=>setShowCreate(false)}>Cancelar</button>
@@ -1460,7 +1471,7 @@ function AdminUsers({ profile }) {
     {editing&&<div className="modal"><div className="modal-card professor-edit-modal"><div className="modal-head"><div><h2>Modificar Profe</h2><small>{editing.full_name}</small></div><button type="button" onClick={()=>setEditing(null)}>×</button></div><form onSubmit={saveEdit}>
       <label className="field-label">Nombre y Apellido<input required value={editName} onChange={e=>setEditName(e.target.value)}/></label>
       <label className="field-label">Correo Electrónico<input required type="email" value={editEmail} onChange={e=>setEditEmail(e.target.value)}/></label>
-      <label className="field-label">Nueva Contraseña<input type="password" minLength={8} placeholder="Dejar Vacío Para Mantener La Actual" value={editPassword} onChange={e=>setEditPassword(e.target.value)}/></label>
+      <label className="field-label">Nueva Contraseña<PasswordInput minLength={8} autoComplete="new-password" placeholder="Dejar Vacío Para Mantener La Actual" value={editPassword} onChange={e=>setEditPassword(e.target.value)}/></label>
       <label className="professor-active-toggle"><input type="checkbox" checked={editActive} onChange={e=>setEditActive(e.target.checked)}/><span>Cuenta Activa</span></label>
       <label className="professor-active-toggle"><input type="checkbox" checked={editCanApprovePayments} onChange={e=>setEditCanApprovePayments(e.target.checked)}/><span>Puede Aprobar Pagos</span></label>
       <small className="professor-security-note">Por Seguridad, La Contraseña Actual Nunca Se Puede Ver. Sí Podés Reemplazarla Por Una Nueva.</small>

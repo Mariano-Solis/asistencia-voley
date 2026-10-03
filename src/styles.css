@@ -708,3 +708,50 @@ main.app>.topbar .topbar-exit{
   .attendance-observation-toggle>b{grid-column:2;grid-row:1/3}
   .attendance-observation-meta{display:grid;gap:3px}
 }
+
+
+/* ===== VISIBILIDAD DE CONTRASEÑAS ===== */
+.password-input-wrap{
+  position:relative;
+  width:100%;
+  min-width:0;
+}
+.password-input-wrap>input{
+  width:100%;
+  padding-right:102px!important;
+}
+.password-visibility-toggle{
+  position:absolute;
+  top:50%;
+  right:8px;
+  transform:translateY(-50%);
+  min-width:84px;
+  min-height:36px;
+  padding:7px 9px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  border:1px solid #e3e5e8;
+  border-radius:9px;
+  background:#f7f8f9;
+  color:#4b5058;
+  font-size:10px;
+  font-weight:800;
+  box-shadow:none;
+  z-index:2;
+}
+.password-visibility-toggle:hover{
+  background:#fff1f2;
+  color:var(--mgsm-red);
+  border-color:#efc8cc;
+}
+.password-visibility-toggle span{font-size:13px;line-height:1}
+.password-visibility-toggle b{font-size:10px;white-space:nowrap}
+.field-label>.password-input-wrap{margin-top:6px}
+.auth-card .field-label>.password-input-wrap{margin-top:8px}
+@media(max-width:420px){
+  .password-input-wrap>input{padding-right:92px!important}
+  .password-visibility-toggle{min-width:74px;padding:7px}
+  .password-visibility-toggle b{font-size:9px}
+}
