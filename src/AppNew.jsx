@@ -78,7 +78,7 @@ function PasswordInput({value,onChange,placeholder="Contraseña",...props}) {
   const [visible,setVisible]=useState(false);
   return <div className="password-input-wrap">
     <input {...props} type={visible?"text":"password"} placeholder={placeholder} value={value} onChange={onChange}/>
-    <button type="button" className="password-visibility-toggle" aria-pressed={visible} aria-label={visible?"Ocultar Contraseña":"Mostrar Contraseña"} onClick={()=>setVisible(v=>!v)}>
+    <button type="button" className="password-visibility-toggle" aria-pressed={visible} aria-label={visible?"Ocultar Contraseña":"Mostrar Contraseña"} title={visible?"Ocultar Contraseña":"Mostrar Contraseña"} onClick={()=>setVisible(v=>!v)}>
       <span aria-hidden="true">{visible?"🙈":"👁"}</span>
       <b>{visible?"Ocultar":"Mostrar"}</b>
     </button>
