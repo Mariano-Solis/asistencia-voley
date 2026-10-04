@@ -755,3 +755,43 @@ main.app>.topbar .topbar-exit{
   .password-visibility-toggle{min-width:74px;padding:7px}
   .password-visibility-toggle b{font-size:9px}
 }
+
+
+/* ===== EDICIÓN DE JUGADOR/A · CUENTA COMPACTA ===== */
+.player-password-admin{
+  margin-top:10px;
+  padding:10px;
+}
+.player-password-admin .field-label{
+  margin:0;
+}
+.player-password-admin small{
+  display:block;
+  margin-top:7px;
+  line-height:1.35;
+}
+.player-password-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:8px;
+}
+.player-password-actions button{
+  min-height:38px;
+  padding:8px 10px;
+  margin:0;
+}
+@media(max-width:420px){
+  .player-password-admin{
+    margin-top:8px;
+    padding:9px;
+  }
+  .player-password-actions{
+    gap:6px;
+  }
+  .player-password-actions button{
+    min-height:36px;
+    padding:7px 8px;
+    font-size:12px;
+  }
+}
