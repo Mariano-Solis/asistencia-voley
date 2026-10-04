@@ -22,3 +22,4 @@ Aplicación independiente para tomar asistencia de jugadoras.
 4. Cerrá sesión y volvé a ingresar.
 
 Después podrás agregar jugadoras desde la aplicación.
+
