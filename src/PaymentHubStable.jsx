@@ -496,7 +496,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
   const [payments, setPayments] = useState([]);
   const [categories, setCategories] = useState([]);
   const [permissionRows, setPermissionRows] = useState([]);
-  const [analyticsCategoryId, setAnalyticsCategoryId] = useState("");
+  const [analyticsCategoryIds, setAnalyticsCategoryIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -582,24 +582,62 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
   }, [role, categories, allowedCategoryIds]);
 
   useEffect(() => {
-    if (analyticsCategoryId && !availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)) {
-      setAnalyticsCategoryId("");
-    }
-  }, [analyticsCategoryId, availableAnalyticsCategories]);
+    setAnalyticsCategoryIds((current) => {
+      if (!current.length) return current;
+      const availableIds = new Set(availableAnalyticsCategories.map((category) => category.id));
+      const next = current.filter((id) => availableIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [availableAnalyticsCategories]);
 
-  const effectiveAnalyticsCategoryId = availableAnalyticsCategories.some((category) => category.id === analyticsCategoryId)
-    ? analyticsCategoryId
-    : "";
+  const effectiveAnalyticsCategoryIds = useMemo(() => {
+    if (!analyticsCategoryIds.length) return [];
+    const availableIds = new Set(availableAnalyticsCategories.map((category) => category.id));
+    return analyticsCategoryIds.filter((id) => availableIds.has(id));
+  }, [analyticsCategoryIds, availableAnalyticsCategories]);
+
+  const selectedAnalyticsCategoryIdSet = useMemo(
+    () => new Set(effectiveAnalyticsCategoryIds),
+    [effectiveAnalyticsCategoryIds],
+  );
 
   const analyticsPlayers = useMemo(() => {
-    if (!effectiveAnalyticsCategoryId) return scopedPlayers;
-    return scopedPlayers.filter((player) => player.category_id === effectiveAnalyticsCategoryId);
-  }, [scopedPlayers, effectiveAnalyticsCategoryId]);
+    if (!selectedAnalyticsCategoryIdSet.size) return scopedPlayers;
+    return scopedPlayers.filter((player) => player.category_id && selectedAnalyticsCategoryIdSet.has(player.category_id));
+  }, [scopedPlayers, selectedAnalyticsCategoryIdSet]);
 
-  const analyticsCategory = availableAnalyticsCategories.find((category) => category.id === effectiveAnalyticsCategoryId) || null;
-  const analyticsScopeLabel = !effectiveAnalyticsCategoryId
-    ? (role === "super_admin" ? "Todas Las Categorías" : "Todas Mis Categorías")
-    : paymentCategoryLabel(analyticsCategory);
+  const selectedAnalyticsCategories = useMemo(
+    () => availableAnalyticsCategories.filter((category) => selectedAnalyticsCategoryIdSet.has(category.id)),
+    [availableAnalyticsCategories, selectedAnalyticsCategoryIdSet],
+  );
+
+  const analyticsScopeLabel = (() => {
+    if (!selectedAnalyticsCategories.length) {
+      return role === "super_admin" ? "Todas Las Categorías" : "Todas Mis Categorías";
+    }
+    if (selectedAnalyticsCategories.length === 1) return paymentCategoryLabel(selectedAnalyticsCategories[0]);
+    const genders = new Set(selectedAnalyticsCategories.map((category) => category.gender));
+    if (genders.size === 1 && selectedAnalyticsCategories.length === availableAnalyticsCategories.filter((category) => category.gender === selectedAnalyticsCategories[0].gender).length) {
+      return selectedAnalyticsCategories[0].gender === "male" ? "Todo Masculino" : "Todo Femenino";
+    }
+    return `${selectedAnalyticsCategories.length} Categorías Seleccionadas`;
+  })();
+
+  function toggleAnalyticsCategory(categoryId) {
+    setAnalyticsCategoryIds((current) => current.includes(categoryId)
+      ? current.filter((id) => id !== categoryId)
+      : [...current, categoryId]);
+  }
+
+  function selectAnalyticsBranch(genderValue) {
+    setAnalyticsCategoryIds(availableAnalyticsCategories
+      .filter((category) => category.gender === genderValue)
+      .map((category) => category.id));
+  }
+
+  function clearAnalyticsCategories() {
+    setAnalyticsCategoryIds([]);
+  }
 
   const rows = useMemo(() => analyticsPlayers.filter((player) => {
     const payment = paymentByPlayer[player.id];
@@ -713,19 +751,50 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
         </section> : <>
         <div className="stable-pay-period-picker">
           <label><span>Período</span><select value={period} onChange={(e) => setPeriod(e.target.value)}>{paymentPeriods.map((value) => <option key={value} value={value}>{periodLabel(value)}</option>)}</select></label>
-          <label>
-            <span>Categoría Del Resumen</span>
-            <select
-              value={effectiveAnalyticsCategoryId}
-              onChange={(e) => setAnalyticsCategoryId(e.target.value)}
-              disabled={availableAnalyticsCategories.length === 0}
-            >
-              <option value="">{role === "super_admin" ? "Todas Las Categorías" : "Todas Mis Categorías"}</option>
-              {availableAnalyticsCategories.map((category) => (
-                <option key={category.id} value={category.id}>{paymentCategoryLabel(category)}</option>
-              ))}
-            </select>
-          </label>
+          <div className="stable-pay-category-multi">
+            <span className="stable-pay-category-multi-label">Categorías Del Resumen</span>
+            <div className="stable-pay-category-quick">
+              <button type="button" className={!effectiveAnalyticsCategoryIds.length ? "active" : ""} onClick={clearAnalyticsCategories}>
+                Todas
+              </button>
+              <button
+                type="button"
+                className={selectedAnalyticsCategories.length > 0 && selectedAnalyticsCategories.every((category) => category.gender === "female") && selectedAnalyticsCategories.length === availableAnalyticsCategories.filter((category) => category.gender === "female").length ? "active" : ""}
+                onClick={() => selectAnalyticsBranch("female")}
+                disabled={!availableAnalyticsCategories.some((category) => category.gender === "female")}
+              >
+                Todo Femenino
+              </button>
+              <button
+                type="button"
+                className={selectedAnalyticsCategories.length > 0 && selectedAnalyticsCategories.every((category) => category.gender === "male") && selectedAnalyticsCategories.length === availableAnalyticsCategories.filter((category) => category.gender === "male").length ? "active" : ""}
+                onClick={() => selectAnalyticsBranch("male")}
+                disabled={!availableAnalyticsCategories.some((category) => category.gender === "male")}
+              >
+                Todo Masculino
+              </button>
+            </div>
+            <div className="stable-pay-category-checks">
+              {availableAnalyticsCategories.map((category) => {
+                const checked = selectedAnalyticsCategoryIdSet.has(category.id);
+                return (
+                  <label key={category.id} className={checked ? "selected" : ""}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleAnalyticsCategory(category.id)}
+                    />
+                    <span>{paymentCategoryLabel(category)}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <small>
+              {!effectiveAnalyticsCategoryIds.length
+                ? (role === "super_admin" ? "Mostrando Todas Las Categorías." : "Mostrando Todas Tus Categorías.")
+                : `${effectiveAnalyticsCategoryIds.length} Categoría${effectiveAnalyticsCategoryIds.length === 1 ? "" : "s"} Seleccionada${effectiveAnalyticsCategoryIds.length === 1 ? "" : "s"}.`}
+            </small>
+          </div>
         </div>
         <PaymentAnalytics
           stats={analytics}
