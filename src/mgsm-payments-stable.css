@@ -556,3 +556,280 @@
     max-height:190px;
   }
 }
+
+
+/* =========================================================
+   PAGOS · CABECERA Y ACORDEONES DE CATEGORÍAS
+========================================================= */
+.stable-pay-modal-head.stable-pay-modal-head-brand{
+  position:sticky;
+  top:0;
+  z-index:4;
+  background:
+    radial-gradient(circle at 88% 18%,rgba(255,255,255,.16),transparent 26%),
+    linear-gradient(135deg,#8f0d14 0%,#b5121b 52%,#ce1f2b 100%);
+  color:#fff;
+  padding:16px 18px;
+  border-bottom:1px solid rgba(255,255,255,.16);
+  box-shadow:0 10px 24px rgba(181,18,27,.18);
+}
+
+.stable-pay-modal-head-brand>div{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.stable-pay-head-icon{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  flex:0 0 42px;
+  border-radius:13px;
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16);
+  font-size:22px!important;
+}
+
+.stable-pay-modal-head-brand h2{
+  color:#fff;
+  font-size:23px;
+  letter-spacing:-.02em;
+}
+
+.stable-pay-modal-head-brand p{
+  color:rgba(255,255,255,.86);
+  opacity:1;
+}
+
+.stable-pay-category-multi{
+  gap:7px;
+}
+
+.stable-pay-category-all,
+.stable-pay-category-accordion-head{
+  width:100%;
+  min-height:42px;
+  border:1px solid #e3e5e8;
+  border-radius:12px;
+  background:#fff;
+  color:#454b54;
+  padding:9px 12px;
+  box-shadow:0 4px 12px rgba(30,33,38,.035);
+  font:inherit;
+}
+
+.stable-pay-category-all{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  font-weight:900;
+}
+
+.stable-pay-category-all>span{
+  color:inherit;
+  font-size:13px;
+  text-transform:none;
+  letter-spacing:0;
+}
+
+.stable-pay-category-all>small{
+  color:#8a9098;
+  font-size:10px;
+  font-weight:800;
+}
+
+.stable-pay-category-all.active{
+  border-color:#d77d85;
+  background:#fff5f6;
+  color:#b5121b;
+  box-shadow:0 0 0 3px rgba(181,18,27,.07);
+}
+
+.stable-pay-category-accordion{
+  border:1px solid #e2e4e8;
+  border-radius:13px;
+  background:#fff;
+  overflow:hidden;
+  box-shadow:0 4px 12px rgba(30,33,38,.035);
+}
+
+.stable-pay-category-accordion.open{
+  border-color:#e0a2a8;
+  box-shadow:0 0 0 3px rgba(181,18,27,.05);
+}
+
+.stable-pay-category-accordion-head{
+  min-height:42px;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  text-align:left;
+  font-weight:900;
+}
+
+.stable-pay-category-accordion.open .stable-pay-category-accordion-head{
+  background:#fff8f8;
+  color:#b5121b;
+}
+
+.stable-pay-category-accordion-head>span:first-child{
+  color:inherit;
+  font-size:13px;
+  text-transform:none;
+  letter-spacing:0;
+}
+
+.stable-pay-category-accordion-meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:inherit;
+}
+
+.stable-pay-category-accordion-meta small{
+  min-width:24px;
+  height:24px;
+  padding:0 7px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#fff0f1;
+  color:#b5121b;
+  font-size:10px;
+  font-weight:900;
+}
+
+.stable-pay-category-accordion-meta b{
+  font-size:18px;
+  line-height:1;
+  color:#59606a;
+}
+
+.stable-pay-category-accordion.open .stable-pay-category-accordion-meta b{
+  color:#b5121b;
+}
+
+.stable-pay-category-accordion-body{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+  padding:8px;
+  border-top:1px solid #f0d7d9;
+  background:#fffdfd;
+}
+
+.stable-pay-category-accordion-body label{
+  min-height:36px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  padding:7px 9px;
+  border:1px solid #eceef1;
+  border-radius:9px;
+  background:#fff;
+  color:#454b54;
+  cursor:pointer;
+}
+
+.stable-pay-category-accordion-body label.selected{
+  border-color:#dda0a6;
+  background:#fff6f7;
+  color:#a81019;
+}
+
+.stable-pay-category-accordion-body input[type="checkbox"]{
+  width:17px;
+  height:17px;
+  min-width:17px;
+  margin:0;
+  accent-color:#b5121b;
+}
+
+.stable-pay-category-accordion-body label>span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:inherit;
+  font-size:11px;
+  font-weight:800;
+  text-transform:none;
+  letter-spacing:0;
+}
+
+.stable-pay-category-selection-summary{
+  display:block;
+  margin-top:1px;
+  color:#7b818a!important;
+  font-size:10px!important;
+  font-weight:750!important;
+}
+
+.stable-pay-period-picker{
+  gap:7px;
+  margin-top:12px;
+}
+
+.stable-pay-analytics{
+  margin-top:12px;
+}
+
+@media(max-width:620px){
+  .stable-pay-modal-head.stable-pay-modal-head-brand{
+    padding:13px 14px;
+  }
+
+  .stable-pay-head-icon{
+    width:38px;
+    height:38px;
+    flex-basis:38px;
+    font-size:20px!important;
+  }
+
+  .stable-pay-modal-head-brand h2{
+    font-size:20px;
+  }
+
+  .stable-pay-modal-head-brand p{
+    font-size:11px;
+  }
+
+  .stable-pay-category-all,
+  .stable-pay-category-accordion-head{
+    min-height:40px;
+    padding:8px 10px;
+  }
+
+  .stable-pay-category-accordion-body{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px;
+    padding:7px;
+  }
+
+  .stable-pay-category-accordion-body label{
+    min-height:34px;
+    padding:6px 8px;
+  }
+
+  .stable-pay-category-accordion-body label>span{
+    font-size:10px;
+  }
+
+  .stable-pay-period-picker{
+    margin:10px 10px 0;
+  }
+
+  .stable-pay-analytics{
+    margin:10px;
+    padding:14px;
+  }
+}
