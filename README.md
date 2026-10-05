@@ -23,3 +23,4 @@ Aplicación independiente para tomar asistencia de jugadoras.
 
 Después podrás agregar jugadoras desde la aplicación.
 
+<!-- deployment refresh: payments accordions -->
