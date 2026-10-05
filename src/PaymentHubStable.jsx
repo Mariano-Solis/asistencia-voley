@@ -497,6 +497,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
   const [categories, setCategories] = useState([]);
   const [permissionRows, setPermissionRows] = useState([]);
   const [analyticsCategoryIds, setAnalyticsCategoryIds] = useState([]);
+  const [openAnalyticsBranch, setOpenAnalyticsBranch] = useState("");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -629,14 +630,17 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
       : [...current, categoryId]);
   }
 
-  function selectAnalyticsBranch(genderValue) {
-    setAnalyticsCategoryIds(availableAnalyticsCategories
-      .filter((category) => category.gender === genderValue)
-      .map((category) => category.id));
-  }
-
   function clearAnalyticsCategories() {
     setAnalyticsCategoryIds([]);
+    setOpenAnalyticsBranch("");
+  }
+
+  function toggleAnalyticsBranch(genderValue) {
+    setOpenAnalyticsBranch((current) => current === genderValue ? "" : genderValue);
+  }
+
+  function branchSelectionCount(genderValue) {
+    return selectedAnalyticsCategories.filter((category) => category.gender === genderValue).length;
   }
 
   const rows = useMemo(() => analyticsPlayers.filter((player) => {
@@ -739,9 +743,12 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
   return (
     <div className={embedded ? "stable-pay-admin-page" : "stable-pay-modal"} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : "true"} aria-label="Administración De Pagos">
       <div className={embedded ? "stable-pay-admin-page-card stable-pay-admin-modal" : "stable-pay-modal-card stable-pay-admin-modal"}>
-        <div className="stable-pay-modal-head">
-          <div><span>💳</span><div><h2>Pagos</h2><p>{periodLabel(period)} · {role === "super_admin" ? "Vista Del Club" : "Tus Categorías Autorizadas"}</p></div></div>
-          <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
+        <div className="stable-pay-modal-head stable-pay-modal-head-brand">
+          <div>
+            <span className="stable-pay-head-icon">💳</span>
+            <div><h2>Pagos</h2><p>{periodLabel(period)} · {role === "super_admin" ? "Vista Del Club" : "Tus Categorías Autorizadas"}</p></div>
+          </div>
+          {!embedded && onClose && <button type="button" onClick={onClose} aria-label="Cerrar">×</button>}
         </div>
 
         {!paymentsStarted ? <section className="stable-pay-start-notice">
@@ -753,43 +760,57 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
           <label><span>Período</span><select value={period} onChange={(e) => setPeriod(e.target.value)}>{paymentPeriods.map((value) => <option key={value} value={value}>{periodLabel(value)}</option>)}</select></label>
           <div className="stable-pay-category-multi">
             <span className="stable-pay-category-multi-label">Categorías Del Resumen</span>
-            <div className="stable-pay-category-quick">
-              <button type="button" className={!effectiveAnalyticsCategoryIds.length ? "active" : ""} onClick={clearAnalyticsCategories}>
-                Todas
-              </button>
-              <button
-                type="button"
-                className={selectedAnalyticsCategories.length > 0 && selectedAnalyticsCategories.every((category) => category.gender === "female") && selectedAnalyticsCategories.length === availableAnalyticsCategories.filter((category) => category.gender === "female").length ? "active" : ""}
-                onClick={() => selectAnalyticsBranch("female")}
-                disabled={!availableAnalyticsCategories.some((category) => category.gender === "female")}
-              >
-                Todo Femenino
-              </button>
-              <button
-                type="button"
-                className={selectedAnalyticsCategories.length > 0 && selectedAnalyticsCategories.every((category) => category.gender === "male") && selectedAnalyticsCategories.length === availableAnalyticsCategories.filter((category) => category.gender === "male").length ? "active" : ""}
-                onClick={() => selectAnalyticsBranch("male")}
-                disabled={!availableAnalyticsCategories.some((category) => category.gender === "male")}
-              >
-                Todo Masculino
-              </button>
-            </div>
-            <div className="stable-pay-category-checks">
-              {availableAnalyticsCategories.map((category) => {
-                const checked = selectedAnalyticsCategoryIdSet.has(category.id);
-                return (
-                  <label key={category.id} className={checked ? "selected" : ""}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleAnalyticsCategory(category.id)}
-                    />
-                    <span>{paymentCategoryLabel(category)}</span>
-                  </label>
-                );
-              })}
-            </div>
-            <small>
+            <button
+              type="button"
+              className={`stable-pay-category-all ${!effectiveAnalyticsCategoryIds.length ? "active" : ""}`}
+              onClick={clearAnalyticsCategories}
+            >
+              <span>Todas</span>
+              <small>{!effectiveAnalyticsCategoryIds.length ? "Seleccionadas" : "Ver Todo El Club"}</small>
+            </button>
+
+            {["female","male"].map((genderValue) => {
+              const branchCategories = availableAnalyticsCategories.filter((category) => category.gender === genderValue);
+              if (!branchCategories.length) return null;
+              const isOpen = openAnalyticsBranch === genderValue;
+              const selectedCount = branchSelectionCount(genderValue);
+              const branchLabel = genderValue === "female" ? "Femenino" : "Masculino";
+              return (
+                <div className={`stable-pay-category-accordion ${isOpen ? "open" : ""}`} key={genderValue}>
+                  <button
+                    type="button"
+                    className="stable-pay-category-accordion-head"
+                    onClick={() => toggleAnalyticsBranch(genderValue)}
+                    aria-expanded={isOpen}
+                  >
+                    <span>{branchLabel}</span>
+                    <span className="stable-pay-category-accordion-meta">
+                      {selectedCount > 0 && <small>{selectedCount}</small>}
+                      <b aria-hidden="true">{isOpen ? "⌃" : "⌄"}</b>
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="stable-pay-category-accordion-body">
+                      {branchCategories.map((category) => {
+                        const checked = selectedAnalyticsCategoryIdSet.has(category.id);
+                        return (
+                          <label key={category.id} className={checked ? "selected" : ""}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleAnalyticsCategory(category.id)}
+                            />
+                            <span>{category.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <small className="stable-pay-category-selection-summary">
               {!effectiveAnalyticsCategoryIds.length
                 ? (role === "super_admin" ? "Mostrando Todas Las Categorías." : "Mostrando Todas Tus Categorías.")
                 : `${effectiveAnalyticsCategoryIds.length} Categoría${effectiveAnalyticsCategoryIds.length === 1 ? "" : "s"} Seleccionada${effectiveAnalyticsCategoryIds.length === 1 ? "" : "s"}.`}
