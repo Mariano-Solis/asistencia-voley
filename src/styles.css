@@ -906,14 +906,92 @@ main.app>.topbar .topbar-exit{
 
 
 /* ===== JUGADOR@ · ACCESO RÁPIDO A COMPROBANTE ===== */
-.player-detail-actions .payment{
-  background:#fff7f7;
-  color:#a81019;
-  border:1px solid #e3b1b5;
-  box-shadow:0 4px 12px rgba(181,18,27,.08);
+.player-detail-modal-head{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
 }
-.player-detail-actions .payment:hover,
-.player-detail-actions .payment:focus-visible{
-  background:#fff0f1;
+
+.player-detail-modal-title{
+  min-width:0;
+}
+
+.player-detail-modal-title h2{
+  margin-right:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.player-detail-head-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex:0 0 auto;
+}
+
+.player-detail-payment-head{
+  min-height:40px;
+  padding:8px 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  white-space:nowrap;
+  border:1px solid #e7b7bb;
+  border-radius:12px;
+  background:#fff8f8;
+  color:#a81019;
+  box-shadow:0 4px 12px rgba(181,18,27,.07);
+  font-size:12px;
+  font-weight:850;
+}
+
+.player-detail-payment-head:hover,
+.player-detail-payment-head:focus-visible{
+  background:#fff1f2;
   border-color:#cf777f;
+  box-shadow:0 6px 16px rgba(181,18,27,.11);
+}
+
+.player-detail-close{
+  flex:0 0 auto;
+}
+
+@media(max-width:520px){
+  .player-detail-modal-head{
+    gap:8px;
+  }
+
+  .player-detail-head-actions{
+    gap:6px;
+  }
+
+  .player-detail-payment-head{
+    min-height:38px;
+    padding:7px 9px;
+    gap:5px;
+    border-radius:11px;
+    font-size:10.5px;
+  }
+
+  .player-detail-close{
+    width:40px;
+    min-width:40px;
+    height:40px;
+  }
+}
+
+@media(max-width:390px){
+  .player-detail-payment-head{
+    max-width:122px;
+    white-space:normal;
+    line-height:1.08;
+    text-align:center;
+  }
+
+  .player-detail-modal-title h2{
+    font-size:18px;
+  }
 }
