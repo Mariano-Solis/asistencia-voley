@@ -903,3 +903,17 @@ main.app>.topbar .topbar-exit{
     margin-top:6px;
   }
 }
+
+
+/* ===== JUGADOR@ · ACCESO RÁPIDO A COMPROBANTE ===== */
+.player-detail-actions .payment{
+  background:#fff7f7;
+  color:#a81019;
+  border:1px solid #e3b1b5;
+  box-shadow:0 4px 12px rgba(181,18,27,.08);
+}
+.player-detail-actions .payment:hover,
+.player-detail-actions .payment:focus-visible{
+  background:#fff0f1;
+  border-color:#cf777f;
+}

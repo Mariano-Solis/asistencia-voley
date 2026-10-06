@@ -239,6 +239,7 @@ Deno.serve(async (req: Request) => {
     const receiptName = String(payload?.receipt_name || "comprobante").slice(0, 180);
     const receiptType = String(payload?.receipt_type || "");
     const periodMonth = String(payload?.period_month || "");
+    const requestedPlayerId = String(payload?.player_id || "").trim();
 
     if (!/^\d{4}-\d{2}-01$/.test(periodMonth)) return reply(400, { error: "Período inválido." });
     if (periodMonth < PAYMENT_START_PERIOD) return reply(400, { error: "El Registro De Pagos Comienza En Octubre De 2026." });
@@ -246,14 +247,46 @@ Deno.serve(async (req: Request) => {
     if (!maxEligiblePeriod) return reply(400, { error: "La Carga De Pagos Se Habilita El 25 De Septiembre De 2026." });
     if (!ALLOWED_TYPES.has(receiptType)) return reply(400, { error: "Tipo de archivo no permitido." });
 
-    const { data: player, error: playerError } = await admin
-      .from("players")
-      .select("id,user_id,monthly_fee,active")
-      .eq("user_id", userData.user.id)
-      .eq("active", true)
-      .maybeSingle();
+    let player: { id: string; user_id: string | null; monthly_fee: number | null; active: boolean } | null = null;
 
-    if (playerError || !player) return reply(403, { error: "No se encontró un perfil de Jugador@ activo." });
+    if (requestedPlayerId) {
+      const { data: callerProfile, error: callerError } = await admin
+        .from("profiles")
+        .select("id,role,active,approval_status")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
+      if (
+        callerError ||
+        !callerProfile ||
+        callerProfile.role !== "super_admin" ||
+        callerProfile.active !== true ||
+        callerProfile.approval_status !== "approved"
+      ) {
+        return reply(403, { error: "Solo El Super Administrador Puede Adjuntar Comprobantes A Otro Jugador@." });
+      }
+
+      const { data: targetPlayer, error: targetError } = await admin
+        .from("players")
+        .select("id,user_id,monthly_fee,active")
+        .eq("id", requestedPlayerId)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (targetError || !targetPlayer) return reply(404, { error: "No Se Encontró El Jugador@ Seleccionado." });
+      player = targetPlayer;
+    } else {
+      const { data: ownPlayer, error: playerError } = await admin
+        .from("players")
+        .select("id,user_id,monthly_fee,active")
+        .eq("user_id", userData.user.id)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (playerError || !ownPlayer) return reply(403, { error: "No se encontró un perfil de Jugador@ activo." });
+      player = ownPlayer;
+    }
+
     if (!player.monthly_fee) return reply(400, { error: "La cuota mensual todavía no está configurada." });
 
     const { data: previousPayments, error: previousError } = await admin

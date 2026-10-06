@@ -5,7 +5,7 @@ import { isAuthSession, isLegacySession, readStoredPlayer, removeStoredPlayer, s
 import { CONFLICT_MESSAGE, attendanceWriteError, attendanceFingerprint, readAttendance } from "./attendanceSafety";
 import TrainingSchedule from "./TrainingSchedule";
 import ProfessorTrainingHub from "./ProfessorTrainingHub";
-import { AdminPaymentPanel, PlayerPaymentPanel } from "./PaymentHubStable";
+import { AdminPaymentPanel, PlayerPaymentPanel, SuperAdminReceiptUpload } from "./PaymentHubStable";
 import StandingsHub from "./StandingsHub";
 import ProgramacionHub from "./ProgramacionHub";
 import officialLogo from "../Logo.jpg";
@@ -567,7 +567,7 @@ function Empty({ text }) { return <div className="empty">{text}</div>; }
 
 function Players({ profile, players, categories, permissions, refresh }) {
   const editable = categories.filter(c => can(profile, c, permissions, true)); const visible = categories.filter(c => can(profile, c, permissions));
-  const [search, setSearch] = useState(""); const [selectedCategories, setSelectedCategories] = useState([]); const [open, setOpen] = useState(null); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false); const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [search, setSearch] = useState(""); const [selectedCategories, setSelectedCategories] = useState([]); const [open, setOpen] = useState(null); const [paymentPlayer, setPaymentPlayer] = useState(null); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false); const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [form, setForm] = useState({ first: "", last: "", category: editable[0]?.id || "", sex: "female", dni: "", birth: "", team: "", file: null }); const fileRef = useRef(null);
   const list = players.filter(p => { const c = categories.find(x => x.id === p.category_id); const allowed = c ? can(profile, c, permissions) : profile.role === "super_admin"; const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(p.category_id); return allowed && categoryMatch && (!search || p.full_name.toLowerCase().includes(search.toLowerCase())); });
   const dynamicCounts = {
@@ -766,7 +766,7 @@ Código Personal: ${p.access_code}`); setMsg("✓ Datos Compartidos/copiados.");
       </button>
       <span>{selectedCategories.length === 0 ? "Sólo Cantidad De Jugador@s Por Categoría" : isAllCategoriesSelected ? "Incluye Todas Las Categorías y Sus Jugador@s" : `Incluye ${selectedCategories.length} Categoría${selectedCategories.length === 1 ? "" : "s"} y Todos Sus Jugador@s`}</span>
     </div>
-    <div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} onEdit={() => setOpen(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving} canManageAccount={profile.role === "super_admin"}/>}</section>;
+    <div className="card player-dynamic-counter"><div><span>Total</span><b>{dynamicCounts.total}</b></div><div><span>Femenino</span><b>{dynamicCounts.female}</b></div><div><span>Masculino</span><b>{dynamicCounts.male}</b></div></div>{msg && <div className="message">{msg}</div>}<div className="player-grid">{list.length ? list.map(p => <PlayerCard key={p.id} player={p} categories={categories} canEdit={profile.role === "super_admin" || can(profile, categories.find(c=>c.id===p.category_id), permissions, true)} canUploadPayment={profile.role === "super_admin"} onEdit={() => setOpen(p)} onPayment={() => setPaymentPlayer(p)} onDelete={() => remove(p)} onShare={() => share(p)}/>) : <Empty text="No Hay Registros."/>}</div>{open && <PlayerEdit player={open} categories={editable} onClose={() => setOpen(null)} onSave={saveEdit} saving={saving} canManageAccount={profile.role === "super_admin"}/>} {paymentPlayer && <SuperAdminReceiptUpload player={paymentPlayer} onClose={() => setPaymentPlayer(null)} onUploaded={() => setMsg("✓ Comprobante Actualizado En El Perfil Del Jugador@.")}/>}</section>;
 }
 function PlayerAttendanceSummary({playerId}) {
   const [rows,setRows]=useState([]);
@@ -809,7 +809,7 @@ function PlayerAttendanceSummary({playerId}) {
   </section>;
 }
 
-function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
+function PlayerCard({player,categories,canEdit,canUploadPayment=false,onEdit,onPayment,onDelete,onShare}) {
   const [detailOpen,setDetailOpen]=useState(false);
   const cat=categories.find(c=>c.id===player.category_id);
   const branch=cat ? genderText(cat.gender) : genderText(player.sex);
@@ -825,6 +825,7 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
 
   function closeDetail(){ setDetailOpen(false); }
   function editPlayer(){ closeDetail(); onEdit(); }
+  function uploadPayment(){ closeDetail(); onPayment?.(); }
   function deletePlayer(){ closeDetail(); onDelete(); }
 
   return <>
@@ -875,6 +876,7 @@ function PlayerCard({player,categories,canEdit,onEdit,onDelete,onShare}) {
         <div className="player-detail-actions">
           <button type="button" onClick={onShare}>📤 Compartir</button>
           <button type="button" onClick={() => copyText(player.access_code).catch(()=>{})}>📋 Código</button>
+          {canUploadPayment && <button type="button" className="payment" onClick={uploadPayment}>💳 Adjuntar Comprobante</button>}
           {canEdit && <>
             <button type="button" onClick={editPlayer}>✏️ Modificar</button>
             <button type="button" className="danger" onClick={deletePlayer}>🗑️ Eliminar</button>
