@@ -850,9 +850,12 @@ function PlayerCard({player,categories,canEdit,canUploadPayment=false,onEdit,onP
 
     {detailOpen && createPortal(<div className="modal player-detail-modal" onClick={closeDetail}>
       <section className="modal-card player-detail-card" onClick={e=>e.stopPropagation()}>
-        <div className="modal-head">
-          <div><span className="eyebrow">Información Del Jugador@</span><h2>{player.full_name}</h2></div>
-          <button type="button" onClick={closeDetail} aria-label="Cerrar">×</button>
+        <div className="modal-head player-detail-modal-head">
+          <div className="player-detail-modal-title"><span className="eyebrow">Información Del Jugador@</span><h2>{player.full_name}</h2></div>
+          <div className="player-detail-head-actions">
+            {canUploadPayment && <button type="button" className="player-detail-payment-head" onClick={uploadPayment}>💳 <span>Adjuntar Comprobante</span></button>}
+            <button type="button" className="player-detail-close" onClick={closeDetail} aria-label="Cerrar">×</button>
+          </div>
         </div>
 
         <div className="player-detail-hero">
@@ -876,7 +879,6 @@ function PlayerCard({player,categories,canEdit,canUploadPayment=false,onEdit,onP
         <div className="player-detail-actions">
           <button type="button" onClick={onShare}>📤 Compartir</button>
           <button type="button" onClick={() => copyText(player.access_code).catch(()=>{})}>📋 Código</button>
-          {canUploadPayment && <button type="button" className="payment" onClick={uploadPayment}>💳 Adjuntar Comprobante</button>}
           {canEdit && <>
             <button type="button" onClick={editPlayer}>✏️ Modificar</button>
             <button type="button" className="danger" onClick={deletePlayer}>🗑️ Eliminar</button>
