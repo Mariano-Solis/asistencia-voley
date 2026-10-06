@@ -479,6 +479,159 @@ export function PlayerPaymentPanel({ player, onClose, embedded = false }) {
   );
 }
 
+
+export function SuperAdminReceiptUpload({ player, onClose, onUploaded }) {
+  const inputRef = useRef(null);
+  const refreshInFlightRef = useRef(false);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
+  const maxEligiblePeriod = maxEligiblePaymentPeriod();
+  const paymentsStarted = !!maxEligiblePeriod;
+
+  async function load(showLoading = false) {
+    if (!player?.id || refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (showLoading) setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("monthly_payments")
+        .select("id,player_id,period_month,amount_due,receipt_path,receipt_name,receipt_type,uploaded_at,validation_status,validation_reason")
+        .eq("player_id", player.id)
+        .order("period_month", { ascending: true });
+      if (error) setMessage("No Se Pudo Cargar El Historial De Pagos.");
+      else setPayments(data || []);
+    } finally {
+      if (showLoading) setLoading(false);
+      refreshInFlightRef.current = false;
+    }
+  }
+
+  useEffect(() => { load(true); }, [player?.id]);
+
+  const period = oldestUnpaidPeriod(payments, maxEligiblePeriod);
+  const current = period ? payments.find((row) => row.period_month === period) : null;
+  const verifying = current?.validation_status === "pending_validation";
+  const currentState = period ? stateOf(current) : { cls: "paid", label: "✓ Sin Cuotas Pendientes" };
+
+  useEffect(() => {
+    if (!verifying) return undefined;
+    const timer = window.setInterval(() => load(false), 4500);
+    return () => window.clearInterval(timer);
+  }, [verifying, player?.id]);
+
+  async function upload(file) {
+    if (!paymentsStarted) { setMessage("Los Pagos Todavía No Están Habilitados."); return; }
+    if (!period) { setMessage("✓ Este Jugador@ No Tiene Cuotas Habilitadas Pendientes."); return; }
+    if (!file || !player?.monthly_fee || verifying) return;
+    if (!ALLOWED_TYPES.has(file.type)) {
+      setMessage("El Comprobante Debe Ser JPG, PNG O PDF.");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setMessage("El Comprobante No Puede Superar Los 10 MB.");
+      return;
+    }
+
+    setUploading(true);
+    setMessage("⏳ Adjuntando Comprobante...");
+    const folder = period.slice(0, 7);
+    const path = `${player.id}/${folder}/${Date.now()}-${safeName(file.name)}`;
+
+    try {
+      const uploaded = await supabase.storage.from(BUCKET).upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+      if (uploaded.error) throw uploaded.error;
+
+      const { data, error } = await supabase.functions.invoke("validate-payment-receipt", {
+        body: {
+          player_id: player.id,
+          receipt_path: path,
+          receipt_name: file.name,
+          receipt_type: file.type,
+          period_month: period,
+        },
+      });
+
+      if (error) {
+        await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+        setMessage("⚠ No Se Pudo Adjuntar El Comprobante. Intentá Nuevamente.");
+        return;
+      }
+
+      const status = data?.status;
+      if (status === "pending_validation") setMessage("✓ Comprobante Adjuntado. Se Verificará Automáticamente.");
+      else if (status === "validated") setMessage("✓ Comprobante Adjuntado y Validado Automáticamente.");
+      else if (status === "manual_review") setMessage("⚠ Comprobante Adjuntado. Quedó Pendiente De Revisión Manual.");
+      else if (status === "rejected") setMessage(`✕ ${data?.reason || "Comprobante No Válido."}`);
+      else setMessage("⚠ El Comprobante Se Envió, Pero No Se Pudo Determinar Su Estado.");
+
+      await load(false);
+      onUploaded?.();
+    } catch {
+      await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+      setMessage("⚠ No Se Pudo Adjuntar El Comprobante. Intentá Nuevamente.");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return createPortal(
+    <div className="stable-pay-admin-upload-backdrop" role="dialog" aria-modal="true" aria-label="Adjuntar comprobante de pago">
+      <section className="stable-pay-admin-upload-card">
+        <header>
+          <div>
+            <span>💳</span>
+            <div><h2>Adjuntar Comprobante</h2><p>{player?.full_name || "Jugador@"}</p></div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
+        </header>
+
+        <div className="stable-pay-admin-upload-body">
+          <div className="stable-pay-admin-upload-summary">
+            <div><span>Período</span><b>{period ? periodLabel(period) : "Sin Cuotas Pendientes"}</b></div>
+            <div><span>Cuota</span><b>{period ? money(player?.monthly_fee) : "—"}</b></div>
+            <b className={`stable-pay-state ${currentState.cls}`}>{currentState.label}</b>
+          </div>
+
+          <p>Usá Esta Opción Cuando El Jugador@ Te Envíe Su Comprobante y Necesites Cargarlo En Su Perfil. Se Aplicará La Misma Validación Automática Que En La Carga Del Jugador@.</p>
+
+          {current?.validation_reason && current.validation_status !== "validated" && (
+            <div className="stable-pay-note">{current.validation_reason}</div>
+          )}
+
+          <input
+            ref={inputRef}
+            hidden
+            type="file"
+            accept="image/jpeg,image/png,application/pdf"
+            onChange={(e) => upload(e.target.files?.[0])}
+          />
+
+          <div className="stable-pay-admin-upload-actions">
+            <button
+              type="button"
+              className="primary"
+              disabled={loading || uploading || verifying || !period}
+              onClick={() => inputRef.current?.click()}
+            >
+              {loading ? "⏳ Cargando..." : uploading ? "⏳ Adjuntando..." : verifying ? "⏳ Verificación En Curso" : !period ? "✓ Sin Cuotas Pendientes" : current ? "📎 Reemplazar Comprobante" : "📎 Adjuntar Comprobante"}
+            </button>
+            {current?.receipt_path && <button type="button" onClick={() => openReceipt(current.receipt_path, setMessage)}>👁 Ver Actual</button>}
+          </div>
+
+          {message && <div className="stable-pay-message">{message}</div>}
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
 export function AdminPaymentPanel({ role, userId, canApprovePayments = role === "super_admin", onClose, embedded = false }) {
   const maxEligiblePeriod = maxEligiblePaymentPeriod();
   const paymentPeriods = availablePaymentPeriods(maxEligiblePeriod);
