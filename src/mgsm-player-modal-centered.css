@@ -63,12 +63,86 @@
   margin-bottom:5px;
 }
 
-.player-detail-card>.modal-head button{
+.player-detail-card>.modal-head button:not(.player-detail-payment-head){
   flex:0 0 auto;
   width:40px!important;
   height:40px!important;
   display:grid!important;
   place-items:center!important;
+}
+
+.player-detail-card>.player-detail-modal-head{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto auto!important;
+  grid-template-areas:"title payment close";
+  align-items:center!important;
+  column-gap:8px!important;
+  row-gap:0!important;
+}
+
+.player-detail-card>.player-detail-modal-head .player-detail-modal-title{
+  grid-area:title;
+  min-width:0;
+}
+
+.player-detail-card>.player-detail-modal-head .player-detail-payment-head{
+  grid-area:payment;
+  width:auto!important;
+  height:auto!important;
+  min-width:0!important;
+  min-height:34px!important;
+  max-width:none!important;
+  padding:7px 10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  border:1px solid #e3b1b5!important;
+  border-radius:12px!important;
+  background:#fff7f7!important;
+  color:#a81019!important;
+  box-shadow:0 4px 12px rgba(181,18,27,.08)!important;
+  font-size:11px!important;
+  line-height:1.1!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+  justify-self:end;
+  overflow:visible!important;
+}
+
+.player-detail-card>.player-detail-modal-head .player-detail-payment-head span{
+  color:inherit!important;
+  font:inherit!important;
+  line-height:inherit!important;
+  white-space:nowrap!important;
+}
+
+.player-detail-card>.player-detail-modal-head .player-detail-payment-head:hover,
+.player-detail-card>.player-detail-modal-head .player-detail-payment-head:focus-visible{
+  background:#fff0f1!important;
+  border-color:#cf777f!important;
+  box-shadow:0 5px 14px rgba(181,18,27,.11)!important;
+}
+
+.player-detail-card>.player-detail-modal-head .player-detail-close{
+  grid-area:close;
+}
+
+@media(max-width:430px){
+  .player-detail-card>.player-detail-modal-head{
+    grid-template-columns:minmax(0,1fr) 40px!important;
+    grid-template-areas:
+      "title close"
+      "payment payment";
+    row-gap:7px!important;
+  }
+
+  .player-detail-card>.player-detail-modal-head .player-detail-payment-head{
+    min-height:32px!important;
+    padding:6px 9px!important;
+    font-size:10.5px!important;
+    justify-self:end;
+  }
 }
 
 @media(max-width:760px){
