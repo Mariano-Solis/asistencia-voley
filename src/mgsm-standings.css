@@ -314,3 +314,89 @@
     min-width:76px;
   }
 }
+
+
+/* =========================================================
+   TABLAS DE POSICIONES · COLUMNAS FIJAS EN SCROLL HORIZONTAL
+========================================================= */
+.standings-table-wrap{
+  position:relative;
+}
+
+.standings-table th:nth-child(1),
+.standings-table td:nth-child(1){
+  position:sticky;
+  left:0;
+  z-index:3;
+  width:64px;
+  min-width:64px;
+  max-width:64px;
+  background:#fff;
+}
+
+.standings-table th:nth-child(2),
+.standings-table td:nth-child(2){
+  position:sticky;
+  left:64px;
+  z-index:3;
+  min-width:150px;
+  background:#fff;
+  box-shadow:8px 0 12px -12px rgba(20,24,30,.55);
+}
+
+.standings-table thead th:nth-child(1),
+.standings-table thead th:nth-child(2){
+  z-index:6;
+  background:#f8fafc;
+}
+
+.standings-table tr.is-msm td:nth-child(1),
+.standings-table tr.is-msm td:nth-child(2){
+  background:#fff6f6;
+}
+
+.standings-table tbody tr:hover td:nth-child(1),
+.standings-table tbody tr:hover td:nth-child(2){
+  background:#fafafa;
+}
+
+.standings-table tbody tr.is-msm:hover td:nth-child(1),
+.standings-table tbody tr.is-msm:hover td:nth-child(2){
+  background:#fff6f6;
+}
+
+/* =========================================================
+   POSICIONES GENERALES · PJ / PF
+========================================================= */
+.general-position-count{
+  min-width:66px;
+  background:#fbfbfc;
+}
+
+.general-position-count b{
+  color:#30343a;
+  font-size:15px;
+}
+
+.general-positions-table tr.is-msm .general-position-count{
+  background:#fff7f8;
+}
+
+@media(max-width:620px){
+  .standings-table th:nth-child(1),
+  .standings-table td:nth-child(1){
+    width:52px;
+    min-width:52px;
+    max-width:52px;
+  }
+
+  .standings-table th:nth-child(2),
+  .standings-table td:nth-child(2){
+    left:52px;
+    min-width:132px;
+  }
+
+  .general-position-count{
+    min-width:58px;
+  }
+}
