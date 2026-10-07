@@ -2155,7 +2155,7 @@ function App() {
   const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
   return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
-    {!["training","settings","requests"].includes(tab)&&<div className="tab-refresh-row">
+    {!["training","settings","requests","matches"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
         <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
         {tabRefreshing?"Actualizando...":"Actualizar"}
