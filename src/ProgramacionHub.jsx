@@ -217,7 +217,11 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   );
 
   const fixtureCategorySummary = fixtureCategorySet === null
-    ? "Todas Las Categorías"
+    ? fixtureBranch === "female"
+      ? "Todas Las Categorías Femeninas"
+      : fixtureBranch === "male"
+        ? "Todas Las Categorías Masculinas"
+        : "Todas Las Categorías"
     : fixtureSelectedCategories.length === 0
       ? "Ninguna Categoría"
       : fixtureSelectedCategories.length === 1
@@ -613,19 +617,41 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
 
       <div className="programacion-fixture-filters">
         <label>Rama
-          <select value={fixtureBranch} onChange={(event) => setFixtureBranch(event.target.value)}>
+          <select value={fixtureBranch} onChange={(event) => changeFixtureBranch(event.target.value)}>
             <option value="all">Todas Las Ramas</option>
             <option value="female">Femenino</option>
             <option value="male">Masculino</option>
           </select>
         </label>
 
-        <label>Equipo / Categoría
-          <select value={fixtureCategory} onChange={(event) => setFixtureCategory(event.target.value)}>
-            <option value="all">Todas Las Categorías</option>
-            {fixtureCategories.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
-          </select>
-        </label>
+        <div className="programacion-fixture-category-selector">
+          <span>Equipo / Categoría</span>
+          <details className="programacion-category-dropdown programacion-fixture-category-dropdown">
+            <summary>
+              <strong>{fixtureCategorySummary}</strong>
+              <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="programacion-category-dropdown-menu">
+              <div className="programacion-category-dropdown-actions programacion-fixture-category-actions">
+                <button type="button" onClick={() => selectFixtureBranchCategories("all")}>Todas</button>
+                <button type="button" onClick={() => selectFixtureBranchCategories("female")}>Femenino</button>
+                <button type="button" onClick={() => selectFixtureBranchCategories("male")}>Masculino</button>
+                <button type="button" onClick={() => { setFixtureCategoryKeys([]); setFixtureOpponent("all"); }}>Ninguna</button>
+              </div>
+              <div className="programacion-category-dropdown-list">
+                {fixtureCategories.map((item) => {
+                  const checked = fixtureCategorySet === null || fixtureCategorySet.has(item.key);
+                  return <label key={item.key} className={checked ? "selected" : ""}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleFixtureCategory(item.key)}/>
+                    <span>{item.label}</span>
+                    <small>{branchLabel(item.branch)}</small>
+                  </label>;
+                })}
+              </div>
+            </div>
+          </details>
+          <small>{fixtureSelectedCategories.length} De {fixtureCategories.length} Categoría{fixtureCategories.length === 1 ? "" : "s"}</small>
+        </div>
 
         <label>Institución
           <select value={fixtureInstitution} onChange={(event) => { setFixtureInstitution(event.target.value); setFixtureOpponent("all"); }}>
