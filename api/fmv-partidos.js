@@ -127,6 +127,7 @@ async function loadCompetition(config){
       time:displayTime(row?.horario),
       scheduledAt:when,
       place:firstText(row,["id_cancha","cancha","lugar"]),
+      __debug: kind==="live"?row:undefined,
     };
   }).filter(Boolean);
 }
