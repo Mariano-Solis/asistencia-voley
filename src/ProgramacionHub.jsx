@@ -97,7 +97,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   const [exportCategoryKeys, setExportCategoryKeys] = useState([]);
   const [exportMessage, setExportMessage] = useState("");
   const [fixtureBranch, setFixtureBranch] = useState("all");
-  const [fixtureCategory, setFixtureCategory] = useState("all");
+  const [fixtureCategoryKeys, setFixtureCategoryKeys] = useState(null);
   const [fixtureInstitution, setFixtureInstitution] = useState("MSM");
   const [fixtureOpponent, setFixtureOpponent] = useState("all");
   const abortRef = useRef(null);
@@ -186,48 +186,101 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       : source.filter((match) => allowedKeys.has(match.permissionKey));
   }, [data, unrestricted, allowedKeys]);
 
+  const fixtureAllCategories = useMemo(() => {
+    const map = new Map();
+    for (const match of leagueFixtures) {
+      if (!match?.permissionKey) continue;
+      const branch = matchBranch(match);
+      if (!map.has(match.permissionKey)) {
+        map.set(match.permissionKey, { key: match.permissionKey, label: match.categoryLabel || match.permissionKey, branch });
+      }
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.branch !== b.branch) return a.branch === "female" ? -1 : 1;
+      return a.label.localeCompare(b.label, "es");
+    });
+  }, [leagueFixtures]);
+
+  const fixtureCategories = useMemo(
+    () => fixtureAllCategories.filter((item) => fixtureBranch === "all" || item.branch === fixtureBranch),
+    [fixtureAllCategories, fixtureBranch]
+  );
+
+  const fixtureCategorySet = useMemo(
+    () => fixtureCategoryKeys === null ? null : new Set(fixtureCategoryKeys),
+    [fixtureCategoryKeys]
+  );
+
+  const fixtureSelectedCategories = useMemo(
+    () => fixtureCategories.filter((item) => fixtureCategorySet === null || fixtureCategorySet.has(item.key)),
+    [fixtureCategories, fixtureCategorySet]
+  );
+
+  const fixtureCategorySummary = fixtureCategorySet === null
+    ? fixtureBranch === "female"
+      ? "Todas Las Categorías Femeninas"
+      : fixtureBranch === "male"
+        ? "Todas Las Categorías Masculinas"
+        : "Todas Las Categorías"
+    : fixtureSelectedCategories.length === 0
+      ? "Ninguna Categoría"
+      : fixtureSelectedCategories.length === 1
+        ? fixtureSelectedCategories[0].label
+        : `${fixtureSelectedCategories.length} Categorías Seleccionadas`;
+
+  function changeFixtureBranch(value) {
+    setFixtureBranch(value);
+    setFixtureCategoryKeys(null);
+    setFixtureOpponent("all");
+  }
+
+  function selectFixtureBranchCategories(branch) {
+    setFixtureBranch(branch);
+    setFixtureCategoryKeys(null);
+    setFixtureOpponent("all");
+  }
+
+  function toggleFixtureCategory(key) {
+    setFixtureCategoryKeys((current) => {
+      if (current === null) {
+        return fixtureCategories.map((item) => item.key).filter((item) => item !== key);
+      }
+      return current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key];
+    });
+    setFixtureOpponent("all");
+  }
+
   const fixtureInstitutions = useMemo(() => {
     const set = new Set();
     for (const match of leagueFixtures) {
       const branch = matchBranch(match);
       if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
-      if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) continue;
+      if (fixtureCategorySet !== null && !fixtureCategorySet.has(match.permissionKey)) continue;
       set.add(institutionKey(match.local));
       set.add(institutionKey(match.visitor));
     }
     return [...set].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"));
-  }, [leagueFixtures, fixtureBranch, fixtureCategory]);
-
-  const fixtureCategories = useMemo(() => {
-    const map = new Map();
-    for (const match of leagueFixtures) {
-      if (!match?.permissionKey) continue;
-      const branch = matchBranch(match);
-      if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
-      if (!map.has(match.permissionKey)) {
-        map.set(match.permissionKey, { key: match.permissionKey, label: match.categoryLabel || match.permissionKey, branch });
-      }
-    }
-    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "es"));
-  }, [leagueFixtures, fixtureBranch]);
+  }, [leagueFixtures, fixtureBranch, fixtureCategorySet]);
 
   const fixtureOpponents = useMemo(() => {
     const set = new Set();
     for (const match of leagueFixtures) {
       const branch = matchBranch(match);
       if (fixtureBranch !== "all" && branch !== fixtureBranch) continue;
-      if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) continue;
+      if (fixtureCategorySet !== null && !fixtureCategorySet.has(match.permissionKey)) continue;
       if (fixtureInstitution !== "all" && ![institutionKey(match.local), institutionKey(match.visitor)].includes(institutionKey(fixtureInstitution))) continue;
       const opponent = fixtureInstitution === "all" ? "" : opponentFor(match, fixtureInstitution);
       if (opponent) set.add(opponent);
     }
     return [...set].sort((a, b) => a.localeCompare(b, "es"));
-  }, [leagueFixtures, fixtureBranch, fixtureCategory, fixtureInstitution]);
+  }, [leagueFixtures, fixtureBranch, fixtureCategorySet, fixtureInstitution]);
 
   const filteredFixtures = useMemo(() => leagueFixtures.filter((match) => {
     const branch = matchBranch(match);
     if (fixtureBranch !== "all" && branch !== fixtureBranch) return false;
-    if (fixtureCategory !== "all" && match.permissionKey !== fixtureCategory) return false;
+    if (fixtureCategorySet !== null && !fixtureCategorySet.has(match.permissionKey)) return false;
 
     const localInstitution = institutionKey(match.local);
     const visitorInstitution = institutionKey(match.visitor);
@@ -238,7 +291,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     const opponent = fixtureInstitution === "all" ? "" : opponentFor(match, fixtureInstitution);
     if (fixtureOpponent !== "all" && opponent !== fixtureOpponent) return false;
     return true;
-  }), [leagueFixtures, fixtureBranch, fixtureCategory, fixtureInstitution, fixtureOpponent]);
+  }), [leagueFixtures, fixtureBranch, fixtureCategorySet, fixtureInstitution, fixtureOpponent]);
 
   const fixtureStatusCounts = useMemo(() => ({
     reprogramming: filteredFixtures.filter((match) => match.scheduleState === "reprogramming").length,
@@ -247,22 +300,23 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   }), [filteredFixtures]);
 
   useEffect(() => {
-    if (fixtureCategory !== "all" && !fixtureCategories.some((item) => item.key === fixtureCategory)) {
-      setFixtureCategory("all");
-    }
-  }, [fixtureBranch, fixtureCategories, fixtureCategory]);
+    if (fixtureCategoryKeys === null) return;
+    const valid = new Set(fixtureAllCategories.map((item) => item.key));
+    const next = fixtureCategoryKeys.filter((key) => valid.has(key));
+    if (next.length !== fixtureCategoryKeys.length) setFixtureCategoryKeys(next);
+  }, [fixtureAllCategories, fixtureCategoryKeys]);
 
   useEffect(() => {
     if (fixtureInstitution !== "all" && !fixtureInstitutions.includes(fixtureInstitution)) {
       setFixtureInstitution(fixtureInstitutions.includes("MSM") ? "MSM" : (fixtureInstitutions[0] || "all"));
     }
-  }, [fixtureBranch, fixtureCategory, fixtureInstitutions, fixtureInstitution]);
+  }, [fixtureBranch, fixtureCategoryKeys, fixtureInstitutions, fixtureInstitution]);
 
   useEffect(() => {
     if (fixtureOpponent !== "all" && !fixtureOpponents.includes(fixtureOpponent)) {
       setFixtureOpponent("all");
     }
-  }, [fixtureCategory, fixtureBranch, fixtureInstitution, fixtureOpponents, fixtureOpponent]);
+  }, [fixtureCategoryKeys, fixtureBranch, fixtureInstitution, fixtureOpponents, fixtureOpponent]);
 
   const exportCategories = useMemo(() => {
     const byKey = new Map();
@@ -563,19 +617,41 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
 
       <div className="programacion-fixture-filters">
         <label>Rama
-          <select value={fixtureBranch} onChange={(event) => setFixtureBranch(event.target.value)}>
+          <select value={fixtureBranch} onChange={(event) => changeFixtureBranch(event.target.value)}>
             <option value="all">Todas Las Ramas</option>
             <option value="female">Femenino</option>
             <option value="male">Masculino</option>
           </select>
         </label>
 
-        <label>Equipo / Categoría
-          <select value={fixtureCategory} onChange={(event) => setFixtureCategory(event.target.value)}>
-            <option value="all">Todas Las Categorías</option>
-            {fixtureCategories.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
-          </select>
-        </label>
+        <div className="programacion-fixture-category-selector">
+          <span>Equipo / Categoría</span>
+          <details className="programacion-category-dropdown programacion-fixture-category-dropdown">
+            <summary>
+              <strong>{fixtureCategorySummary}</strong>
+              <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="programacion-category-dropdown-menu">
+              <div className="programacion-category-dropdown-actions programacion-fixture-category-actions">
+                <button type="button" onClick={() => selectFixtureBranchCategories("all")}>Todas</button>
+                <button type="button" onClick={() => selectFixtureBranchCategories("female")}>Femenino</button>
+                <button type="button" onClick={() => selectFixtureBranchCategories("male")}>Masculino</button>
+                <button type="button" onClick={() => { setFixtureCategoryKeys([]); setFixtureOpponent("all"); }}>Ninguna</button>
+              </div>
+              <div className="programacion-category-dropdown-list">
+                {fixtureCategories.map((item) => {
+                  const checked = fixtureCategorySet === null || fixtureCategorySet.has(item.key);
+                  return <label key={item.key} className={checked ? "selected" : ""}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleFixtureCategory(item.key)}/>
+                    <span>{item.label}</span>
+                    <small>{branchLabel(item.branch)}</small>
+                  </label>;
+                })}
+              </div>
+            </div>
+          </details>
+          <small>{fixtureSelectedCategories.length} De {fixtureCategories.length} Categoría{fixtureCategories.length === 1 ? "" : "s"}</small>
+        </div>
 
         <label>Institución
           <select value={fixtureInstitution} onChange={(event) => { setFixtureInstitution(event.target.value); setFixtureOpponent("all"); }}>
