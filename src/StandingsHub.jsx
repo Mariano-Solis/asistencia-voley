@@ -623,6 +623,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     [generalTables, generalSelectedKeys.join("|")]
   );
   const generalOptions = options.filter((item) => generalSelectedKeys.includes(item.key));
+  const generalLoadedOptions = generalOptions.filter((item) => generalTables.some((table) => table.tableKey === item.key));
 
   useEffect(() => {
     if (selectedTeam !== "__ALL__" && !teams.includes(selectedTeam)) {
@@ -1038,7 +1039,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           <thead><tr>
             <th>#</th>
             <th>Institución</th>
-            {generalOptions.map((item) => <th key={item.key}>{item.label}</th>)}
+            {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
             <th>Total</th>
           </tr></thead>
           <tbody>{generalRanking.map((row) => {
@@ -1046,7 +1047,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
             return <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
               <td><span className="standings-position">{row.computedRank}</span></td>
               <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
-              {generalOptions.map((item) => {
+              {generalLoadedOptions.map((item) => {
                 const detail = detailByKey.get(item.key);
                 return <td key={item.key} className="general-position-score">
                   {detail ? <><b>{detail.points}</b><small>{detail.position}.º</small></> : <><b>0</b><small>—</small></>}
