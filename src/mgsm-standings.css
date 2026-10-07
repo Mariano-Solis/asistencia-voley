@@ -466,3 +466,87 @@
     white-space:nowrap;
   }
 }
+
+
+/* =========================================================
+   COMPARATIVO GENERAL · COLUMNAS COMPACTAS EN MÓVIL
+   Acerca Cat./Pos./PTS/%V a Equipo sin perder columnas fijas.
+========================================================= */
+@media(max-width:620px){
+  .comparison-standings-table:not(.is-advanced){
+    width:100%!important;
+    min-width:425px!important;
+    table-layout:fixed!important;
+  }
+
+  .comparison-standings-table.is-advanced{
+    min-width:690px!important;
+    table-layout:fixed!important;
+  }
+
+  .comparison-standings-table th,
+  .comparison-standings-table td{
+    padding-left:4px!important;
+    padding-right:4px!important;
+  }
+
+  .comparison-standings-table th:nth-child(1),
+  .comparison-standings-table td:nth-child(1){
+    width:52px!important;
+    min-width:52px!important;
+    max-width:52px!important;
+  }
+
+  .comparison-standings-table th:nth-child(2),
+  .comparison-standings-table td:nth-child(2){
+    left:52px!important;
+    width:126px!important;
+    min-width:126px!important;
+    max-width:126px!important;
+  }
+
+  .comparison-standings-table th:nth-child(3),
+  .comparison-standings-table td:nth-child(3){
+    width:48px!important;
+    min-width:48px!important;
+    max-width:48px!important;
+  }
+
+  .comparison-standings-table th:nth-child(4),
+  .comparison-standings-table td:nth-child(4){
+    width:72px!important;
+    min-width:72px!important;
+    max-width:72px!important;
+  }
+
+  .comparison-standings-table th:nth-child(5),
+  .comparison-standings-table td:nth-child(5){
+    width:72px!important;
+    min-width:72px!important;
+    max-width:72px!important;
+  }
+
+  .comparison-standings-table th:nth-child(6),
+  .comparison-standings-table td:nth-child(6){
+    width:55px!important;
+    min-width:55px!important;
+    max-width:55px!important;
+  }
+
+  .comparison-standings-table.is-advanced th:nth-child(n+7),
+  .comparison-standings-table.is-advanced td:nth-child(n+7){
+    width:50px!important;
+    min-width:50px!important;
+    max-width:50px!important;
+  }
+
+  .comparison-standings-table .standings-team{
+    gap:5px;
+  }
+
+  .comparison-standings-table .standings-team strong{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+}
