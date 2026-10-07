@@ -816,7 +816,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
 
           {loading && !aggregate.length ? <div className="standings-loading">Consultando Las Tablas Seleccionadas...</div> :
           aggregate.length ? <div className="standings-table-wrap staff-comparison-table-wrap">
-            <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
+            <table className={`standings-table comparison-standings-table ${advanced ? "is-advanced" : ""}`}>
               <thead><tr>
                 <th>#</th>
                 <th>Equipo</th>
@@ -1037,7 +1037,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
 
       {loading ? <div className="standings-loading">Consultando Las Tablas Oficiales...</div> :
         <div className="standings-table-wrap">
-          <table className={`standings-table ${advanced ? "is-advanced" : ""}`}>
+          <table className={`standings-table ${selectedTeam === "__ALL__" ? "comparison-standings-table " : ""}${advanced ? "is-advanced" : ""}`}>
             <thead><tr>
               {selectedTeam === "__ALL__" && <th>#</th>}
               <th>Equipo</th>
