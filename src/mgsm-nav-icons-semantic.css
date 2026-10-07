@@ -21,7 +21,7 @@ main.app nav button[data-feature-tab]::before {
 }
 
 main.app > nav button[data-feature-tab="Asistencia"]::before,
-main.app nav button[data-feature-tab="Asistencia"]::before { content:"🏐" !important; }
+main.app nav button[data-feature-tab="Asistencia"]::before { content:"📝" !important; }
 main.app > nav button[data-feature-tab="Jugador@s"]::before,
 main.app nav button[data-feature-tab="Jugador@s"]::before { content:"👥" !important; }
 main.app > nav button[data-feature-tab="Historial"]::before,
