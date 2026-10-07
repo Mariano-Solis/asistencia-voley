@@ -220,6 +220,7 @@ function buildGeneralPositionRanking(tables, selectedKeys, fixtures = null) {
         logo: row.logo || "",
         originalTeam: String(row.id_equipo || "").trim(),
         played: Number(row.jugados || 0),
+        officialPoints: Number(row.puntos || 0),
         setsWon: Number(row.setGanados || 0),
         setsLost: Number(row.setPerdidos || 0),
         pointsWon: Number(row.tantosGanados || 0),
@@ -235,6 +236,7 @@ function buildGeneralPositionRanking(tables, selectedKeys, fixtures = null) {
         team: institution,
         logo: placement.logo || "",
         totalPoints: 0,
+        officialPoints: 0,
         played: 0,
         setsWon: 0,
         setsLost: 0,
@@ -245,6 +247,7 @@ function buildGeneralPositionRanking(tables, selectedKeys, fixtures = null) {
 
       const points = generalPositionPoints(placement.position);
       current.totalPoints += points;
+      current.officialPoints += placement.officialPoints;
       current.played += placement.played;
       current.setsWon += placement.setsWon;
       current.setsLost += placement.setsLost;
@@ -256,6 +259,7 @@ function buildGeneralPositionRanking(tables, selectedKeys, fixtures = null) {
         categoryLabel: table.categoryLabel,
         position: placement.position,
         points,
+        officialPoints: placement.officialPoints,
         played: placement.played,
         setsWon: placement.setsWon,
         setsLost: placement.setsLost,
@@ -1132,6 +1136,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
             <th>#</th>
             <th>Institución</th>
             <th>Total</th>
+            <th>Puntos</th>
             {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
             <th>PJ</th>
             <th>PF</th>
@@ -1144,6 +1149,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
               <td><span className="standings-position">{row.computedRank}</span></td>
               <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
               <td className="general-position-total"><b>{row.totalPoints}</b></td>
+              <td className="general-position-official-points"><b>{row.officialPoints}</b></td>
               {generalLoadedOptions.map((item) => {
                 const detail = detailByKey.get(item.key);
                 return <td key={item.key} className="general-position-score">
@@ -1161,7 +1167,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
 
       <div className="standings-foot general-positions-foot">
         <span><b>Criterio:</b> 1.º suma 12 puntos; 2.º, 11; 3.º, 10; …; 12.º, 1. Si una institución no figura en una categoría, suma 0 en esa categoría.</span>
-        <span><b>PJ</b>: suma de partidos jugados en las categorías seleccionadas. <b>PF</b>: partidos con estado pendiente/upcoming que todavía le quedan a la institución en esas mismas categorías. Son informativos y no modifican el puntaje del ranking.</span>
+        <span><b>Puntos</b>: suma de los puntos oficiales que tiene la institución en cada una de las categorías seleccionadas. <b>PJ</b>: suma de partidos jugados en las categorías seleccionadas. <b>PF</b>: partidos con estado pendiente/upcoming que todavía le quedan a la institución en esas mismas categorías. Son informativos y no modifican el puntaje del ranking.</span>
         <span><b>No intervienen en el puntaje</b> partidos jugados, partidos faltantes, victorias, derrotas, sets ni puntos oficiales del torneo.</span>
         <small>Desempate: 1.º mayor diferencia de sets (sets ganados − sets perdidos); 2.º mayor diferencia de tantos (tantos a favor − tantos en contra). Si ambas diferencias también son iguales, se ordena alfabéticamente sólo como último criterio técnico.</small>
       </div>
