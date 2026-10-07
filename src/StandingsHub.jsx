@@ -1131,10 +1131,10 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           <thead><tr>
             <th>#</th>
             <th>Institución</th>
+            <th>Total</th>
             {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
             <th>PJ</th>
             <th>PF</th>
-            <th>Total</th>
             <th>Dif. Sets</th>
             <th>Dif. Tantos</th>
           </tr></thead>
@@ -1143,6 +1143,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
             return <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
               <td><span className="standings-position">{row.computedRank}</span></td>
               <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
+              <td className="general-position-total"><b>{row.totalPoints}</b></td>
               {generalLoadedOptions.map((item) => {
                 const detail = detailByKey.get(item.key);
                 return <td key={item.key} className="general-position-score">
@@ -1151,7 +1152,6 @@ export default function StandingsHub({ compact = false, allowedCategories = null
               })}
               <td className="general-position-count"><b>{row.played}</b></td>
               <td className="general-position-count"><b>{row.remaining === null ? "—" : row.remaining}</b></td>
-              <td className="general-position-total"><b>{row.totalPoints}</b></td>
               <td className="general-position-tiebreak"><b>{row.setDifference > 0 ? `+${row.setDifference}` : row.setDifference}</b><small>{row.setsWon}-{row.setsLost}</small></td>
               <td className="general-position-tiebreak"><b>{row.pointDifference > 0 ? `+${row.pointDifference}` : row.pointDifference}</b><small>{row.pointsWon}-{row.pointsLost}</small></td>
             </tr>;
