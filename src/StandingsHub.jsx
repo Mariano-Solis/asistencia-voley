@@ -187,14 +187,19 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
       const institution = generalInstitutionKey(row.id_equipo);
       const position = Number(row.posicion);
       if (!institution || !Number.isFinite(position) || position < 1) continue;
+
+      const candidate = {
+        position,
+        logo: row.logo || "",
+        originalTeam: String(row.id_equipo || "").trim(),
+        setsWon: Number(row.setGanados || 0),
+        setsLost: Number(row.setPerdidos || 0),
+        pointsWon: Number(row.tantosGanados || 0),
+        pointsLost: Number(row.tantosPerdidos || 0),
+      };
+
       const existing = bestByInstitution.get(institution);
-      if (!existing || position < existing.position) {
-        bestByInstitution.set(institution, {
-          position,
-          logo: row.logo || "",
-          originalTeam: String(row.id_equipo || "").trim(),
-        });
-      }
+      if (!existing || position < existing.position) bestByInstitution.set(institution, candidate);
     }
 
     for (const [institution, placement] of bestByInstitution.entries()) {
@@ -202,31 +207,46 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
         team: institution,
         logo: placement.logo || "",
         totalPoints: 0,
+        setsWon: 0,
+        setsLost: 0,
+        pointsWon: 0,
+        pointsLost: 0,
         details: [],
-        finishCounts: Array(13).fill(0),
       };
+
       const points = generalPositionPoints(placement.position);
       current.totalPoints += points;
+      current.setsWon += placement.setsWon;
+      current.setsLost += placement.setsLost;
+      current.pointsWon += placement.pointsWon;
+      current.pointsLost += placement.pointsLost;
       current.logo = current.logo || placement.logo || "";
       current.details.push({
         tableKey: table.tableKey,
         categoryLabel: table.categoryLabel,
         position: placement.position,
         points,
+        setsWon: placement.setsWon,
+        setsLost: placement.setsLost,
+        pointsWon: placement.pointsWon,
+        pointsLost: placement.pointsLost,
       });
-      if (placement.position >= 1 && placement.position <= 12) current.finishCounts[placement.position] += 1;
       byInstitution.set(institution, current);
     }
   }
 
   return [...byInstitution.values()]
-    .sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      for (let position = 1; position <= 12; position += 1) {
-        if (b.finishCounts[position] !== a.finishCounts[position]) return b.finishCounts[position] - a.finishCounts[position];
-      }
-      return a.team.localeCompare(b.team, "es");
-    })
+    .map((row) => ({
+      ...row,
+      setDifference: row.setsWon - row.setsLost,
+      pointDifference: row.pointsWon - row.pointsLost,
+    }))
+    .sort((a, b) =>
+      b.totalPoints - a.totalPoints ||
+      b.setDifference - a.setDifference ||
+      b.pointDifference - a.pointDifference ||
+      a.team.localeCompare(b.team, "es")
+    )
     .map((row, index) => ({ ...row, computedRank: index + 1 }));
 }
 
@@ -1041,6 +1061,8 @@ export default function StandingsHub({ compact = false, allowedCategories = null
             <th>Institución</th>
             {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
             <th>Total</th>
+            <th>Dif. Sets</th>
+            <th>Dif. Tantos</th>
           </tr></thead>
           <tbody>{generalRanking.map((row) => {
             const detailByKey = new Map(row.details.map((detail) => [detail.tableKey, detail]));
@@ -1054,6 +1076,8 @@ export default function StandingsHub({ compact = false, allowedCategories = null
                 </td>;
               })}
               <td className="general-position-total"><b>{row.totalPoints}</b></td>
+              <td className="general-position-tiebreak"><b>{row.setDifference > 0 ? `+${row.setDifference}` : row.setDifference}</b><small>{row.setsWon}-{row.setsLost}</small></td>
+              <td className="general-position-tiebreak"><b>{row.pointDifference > 0 ? `+${row.pointDifference}` : row.pointDifference}</b><small>{row.pointsWon}-{row.pointsLost}</small></td>
             </tr>;
           })}</tbody>
         </table>
@@ -1062,7 +1086,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       <div className="standings-foot general-positions-foot">
         <span><b>Criterio:</b> 1.º suma 12 puntos; 2.º, 11; 3.º, 10; …; 12.º, 1. Si una institución no figura en una categoría, suma 0 en esa categoría.</span>
         <span><b>No intervienen</b> partidos jugados, victorias, derrotas, sets ni puntos oficiales del torneo.</span>
-        <small>En caso de empate en el total, se prioriza la institución con más 1.º puestos, luego más 2.º puestos y así sucesivamente.</small>
+        <small>Desempate: 1.º mayor diferencia de sets (sets ganados − sets perdidos); 2.º mayor diferencia de tantos (tantos a favor − tantos en contra). Si ambas diferencias también son iguales, se ordena alfabéticamente sólo como último criterio técnico.</small>
       </div>
     </section>
   </section>;
