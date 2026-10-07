@@ -72,6 +72,7 @@ import './mgsm-desktop-navigation-final.css'
 import './mgsm-history-analytics.css'
 import './mgsm-standings.css'
 import './mgsm-programacion.css'
+import './mgsm-partidos.css'
 
 document.documentElement.style.setProperty('--mgsm-logo-url', `url("${officialLogo}")`)
 
