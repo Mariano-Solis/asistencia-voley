@@ -307,13 +307,6 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   }, [fixtureAllCategories, fixtureCategoryKeys]);
 
   useEffect(() => {
-    if (!leagueFixtures.length) return;
-    if (fixtureInstitution !== "all" && !fixtureInstitutions.includes(fixtureInstitution)) {
-      setFixtureInstitution(fixtureInstitutions.includes("MSM") ? "MSM" : (fixtureInstitutions[0] || "all"));
-    }
-  }, [leagueFixtures.length, fixtureBranch, fixtureCategoryKeys, fixtureInstitutions, fixtureInstitution]);
-
-  useEffect(() => {
     if (fixtureOpponent !== "all" && !fixtureOpponents.includes(fixtureOpponent)) {
       setFixtureOpponent("all");
     }
@@ -656,7 +649,12 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
 
         <label>Institución
           <select value={fixtureInstitution} onChange={(event) => { setFixtureInstitution(event.target.value); setFixtureOpponent("all"); }}>
-            {fixtureInstitutions.includes("MSM") ? <option value="MSM">MSM · Municipalidad De San Martín</option> : null}
+            {fixtureInstitution === "MSM" || fixtureInstitutions.includes("MSM")
+              ? <option value="MSM">MSM · Municipalidad De San Martín</option>
+              : null}
+            {fixtureInstitution !== "all" && fixtureInstitution !== "MSM" && !fixtureInstitutions.includes(fixtureInstitution)
+              ? <option value={fixtureInstitution}>{fixtureInstitution}</option>
+              : null}
             {fixtureInstitutions.filter((team) => team !== "MSM").map((team) => <option key={team} value={team}>{team}</option>)}
           </select>
         </label>
