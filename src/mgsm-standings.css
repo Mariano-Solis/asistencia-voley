@@ -550,3 +550,69 @@
     white-space:nowrap;
   }
 }
+
+
+/* =========================================================
+   POSICIONES GENERALES · TOTAL JUNTO A INSTITUCIÓN
+   Mantiene #, Institución y Total visibles durante el scroll.
+========================================================= */
+.general-positions-table th:nth-child(3),
+.general-positions-table td:nth-child(3){
+  position:sticky;
+  left:214px;
+  z-index:3;
+  width:76px;
+  min-width:76px;
+  max-width:76px;
+  background:#fff8f8;
+  box-shadow:8px 0 12px -12px rgba(20,24,30,.55);
+}
+
+.general-positions-table thead th:nth-child(3){
+  z-index:6;
+  color:#b5121b;
+  background:#fff4f5;
+}
+
+.general-positions-table tr.is-msm td:nth-child(3){
+  background:#ffeef0;
+}
+
+.general-positions-table tbody tr:hover td:nth-child(3){
+  background:#fff8f8;
+}
+
+.general-positions-table tbody tr.is-msm:hover td:nth-child(3){
+  background:#ffeef0;
+}
+
+@media(max-width:620px){
+  .general-positions-table th:nth-child(1),
+  .general-positions-table td:nth-child(1){
+    width:52px!important;
+    min-width:52px!important;
+    max-width:52px!important;
+  }
+
+  .general-positions-table th:nth-child(2),
+  .general-positions-table td:nth-child(2){
+    left:52px!important;
+    width:132px!important;
+    min-width:132px!important;
+    max-width:132px!important;
+  }
+
+  .general-positions-table th:nth-child(3),
+  .general-positions-table td:nth-child(3){
+    left:184px!important;
+    width:68px!important;
+    min-width:68px!important;
+    max-width:68px!important;
+  }
+
+  .general-positions-table th:nth-child(n+4),
+  .general-positions-table td:nth-child(n+4){
+    padding-left:5px;
+    padding-right:5px;
+  }
+}
