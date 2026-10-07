@@ -281,3 +281,36 @@
     min-width:62px;
   }
 }
+
+
+.general-position-tiebreak{
+  min-width:86px;
+  background:#fbfbfc;
+}
+
+.general-position-tiebreak b,
+.general-position-tiebreak small{
+  display:block;
+}
+
+.general-position-tiebreak b{
+  color:#30343a;
+  font-size:15px;
+}
+
+.general-position-tiebreak small{
+  margin-top:2px;
+  color:#8a9098;
+  font-size:9px;
+  font-weight:800;
+}
+
+.general-positions-table tr.is-msm .general-position-tiebreak{
+  background:#fff7f8;
+}
+
+@media(max-width:620px){
+  .general-position-tiebreak{
+    min-width:76px;
+  }
+}
