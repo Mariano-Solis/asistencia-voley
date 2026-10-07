@@ -1,0 +1,403 @@
+/* =========================================================
+   MGSM VOLEY · PARTIDOS
+========================================================= */
+.partidos-page{
+  display:grid;
+  gap:14px;
+}
+
+.partidos-hero{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:18px;
+  border-radius:18px;
+  background:linear-gradient(135deg,#8f0d14 0%,#b5121b 55%,#d3232f 100%);
+  color:#fff;
+  box-shadow:0 12px 28px rgba(181,18,27,.16);
+}
+
+.partidos-hero h1{
+  margin:4px 0 5px;
+  color:#fff;
+  font-size:25px;
+  letter-spacing:-.02em;
+}
+
+.partidos-hero p{
+  max-width:720px;
+  margin:0;
+  color:rgba(255,255,255,.84);
+  font-size:12px;
+  line-height:1.45;
+}
+
+.partidos-hero .eyebrow{
+  color:#fff;
+  opacity:.88;
+}
+
+.partidos-source-state{
+  flex:0 0 auto;
+  min-width:122px;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:12px;
+  background:rgba(255,255,255,.11);
+  text-align:right;
+}
+
+.partidos-source-state span,
+.partidos-source-state b{
+  display:block;
+}
+
+.partidos-source-state span{
+  color:rgba(255,255,255,.72);
+  font-size:9px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.partidos-source-state b{
+  margin-top:3px;
+  color:#fff;
+  font-size:12px;
+}
+
+.partidos-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.partidos-mode{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  flex:1;
+  max-width:420px;
+  padding:5px;
+  border:1px solid #e3e5e8;
+  border-radius:13px;
+  background:#fff;
+}
+
+.partidos-mode button,
+.partidos-refresh{
+  min-height:40px;
+  margin:0;
+  border-radius:10px;
+  font-size:11px;
+  font-weight:850;
+}
+
+.partidos-mode button{
+  background:#f5f6f7;
+  color:#5c626b;
+}
+
+.partidos-mode button.active{
+  background:#b5121b;
+  color:#fff;
+  box-shadow:0 5px 13px rgba(181,18,27,.16);
+}
+
+.partidos-refresh{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:9px 13px;
+  border:1px solid #e3e5e8;
+  background:#fff;
+  color:#3f444b;
+}
+
+.partidos-filters{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  padding:12px;
+}
+
+.partidos-filters label{
+  display:grid;
+  gap:5px;
+  color:#747a83;
+  font-size:9px;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.045em;
+}
+
+.partidos-filters select{
+  min-width:0;
+  min-height:42px;
+  padding:8px 10px;
+  border:1px solid #dfe2e6;
+  border-radius:11px;
+  background:#fff;
+  color:#282c31;
+  font-size:12px;
+  font-weight:750;
+  text-transform:none;
+  letter-spacing:0;
+}
+
+.partidos-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:11px;
+}
+
+.partido-card{
+  min-width:0;
+  padding:14px;
+  border:1px solid #e6e8eb;
+  border-radius:16px;
+  background:#fff;
+  box-shadow:0 7px 20px rgba(20,24,30,.05);
+}
+
+.partido-card.live{
+  border-color:#ecd0d3;
+  box-shadow:0 8px 22px rgba(181,18,27,.07);
+}
+
+.partido-card-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  padding-bottom:10px;
+  border-bottom:1px solid #f0f1f2;
+}
+
+.partido-card-head>div{
+  min-width:0;
+}
+
+.partido-card-head span,
+.partido-card-head b{
+  display:block;
+}
+
+.partido-card-head span{
+  margin-bottom:3px;
+  color:#8a9098;
+  font-size:9px;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.partido-card-head b{
+  overflow:hidden;
+  color:#2b2f35;
+  font-size:12px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.live-badge,
+.result-badge{
+  flex:0 0 auto;
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.live-badge{
+  background:#eaf7ee;
+  color:#16813a;
+}
+
+.result-badge{
+  background:#f0f2f4;
+  color:#59606a;
+}
+
+.partido-score{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+  gap:10px;
+  padding:18px 4px 12px;
+}
+
+.partido-score>div{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.partido-score>div:first-child{
+  justify-content:flex-end;
+}
+
+.partido-score>div:last-child{
+  justify-content:flex-start;
+}
+
+.partido-score span{
+  min-width:0;
+  overflow:hidden;
+  color:#30343a;
+  font-size:14px;
+  font-weight:850;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.partido-score b{
+  flex:0 0 auto;
+  color:#111317;
+  font-size:28px;
+  line-height:1;
+}
+
+.partido-score em{
+  color:#a0a5ac;
+  font-size:18px;
+  font-style:normal;
+  font-weight:800;
+}
+
+.partido-live-points{
+  width:max-content;
+  max-width:100%;
+  margin:0 auto 10px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#fff2f3;
+  color:#a81019;
+  font-size:11px;
+  font-weight:900;
+}
+
+.partido-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  padding-top:10px;
+  border-top:1px solid #f0f1f2;
+}
+
+.partido-meta span{
+  color:#757b84;
+  font-size:10px;
+  font-weight:700;
+}
+
+.partidos-empty,
+.partidos-message{
+  padding:24px 16px;
+  border:1px solid #e5e7ea;
+  border-radius:15px;
+  background:#fafafa;
+  color:#686f78;
+  text-align:center;
+  font-size:12px;
+  font-weight:750;
+}
+
+.partidos-message{
+  border-color:#ecc7ca;
+  background:#fff7f7;
+  color:#a81019;
+}
+
+.partidos-footnote{
+  margin:0;
+  color:#838991;
+  font-size:10px;
+  line-height:1.4;
+  text-align:center;
+}
+
+.partidos-page.compact{
+  gap:11px;
+}
+
+.partidos-page.compact .partidos-hero{
+  padding:14px;
+}
+
+@media(max-width:760px){
+  .partidos-hero{
+    padding:15px;
+  }
+
+  .partidos-hero h1{
+    font-size:22px;
+  }
+
+  .partidos-source-state{
+    min-width:104px;
+    padding:8px 9px;
+  }
+
+  .partidos-filters{
+    grid-template-columns:1fr;
+  }
+
+  .partidos-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:520px){
+  .partidos-hero{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:9px;
+  }
+
+  .partidos-hero p{
+    grid-column:1/-1;
+    font-size:11px;
+  }
+
+  .partidos-source-state{
+    min-width:92px;
+  }
+
+  .partidos-toolbar{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .partidos-mode{
+    width:100%;
+    max-width:none;
+  }
+
+  .partidos-refresh{
+    width:100%;
+  }
+
+  .partido-card{
+    padding:12px;
+  }
+
+  .partido-score{
+    gap:7px;
+    padding:15px 0 10px;
+  }
+
+  .partido-score span{
+    font-size:12px;
+  }
+
+  .partido-score b{
+    font-size:25px;
+  }
+}
