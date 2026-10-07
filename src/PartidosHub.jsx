@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import { createPortal } from "react-dom";
 
 const API_PATH="/api/fmv-partidos";
 const NATIVE_API="https://www.voleysanmartin.com.ar/api/fmv-partidos";
@@ -49,6 +50,7 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
   const [branch,setBranch]=useState("all");
   const [category,setCategory]=useState("all");
   const [institution,setInstitution]=useState("all");
+  const [selectedId,setSelectedId]=useState("");
   const abortRef=useRef(null);
 
   const allowedKeys=useMemo(()=>{
@@ -118,6 +120,18 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
     matchInstitution(match,institution)
   ),[permitted,branch,category,institution]);
 
+  const selectedMatch=useMemo(()=>{
+    if(!selectedId)return null;
+    const all=[...(data?.live||[]),...(data?.results||[])];
+    return all.find(match=>match.id===selectedId)||null;
+  },[data,selectedId]);
+
+  function openMatch(match){setSelectedId(match.id)}
+  function closeMatch(){setSelectedId("")}
+  function cardKeyDown(event,match){
+    if(event.key==="Enter"||event.key===" "){event.preventDefault();openMatch(match)}
+  }
+
   return <section className={"partidos-page "+(compact?"compact":"")}>
     <div className="partidos-hero">
       <div><span className="eyebrow">Federación Mendocina De Voleibol</span><h1>Partidos</h1><p>Resultados y partidos marcados como en vivo por la fuente oficial. Sin consultas automáticas en segundo plano.</p></div>
@@ -143,7 +157,7 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
       visible.length?<div className="partidos-grid">{visible.map(match=>{
         const scores=scoreText(match);
         const hasPoints=Number.isFinite(match.pointA)&&Number.isFinite(match.pointB);
-        return <article className={"partido-card "+(mode==="live"?"live":"")} key={match.id}>
+        return <article className={"partido-card partido-card-clickable "+(mode==="live"?"live":"")} key={match.id} role="button" tabIndex={0} aria-label={"Ver detalle de "+match.local+" contra "+match.visitor} onClick={()=>openMatch(match)} onKeyDown={event=>cardKeyDown(event,match)}>
           <div className="partido-card-head"><div><span>{branchLabel(match.branch)}</span><b>{match.categoryLabel}</b></div><strong className={mode==="live"?"live-badge":"result-badge"}>{mode==="live"?"En Vivo":"Finalizado"}</strong></div>
           <div className="partido-score"><div><span>{match.local}</span><b>{scores[0]}</b></div><em>–</em><div><b>{scores[1]}</b><span>{match.visitor}</span></div></div>
           {mode==="live"&&hasPoints&&<div className="partido-live-points">{match.currentSet?("Set "+match.currentSet+" · "):""}{match.pointA} - {match.pointB}</div>}
@@ -152,5 +166,66 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
       })}</div>:<div className="partidos-empty">{mode==="live"?"No Hay Partidos Marcados Como En Vivo Para Estos Filtros.":"No Hay Resultados Disponibles Para Estos Filtros."}</div>
     }
     <p className="partidos-footnote">Los datos se consultan únicamente al abrir esta pestaña o al tocar “Actualizar”. No hay seguimiento ni consumo en segundo plano.</p>
+    {selectedMatch&&<MatchDetail match={selectedMatch} updatedAt={data?.fetchedAt} refreshing={refreshing} onRefresh={()=>void load({quiet:true})} onClose={closeMatch}/>}
   </section>;
+}
+
+function MatchDetail({match,updatedAt,refreshing,onRefresh,onClose}){
+  const live=match.kind==="live";
+  const scores=scoreText(match);
+  const setRows=Array.isArray(match.setScores)?match.setScores:[];
+  const hasLivePoints=live&&Number.isFinite(match.pointA)&&Number.isFinite(match.pointB);
+  return createPortal(<div className="partido-detail-backdrop" role="dialog" aria-modal="true" aria-label={"Detalle de "+match.local+" contra "+match.visitor}>
+    <section className="partido-detail-card">
+      <header className="partido-detail-head">
+        <div><span>{branchLabel(match.branch)} · {match.categoryLabel}</span><h2>{match.local} vs {match.visitor}</h2></div>
+        <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
+      </header>
+
+      <div className="partido-detail-body">
+        <div className="partido-detail-status-row">
+          <strong className={live?"live-badge":"result-badge"}>{live?"En Vivo":"Finalizado"}</strong>
+          <span>Última Consulta · {formatUpdated(updatedAt)}</span>
+        </div>
+
+        <div className="partido-detail-scoreboard">
+          <div className="partido-detail-team">
+            {match.logoA?<img src={match.logoA} alt="" loading="lazy"/>:<div className="partido-detail-logo-fallback">{String(match.local||"?").slice(0,2)}</div>}
+            <b>{match.local}</b>
+            <strong>{scores[0]}</strong>
+          </div>
+          <div className="partido-detail-separator">–</div>
+          <div className="partido-detail-team">
+            {match.logoB?<img src={match.logoB} alt="" loading="lazy"/>:<div className="partido-detail-logo-fallback">{String(match.visitor||"?").slice(0,2)}</div>}
+            <b>{match.visitor}</b>
+            <strong>{scores[1]}</strong>
+          </div>
+        </div>
+
+        {hasLivePoints&&<div className="partido-detail-live-score">
+          <span>{match.currentSet?"Set "+match.currentSet:"Set En Juego"}</span>
+          <b>{match.pointA} <em>–</em> {match.pointB}</b>
+          {match.service&&<small>Saque: {match.service==="A"?match.local:match.service==="B"?match.visitor:match.service}</small>}
+        </div>}
+
+        <div className="partido-detail-sets">
+          <div className="partido-detail-sets-head"><span>Set</span><span>{match.local}</span><span>{match.visitor}</span></div>
+          {setRows.length?setRows.map(item=><div className={"partido-detail-set-row "+(live&&item.set===match.currentSet?"current":"")} key={item.set}>
+            <b>{item.set}</b><span>{item.a}</span><span>{item.b}</span>
+          </div>):<div className="partido-detail-no-sets">La Fuente Todavía No Publicó El Tanteador Por Set.</div>}
+        </div>
+
+        <div className="partido-detail-meta">
+          {(match.date||match.time)&&<span>📅 {[match.date,match.time].filter(Boolean).join(" · ")}</span>}
+          {match.place&&<span>📍 {match.place}</span>}
+          {match.matchNumber&&<span>🏐 Partido {match.matchNumber}</span>}
+        </div>
+
+        <button type="button" className="partido-detail-refresh" disabled={refreshing} onClick={onRefresh}>
+          <span className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando Tanteador...":"Actualizar Tanteador"}
+        </button>
+        <p>El tanteador sólo cambia cuando tocás “Actualizar Tanteador”. No se consulta en segundo plano.</p>
+      </div>
+    </section>
+  </div>,document.body);
 }
