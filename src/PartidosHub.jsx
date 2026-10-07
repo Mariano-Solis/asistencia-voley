@@ -107,7 +107,7 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
 
   const institutions=useMemo(()=>{
     const source=permitted.filter(match=>(branch==="all"||match.branch===branch)&&(category==="all"||match.permissionKey===category));
-    return [...new Set(source.flatMap(match=>[match.local,match.visitor]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+    return [...new Set(source.flatMap(match=>[match.localInstitution,match.visitorInstitution]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
   },[permitted,branch,category]);
 
   useEffect(()=>{if(institution!=="all"&&!institutions.includes(institution))setInstitution("all")},[institution,institutions]);
