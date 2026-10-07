@@ -177,9 +177,36 @@ function generalPositionPoints(position) {
   return 13 - value;
 }
 
-function buildGeneralPositionRanking(tables, selectedKeys) {
+function buildRemainingFixtureCounts(fixtures, selectedKeys) {
+  const selected = new Set(selectedKeys);
+  const counts = new Map();
+  const seen = new Set();
+
+  for (const fixture of Array.isArray(fixtures) ? fixtures : []) {
+    if (!selected.has(fixture?.permissionKey)) continue;
+    const id = String(fixture?.id || "").trim();
+    if (id && seen.has(id)) continue;
+    if (id) seen.add(id);
+
+    const institutions = new Set([
+      generalInstitutionKey(fixture?.local),
+      generalInstitutionKey(fixture?.visitor),
+    ].filter(Boolean));
+
+    for (const institution of institutions) {
+      counts.set(institution, (counts.get(institution) || 0) + 1);
+    }
+  }
+
+  return counts;
+}
+
+function buildGeneralPositionRanking(tables, selectedKeys, fixtures = null) {
   const selected = tables.filter((table) => selectedKeys.includes(table.tableKey));
   const byInstitution = new Map();
+  const remainingCounts = Array.isArray(fixtures)
+    ? buildRemainingFixtureCounts(fixtures, selectedKeys)
+    : null;
 
   for (const table of selected) {
     const bestByInstitution = new Map();
@@ -192,6 +219,7 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
         position,
         logo: row.logo || "",
         originalTeam: String(row.id_equipo || "").trim(),
+        played: Number(row.jugados || 0),
         setsWon: Number(row.setGanados || 0),
         setsLost: Number(row.setPerdidos || 0),
         pointsWon: Number(row.tantosGanados || 0),
@@ -207,6 +235,7 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
         team: institution,
         logo: placement.logo || "",
         totalPoints: 0,
+        played: 0,
         setsWon: 0,
         setsLost: 0,
         pointsWon: 0,
@@ -216,6 +245,7 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
 
       const points = generalPositionPoints(placement.position);
       current.totalPoints += points;
+      current.played += placement.played;
       current.setsWon += placement.setsWon;
       current.setsLost += placement.setsLost;
       current.pointsWon += placement.pointsWon;
@@ -226,6 +256,7 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
         categoryLabel: table.categoryLabel,
         position: placement.position,
         points,
+        played: placement.played,
         setsWon: placement.setsWon,
         setsLost: placement.setsLost,
         pointsWon: placement.pointsWon,
@@ -238,6 +269,7 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
   return [...byInstitution.values()]
     .map((row) => ({
       ...row,
+      remaining: remainingCounts ? (remainingCounts.get(row.team) || 0) : null,
       setDifference: row.setsWon - row.setsLost,
       pointDifference: row.pointsWon - row.pointsLost,
     }))
@@ -248,6 +280,35 @@ function buildGeneralPositionRanking(tables, selectedKeys) {
       a.team.localeCompare(b.team, "es")
     )
     .map((row, index) => ({ ...row, computedRank: index + 1 }));
+}
+
+async function loadGeneralRemainingFixtures(signal) {
+  if (Capacitor.isNativePlatform()) {
+    const response = await CapacitorHttp.get({
+      url: "https://www.voleysanmartin.com.ar/api/fmv-programacion",
+      headers: { Accept: "application/json" },
+      connectTimeout: 15000,
+      readTimeout: 15000,
+    });
+    const payload = typeof response.data === "string"
+      ? JSON.parse(response.data || "{}")
+      : (response.data || {});
+    if (response.status < 200 || response.status >= 300 || payload?.error) {
+      throw new Error(payload?.message || "No Se Pudieron Consultar Los Partidos Faltantes.");
+    }
+    return Array.isArray(payload?.leagueFixtures) ? payload.leagueFixtures : [];
+  }
+
+  const response = await fetch("/api/fmv-programacion", {
+    signal,
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.message || "No Se Pudieron Consultar Los Partidos Faltantes.");
+  }
+  return Array.isArray(payload?.leagueFixtures) ? payload.leagueFixtures : [];
 }
 
 async function loadNativeTable(entry) {
@@ -339,6 +400,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const [staffMessage, setStaffMessage] = useState("");
   const [generalSelectedKeys, setGeneralSelectedKeys] = useState([]);
   const [generalTables, setGeneralTables] = useState([]);
+  const [generalFixtures, setGeneralFixtures] = useState(null);
   const [generalOpen, setGeneralOpen] = useState(false);
   const [generalLoading, setGeneralLoading] = useState(false);
   const [generalMessage, setGeneralMessage] = useState("");
@@ -362,6 +424,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     const keys = options.map((item) => item.key);
     setGeneralSelectedKeys(keys);
     setGeneralTables([]);
+    setGeneralFixtures(null);
     setGeneralOpen(false);
     setGeneralMessage("");
     generalAbortRef.current?.abort();
@@ -419,7 +482,16 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       const loaded = selectedEntries.map((entry) => cached.get(entry.key)).filter(Boolean);
       if (!loaded.length) throw new Error("No Se Pudieron Consultar Las Categorías Seleccionadas.");
 
+      let fixtures = null;
+      try {
+        fixtures = await loadGeneralRemainingFixtures(controller.signal);
+      } catch (fixtureError) {
+        if (fixtureError?.name === "AbortError") throw fixtureError;
+        setGeneralMessage((current) => current || "La Tabla Se Generó, Pero No Se Pudieron Consultar Los Partidos Faltantes. PF Se Mostrará Como —.");
+      }
+
       setGeneralTables(loaded);
+      setGeneralFixtures(fixtures);
       setGeneralLastUpdated(new Date().toISOString());
       setGeneralOpen(true);
     } catch (error) {
@@ -639,8 +711,8 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const aggregate = useMemo(() => buildAggregate(tables), [tables]);
   const teams = useMemo(() => aggregate.map((row) => row.team), [aggregate]);
   const generalRanking = useMemo(
-    () => buildGeneralPositionRanking(generalTables, generalSelectedKeys),
-    [generalTables, generalSelectedKeys.join("|")]
+    () => buildGeneralPositionRanking(generalTables, generalSelectedKeys, generalFixtures),
+    [generalTables, generalSelectedKeys.join("|"), generalFixtures]
   );
   const generalOptions = options.filter((item) => generalSelectedKeys.includes(item.key));
   const generalLoadedOptions = generalOptions.filter((item) => generalTables.some((table) => table.tableKey === item.key));
@@ -1060,6 +1132,8 @@ export default function StandingsHub({ compact = false, allowedCategories = null
             <th>#</th>
             <th>Institución</th>
             {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
+            <th>PJ</th>
+            <th>PF</th>
             <th>Total</th>
             <th>Dif. Sets</th>
             <th>Dif. Tantos</th>
@@ -1075,6 +1149,8 @@ export default function StandingsHub({ compact = false, allowedCategories = null
                   {detail ? <><b>{detail.points}</b><small>{detail.position}.º</small></> : <><b>0</b><small>—</small></>}
                 </td>;
               })}
+              <td className="general-position-count"><b>{row.played}</b></td>
+              <td className="general-position-count"><b>{row.remaining === null ? "—" : row.remaining}</b></td>
               <td className="general-position-total"><b>{row.totalPoints}</b></td>
               <td className="general-position-tiebreak"><b>{row.setDifference > 0 ? `+${row.setDifference}` : row.setDifference}</b><small>{row.setsWon}-{row.setsLost}</small></td>
               <td className="general-position-tiebreak"><b>{row.pointDifference > 0 ? `+${row.pointDifference}` : row.pointDifference}</b><small>{row.pointsWon}-{row.pointsLost}</small></td>
@@ -1085,7 +1161,8 @@ export default function StandingsHub({ compact = false, allowedCategories = null
 
       <div className="standings-foot general-positions-foot">
         <span><b>Criterio:</b> 1.º suma 12 puntos; 2.º, 11; 3.º, 10; …; 12.º, 1. Si una institución no figura en una categoría, suma 0 en esa categoría.</span>
-        <span><b>No intervienen</b> partidos jugados, victorias, derrotas, sets ni puntos oficiales del torneo.</span>
+        <span><b>PJ</b>: suma de partidos jugados en las categorías seleccionadas. <b>PF</b>: partidos con estado pendiente/upcoming que todavía le quedan a la institución en esas mismas categorías. Son informativos y no modifican el puntaje del ranking.</span>
+        <span><b>No intervienen en el puntaje</b> partidos jugados, partidos faltantes, victorias, derrotas, sets ni puntos oficiales del torneo.</span>
         <small>Desempate: 1.º mayor diferencia de sets (sets ganados − sets perdidos); 2.º mayor diferencia de tantos (tantos a favor − tantos en contra). Si ambas diferencias también son iguales, se ordena alfabéticamente sólo como último criterio técnico.</small>
       </div>
     </section>
