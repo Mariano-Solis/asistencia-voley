@@ -401,3 +401,327 @@
     font-size:25px;
   }
 }
+
+
+/* =========================================================
+   PARTIDOS · DETALLE DE TANTEADOR MANUAL
+========================================================= */
+.partido-card-clickable{
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+}
+
+.partido-card-clickable:hover,
+.partido-card-clickable:focus-visible{
+  transform:translateY(-1px);
+  border-color:#ddb9bd;
+  box-shadow:0 10px 26px rgba(181,18,27,.10);
+  outline:none;
+}
+
+.partido-detail-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:1500;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:12px;
+  background:rgba(20,22,27,.66);
+  backdrop-filter:blur(3px);
+}
+
+.partido-detail-card{
+  width:min(560px,100%);
+  max-height:calc(100dvh - 24px);
+  overflow:auto;
+  border:1px solid #ead4d7;
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 28px 80px rgba(0,0,0,.30);
+}
+
+.partido-detail-head{
+  position:sticky;
+  top:0;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 15px;
+  border-bottom:1px solid #f0e1e3;
+  background:linear-gradient(135deg,#8f0d14 0%,#b5121b 58%,#cd202b 100%);
+  color:#fff;
+}
+
+.partido-detail-head>div{
+  min-width:0;
+}
+
+.partido-detail-head span{
+  display:block;
+  margin-bottom:3px;
+  color:rgba(255,255,255,.76);
+  font-size:9px;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.partido-detail-head h2{
+  margin:0;
+  overflow:hidden;
+  color:#fff;
+  font-size:18px;
+  line-height:1.15;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.partido-detail-head button{
+  width:36px;
+  min-width:36px;
+  height:36px;
+  padding:0;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:11px;
+  background:rgba(255,255,255,.12);
+  color:#fff;
+  font-size:21px;
+}
+
+.partido-detail-body{
+  display:grid;
+  gap:12px;
+  padding:13px;
+}
+
+.partido-detail-status-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.partido-detail-status-row>span{
+  color:#7c828b;
+  font-size:10px;
+  font-weight:750;
+}
+
+.partido-detail-scoreboard{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+  gap:10px;
+  padding:14px 10px;
+  border:1px solid #eceef0;
+  border-radius:16px;
+  background:#fafafa;
+}
+
+.partido-detail-team{
+  min-width:0;
+  display:grid;
+  justify-items:center;
+  gap:6px;
+  text-align:center;
+}
+
+.partido-detail-team img,
+.partido-detail-logo-fallback{
+  width:54px;
+  height:54px;
+  object-fit:contain;
+  border-radius:50%;
+  background:#fff;
+}
+
+.partido-detail-logo-fallback{
+  display:grid;
+  place-items:center;
+  border:1px solid #e4e6e9;
+  color:#555b64;
+  font-size:13px;
+  font-weight:900;
+}
+
+.partido-detail-team b{
+  max-width:100%;
+  overflow:hidden;
+  color:#30343a;
+  font-size:13px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.partido-detail-team strong{
+  color:#111317;
+  font-size:34px;
+  line-height:1;
+}
+
+.partido-detail-separator{
+  color:#9ca1a8;
+  font-size:22px;
+  font-weight:850;
+}
+
+.partido-detail-live-score{
+  display:grid;
+  justify-items:center;
+  gap:4px;
+  padding:12px;
+  border:1px solid #ecc8cb;
+  border-radius:14px;
+  background:#fff6f7;
+  color:#a81019;
+}
+
+.partido-detail-live-score span{
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.partido-detail-live-score b{
+  font-size:30px;
+  line-height:1;
+}
+
+.partido-detail-live-score em{
+  color:#a9aeb4;
+  font-style:normal;
+}
+
+.partido-detail-live-score small{
+  color:#737981;
+  font-size:10px;
+  font-weight:750;
+}
+
+.partido-detail-sets{
+  overflow:hidden;
+  border:1px solid #e7e9ec;
+  border-radius:13px;
+}
+
+.partido-detail-sets-head,
+.partido-detail-set-row{
+  display:grid;
+  grid-template-columns:56px 1fr 1fr;
+  align-items:center;
+  text-align:center;
+}
+
+.partido-detail-sets-head{
+  padding:8px 10px;
+  background:#f3f4f6;
+  color:#727881;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.partido-detail-set-row{
+  min-height:38px;
+  padding:6px 10px;
+  border-top:1px solid #eef0f2;
+  color:#34383e;
+}
+
+.partido-detail-set-row.current{
+  background:#fff5f6;
+  color:#a81019;
+}
+
+.partido-detail-set-row b{
+  font-size:10px;
+}
+
+.partido-detail-set-row span{
+  font-size:16px;
+  font-weight:900;
+}
+
+.partido-detail-no-sets{
+  padding:14px;
+  color:#7c828b;
+  font-size:11px;
+  text-align:center;
+}
+
+.partido-detail-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  color:#737981;
+  font-size:10px;
+  font-weight:700;
+}
+
+.partido-detail-refresh{
+  min-height:44px;
+  margin:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border-radius:12px;
+  background:#b5121b;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+}
+
+.partido-detail-body>p{
+  margin:0;
+  color:#858b93;
+  font-size:9.5px;
+  line-height:1.4;
+  text-align:center;
+}
+
+@media(max-width:520px){
+  .partido-detail-backdrop{
+    padding:8px;
+  }
+
+  .partido-detail-card{
+    max-height:calc(100dvh - 16px);
+    border-radius:17px;
+  }
+
+  .partido-detail-head{
+    padding:12px;
+  }
+
+  .partido-detail-head h2{
+    font-size:17px;
+  }
+
+  .partido-detail-body{
+    gap:10px;
+    padding:10px;
+  }
+
+  .partido-detail-scoreboard{
+    padding:12px 7px;
+  }
+
+  .partido-detail-team img,
+  .partido-detail-logo-fallback{
+    width:48px;
+    height:48px;
+  }
+
+  .partido-detail-team strong{
+    font-size:30px;
+  }
+
+  .partido-detail-live-score b{
+    font-size:28px;
+  }
+}
