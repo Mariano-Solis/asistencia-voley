@@ -640,3 +640,52 @@
     min-width:64px;
   }
 }
+
+
+/* =========================================================
+   POSICIONES GENERALES · PUNTOS FIJO JUNTO A TOTAL
+   Mantiene #, Institución, Total y Puntos visibles al desplazar.
+========================================================= */
+.general-positions-table th:nth-child(4),
+.general-positions-table td:nth-child(4){
+  position:sticky;
+  left:290px;
+  z-index:3;
+  width:72px;
+  min-width:72px;
+  max-width:72px;
+  background:#fbfbfc;
+  box-shadow:8px 0 12px -12px rgba(20,24,30,.55);
+}
+
+.general-positions-table thead th:nth-child(4){
+  z-index:6;
+  background:#f8fafc;
+}
+
+.general-positions-table th:nth-child(3),
+.general-positions-table td:nth-child(3){
+  box-shadow:none;
+}
+
+.general-positions-table tr.is-msm td:nth-child(4){
+  background:#fff7f8;
+}
+
+.general-positions-table tbody tr:hover td:nth-child(4){
+  background:#fbfbfc;
+}
+
+.general-positions-table tbody tr.is-msm:hover td:nth-child(4){
+  background:#fff7f8;
+}
+
+@media(max-width:620px){
+  .general-positions-table th:nth-child(4),
+  .general-positions-table td:nth-child(4){
+    left:252px!important;
+    width:64px!important;
+    min-width:64px!important;
+    max-width:64px!important;
+  }
+}
