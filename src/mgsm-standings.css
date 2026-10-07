@@ -616,3 +616,27 @@
     padding-right:5px;
   }
 }
+
+
+/* =========================================================
+   POSICIONES GENERALES · PUNTOS OFICIALES ACUMULADOS
+========================================================= */
+.general-position-official-points{
+  min-width:72px;
+  background:#fbfbfc;
+}
+
+.general-position-official-points b{
+  color:#30343a;
+  font-size:16px;
+}
+
+.general-positions-table tr.is-msm .general-position-official-points{
+  background:#fff7f8;
+}
+
+@media(max-width:620px){
+  .general-position-official-points{
+    min-width:64px;
+  }
+}
