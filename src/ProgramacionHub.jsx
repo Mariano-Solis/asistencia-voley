@@ -307,10 +307,11 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   }, [fixtureAllCategories, fixtureCategoryKeys]);
 
   useEffect(() => {
+    if (!leagueFixtures.length) return;
     if (fixtureInstitution !== "all" && !fixtureInstitutions.includes(fixtureInstitution)) {
       setFixtureInstitution(fixtureInstitutions.includes("MSM") ? "MSM" : (fixtureInstitutions[0] || "all"));
     }
-  }, [fixtureBranch, fixtureCategoryKeys, fixtureInstitutions, fixtureInstitution]);
+  }, [leagueFixtures.length, fixtureBranch, fixtureCategoryKeys, fixtureInstitutions, fixtureInstitution]);
 
   useEffect(() => {
     if (fixtureOpponent !== "all" && !fixtureOpponents.includes(fixtureOpponent)) {
