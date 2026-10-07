@@ -10,7 +10,6 @@ const COMPETITIONS=[
   {permissionKey:"female:level1:sub16",categoryLabel:"Sub 16 Femenino",branch:"female",tournamentId:899,stageId:3642},
   {permissionKey:"female:level1:sub18",categoryLabel:"Sub 18 Femenino",branch:"female",tournamentId:900,stageId:3643},
   {permissionKey:"female:level1:mayores",categoryLabel:"Primera Femenino",branch:"female",tournamentId:901,stageId:3644},
-  {permissionKey:"female:level3:sub14a",categoryLabel:"Sub 14 Femenino · Nivel 3 · Zona A",branch:"female",tournamentId:913,stageId:3691},
   {permissionKey:"female:level3:sub14b",categoryLabel:"Sub 14 Femenino · Nivel 3 · Zona B",branch:"female",tournamentId:913,stageId:3692},
   {permissionKey:"female:level3:sub12",categoryLabel:"Sub 12 Femenino · Nivel 3",branch:"female",tournamentId:915,stageId:3694},
   {permissionKey:"female:master:master_a",categoryLabel:"Master A",branch:"female",tournamentId:886,stageId:3626},
@@ -26,6 +25,7 @@ function send(res,status,body){
 
 function text(value){return String(value??"").trim()}
 function norm(value){return text(value).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\s+/g," ").trim()}
+function institution(value){return text(value).replace(/\s+[A-C]$/i,"").trim()}
 function number(value){
   if(value===null||value===undefined||value==="")return null;
   const n=Number(value);
@@ -73,7 +73,7 @@ function scheduledAt(row){
   const raw=text(row?.fecha);
   if(!raw)return null;
   const d=new Date(raw);
-  return Number.isNaN(d.getTime())?null:d.toISOString();
+  return Number.isNaN(d.getTime())||d.getUTCFullYear()<2020?null:d.toISOString();
 }
 function displayDate(value){
   if(!value)return"";
@@ -113,7 +113,9 @@ async function loadCompetition(config){
       stageId:config.stageId,
       local,
       visitor,
-      institutionKeys:[norm(local),norm(visitor)],
+      localInstitution:institution(local),
+      visitorInstitution:institution(visitor),
+      institutionKeys:[norm(institution(local)),norm(institution(visitor))],
       status:rawStatus||"",
       kind,
       scoreA,
