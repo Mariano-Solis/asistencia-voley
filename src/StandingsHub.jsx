@@ -167,6 +167,69 @@ function buildAggregate(tables) {
   ).map((row, index) => ({ ...row, computedRank: index + 1 }));
 }
 
+function generalInstitutionKey(value) {
+  return String(value || "").trim().replace(/\s+[A-C]$/i, "").trim();
+}
+
+function generalPositionPoints(position) {
+  const value = Number(position);
+  if (!Number.isInteger(value) || value < 1 || value > 12) return 0;
+  return 13 - value;
+}
+
+function buildGeneralPositionRanking(tables, selectedKeys) {
+  const selected = tables.filter((table) => selectedKeys.includes(table.tableKey));
+  const byInstitution = new Map();
+
+  for (const table of selected) {
+    const bestByInstitution = new Map();
+    for (const row of table.positions || []) {
+      const institution = generalInstitutionKey(row.id_equipo);
+      const position = Number(row.posicion);
+      if (!institution || !Number.isFinite(position) || position < 1) continue;
+      const existing = bestByInstitution.get(institution);
+      if (!existing || position < existing.position) {
+        bestByInstitution.set(institution, {
+          position,
+          logo: row.logo || "",
+          originalTeam: String(row.id_equipo || "").trim(),
+        });
+      }
+    }
+
+    for (const [institution, placement] of bestByInstitution.entries()) {
+      const current = byInstitution.get(institution) || {
+        team: institution,
+        logo: placement.logo || "",
+        totalPoints: 0,
+        details: [],
+        finishCounts: Array(13).fill(0),
+      };
+      const points = generalPositionPoints(placement.position);
+      current.totalPoints += points;
+      current.logo = current.logo || placement.logo || "";
+      current.details.push({
+        tableKey: table.tableKey,
+        categoryLabel: table.categoryLabel,
+        position: placement.position,
+        points,
+      });
+      if (placement.position >= 1 && placement.position <= 12) current.finishCounts[placement.position] += 1;
+      byInstitution.set(institution, current);
+    }
+  }
+
+  return [...byInstitution.values()]
+    .sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      for (let position = 1; position <= 12; position += 1) {
+        if (b.finishCounts[position] !== a.finishCounts[position]) return b.finishCounts[position] - a.finishCounts[position];
+      }
+      return a.team.localeCompare(b.team, "es");
+    })
+    .map((row, index) => ({ ...row, computedRank: index + 1 }));
+}
+
 async function loadNativeTable(entry) {
   const response = await CapacitorHttp.get({
     url: "https://api.courtrack.com/api/torneo/getPosiciones",
@@ -254,7 +317,14 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const [staffTables, setStaffTables] = useState([]);
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffMessage, setStaffMessage] = useState("");
+  const [generalSelectedKeys, setGeneralSelectedKeys] = useState([]);
+  const [generalTables, setGeneralTables] = useState([]);
+  const [generalOpen, setGeneralOpen] = useState(false);
+  const [generalLoading, setGeneralLoading] = useState(false);
+  const [generalMessage, setGeneralMessage] = useState("");
+  const [generalLastUpdated, setGeneralLastUpdated] = useState(null);
   const abortRef = useRef(null);
+  const generalAbortRef = useRef(null);
 
   const availableBranches = useMemo(
     () => ["female", "male"].filter((value) =>
@@ -267,6 +337,80 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     () => availableEntries.filter((item) => item.competition === competition && item.branch === branch),
     [competition, branch, accessSignature]
   );
+
+  useEffect(() => {
+    const keys = options.map((item) => item.key);
+    setGeneralSelectedKeys(keys);
+    setGeneralTables([]);
+    setGeneralOpen(false);
+    setGeneralMessage("");
+    generalAbortRef.current?.abort();
+  }, [competition, branch, options.map((item) => item.key).join("|")]);
+
+  function toggleGeneralCategory(key) {
+    setGeneralSelectedKeys((current) => {
+      const next = current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key].sort((a, b) => options.findIndex((item) => item.key === a) - options.findIndex((item) => item.key === b));
+      return next;
+    });
+    setGeneralOpen(false);
+    setGeneralMessage("");
+  }
+
+  function selectAllGeneralCategories() {
+    setGeneralSelectedKeys(options.map((item) => item.key));
+    setGeneralOpen(false);
+    setGeneralMessage("");
+  }
+
+  async function loadGeneralPositions() {
+    if (!generalSelectedKeys.length) {
+      setGeneralMessage("Seleccioná Al Menos Una Categoría Para Generar La Tabla.");
+      setGeneralOpen(false);
+      return;
+    }
+
+    generalAbortRef.current?.abort();
+    const controller = new AbortController();
+    generalAbortRef.current = controller;
+    setGeneralLoading(true);
+    setGeneralMessage("");
+
+    try {
+      const selectedEntries = options.filter((item) => generalSelectedKeys.includes(item.key));
+      const cached = new Map(tables.map((table) => [table.tableKey, table]));
+      const missingEntries = selectedEntries.filter((entry) => !cached.has(entry.key));
+
+      if (missingEntries.length) {
+        const loader = Capacitor.isNativePlatform()
+          ? (entry) => loadNativeTable(entry)
+          : (entry) => loadWebTable(entry, controller.signal);
+        const results = await Promise.allSettled(missingEntries.map(loader));
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") cached.set(missingEntries[index].key, result.value);
+        });
+        const failed = results.filter((result) => result.status === "rejected");
+        if (failed.length) {
+          setGeneralMessage(`Se Cargaron ${selectedEntries.length - failed.length} De ${selectedEntries.length} Categorías. Podés Reintentar Para Completar Las Restantes.`);
+        }
+      }
+
+      const loaded = selectedEntries.map((entry) => cached.get(entry.key)).filter(Boolean);
+      if (!loaded.length) throw new Error("No Se Pudieron Consultar Las Categorías Seleccionadas.");
+
+      setGeneralTables(loaded);
+      setGeneralLastUpdated(new Date().toISOString());
+      setGeneralOpen(true);
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        setGeneralMessage(error?.message || "No Se Pudo Generar La Tabla De Posiciones Generales.");
+        setGeneralOpen(false);
+      }
+    } finally {
+      if (!controller.signal.aborted) setGeneralLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!availableCompetitions.length) {
@@ -474,6 +618,12 @@ export default function StandingsHub({ compact = false, allowedCategories = null
 
   const aggregate = useMemo(() => buildAggregate(tables), [tables]);
   const teams = useMemo(() => aggregate.map((row) => row.team), [aggregate]);
+  const generalRanking = useMemo(
+    () => buildGeneralPositionRanking(generalTables, generalSelectedKeys),
+    [generalTables, generalSelectedKeys.join("|")]
+  );
+  const generalOptions = options.filter((item) => generalSelectedKeys.includes(item.key));
+  const generalLoadedOptions = generalOptions.filter((item) => generalTables.some((table) => table.tableKey === item.key));
 
   useEffect(() => {
     if (selectedTeam !== "__ALL__" && !teams.includes(selectedTeam)) {
@@ -847,5 +997,73 @@ export default function StandingsHub({ compact = false, allowedCategories = null
         </div>
       </div>)}
     </div>
+
+    <section className="standings-card card general-positions-card">
+      <div className="standings-card-head general-positions-head">
+        <div>
+          <span className="eyebrow">Ranking Institucional Por Posición</span>
+          <h2>Posiciones Generales</h2>
+          <p>1.º = 12 Puntos · 2.º = 11 · … · 12.º = 1. Se Suman Sólo Los Puntos Por Posición De Las Categorías Que Elijas.</p>
+        </div>
+        {generalLastUpdated && <small>Última Generación {formatTime(generalLastUpdated)}</small>}
+      </div>
+
+      <div className="general-positions-controls">
+        <div>
+          <span>Categorías Del Ranking</span>
+          <div className="general-positions-chips">
+            <button
+              type="button"
+              className={generalSelectedKeys.length === options.length && options.length ? "active" : ""}
+              onClick={selectAllGeneralCategories}
+            >Todas</button>
+            {options.map((item) => <button
+              type="button"
+              key={item.key}
+              className={generalSelectedKeys.includes(item.key) ? "active" : ""}
+              onClick={() => toggleGeneralCategory(item.key)}
+            >{item.label}</button>)}
+          </div>
+        </div>
+
+        <button type="button" className="general-positions-generate" onClick={() => void loadGeneralPositions()} disabled={generalLoading || !generalSelectedKeys.length}>
+          <span className={generalLoading ? "spinning" : ""}>↻</span>
+          {generalLoading ? "Generando..." : generalOpen ? "Recalcular Posiciones Generales" : "Generar Posiciones Generales"}
+        </button>
+      </div>
+
+      {generalMessage && <div className="message standings-message">{generalMessage}</div>}
+
+      {generalOpen && generalRanking.length ? <div className="standings-table-wrap general-positions-table-wrap">
+        <table className="standings-table general-positions-table">
+          <thead><tr>
+            <th>#</th>
+            <th>Institución</th>
+            {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
+            <th>Total</th>
+          </tr></thead>
+          <tbody>{generalRanking.map((row) => {
+            const detailByKey = new Map(row.details.map((detail) => [detail.tableKey, detail]));
+            return <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
+              <td><span className="standings-position">{row.computedRank}</span></td>
+              <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
+              {generalLoadedOptions.map((item) => {
+                const detail = detailByKey.get(item.key);
+                return <td key={item.key} className="general-position-score">
+                  {detail ? <><b>{detail.points}</b><small>{detail.position}.º</small></> : <><b>0</b><small>—</small></>}
+                </td>;
+              })}
+              <td className="general-position-total"><b>{row.totalPoints}</b></td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div> : generalOpen ? <div className="standings-loading">No Hay Datos Para Las Categorías Seleccionadas.</div> : null}
+
+      <div className="standings-foot general-positions-foot">
+        <span><b>Criterio:</b> 1.º suma 12 puntos; 2.º, 11; 3.º, 10; …; 12.º, 1. Si una institución no figura en una categoría, suma 0 en esa categoría.</span>
+        <span><b>No intervienen</b> partidos jugados, victorias, derrotas, sets ni puntos oficiales del torneo.</span>
+        <small>En caso de empate en el total, se prioriza la institución con más 1.º puestos, luego más 2.º puestos y así sucesivamente.</small>
+      </div>
+    </section>
   </section>;
 }

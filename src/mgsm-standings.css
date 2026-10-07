@@ -93,3 +93,191 @@
   .staff-comparison-card .standings-card-head{min-width:0}
   .staff-comparison-table-wrap{position:relative}
 }
+
+
+/* =========================================================
+   POSICIONES GENERALES · RANKING POR POSICIÓN
+========================================================= */
+.general-positions-card{
+  margin-top:16px;
+  overflow:hidden;
+}
+
+.general-positions-head{
+  align-items:flex-start;
+  gap:14px;
+}
+
+.general-positions-head>div{
+  min-width:0;
+}
+
+.general-positions-head .eyebrow{
+  display:block;
+  margin-bottom:4px;
+  color:#b5121b;
+}
+
+.general-positions-head>small{
+  flex:0 0 auto;
+  padding:7px 9px;
+  border-radius:10px;
+  background:#f4f5f7;
+  color:#747a83;
+  font-size:9px;
+  font-weight:800;
+}
+
+.general-positions-controls{
+  display:grid;
+  gap:10px;
+  padding:12px 14px 14px;
+  border-top:1px solid #eceef1;
+  border-bottom:1px solid #eceef1;
+  background:#fafafa;
+}
+
+.general-positions-controls>div>span{
+  display:block;
+  margin-bottom:7px;
+  color:#727881;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.general-positions-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+
+.general-positions-chips button{
+  min-height:34px;
+  margin:0;
+  padding:7px 10px;
+  border:1px solid #e0e3e7;
+  border-radius:999px;
+  background:#fff;
+  color:#505761;
+  font-size:10px;
+  font-weight:850;
+}
+
+.general-positions-chips button.active{
+  border-color:#d98289;
+  background:#fff4f5;
+  color:#b5121b;
+  box-shadow:0 0 0 2px rgba(181,18,27,.05);
+}
+
+.general-positions-generate{
+  width:100%;
+  min-height:42px;
+  margin:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border-radius:11px;
+  background:#b5121b;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+
+.general-positions-table-wrap{
+  margin-top:0;
+}
+
+.general-positions-table{
+  min-width:max-content;
+}
+
+.general-positions-table th,
+.general-positions-table td{
+  text-align:center;
+}
+
+.general-positions-table th:nth-child(2),
+.general-positions-table td:nth-child(2){
+  text-align:left;
+}
+
+.general-position-score{
+  min-width:72px;
+}
+
+.general-position-score b,
+.general-position-score small{
+  display:block;
+}
+
+.general-position-score b{
+  color:#23272d;
+  font-size:15px;
+}
+
+.general-position-score small{
+  margin-top:2px;
+  color:#8a9098;
+  font-size:9px;
+  font-weight:800;
+}
+
+.general-position-total{
+  min-width:76px;
+  background:#fff8f8;
+}
+
+.general-position-total b{
+  color:#b5121b;
+  font-size:18px;
+}
+
+.general-positions-table tr.is-msm .general-position-total{
+  background:#ffeef0;
+}
+
+.general-positions-foot{
+  display:grid;
+  gap:4px;
+}
+
+@media(max-width:620px){
+  .general-positions-card{
+    margin-top:12px;
+  }
+
+  .general-positions-head{
+    display:grid;
+    gap:7px;
+  }
+
+  .general-positions-head>small{
+    justify-self:start;
+  }
+
+  .general-positions-controls{
+    padding:10px 11px 12px;
+  }
+
+  .general-positions-chips{
+    gap:6px;
+  }
+
+  .general-positions-chips button{
+    min-height:32px;
+    padding:6px 9px;
+    font-size:9.5px;
+  }
+
+  .general-positions-generate{
+    min-height:40px;
+  }
+
+  .general-position-score{
+    min-width:62px;
+  }
+}
