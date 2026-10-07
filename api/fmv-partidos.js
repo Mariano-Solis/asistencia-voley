@@ -61,13 +61,20 @@ function scorePair(row){
   const match=combined.match(/(\d+)\s*[-:]\s*(\d+)/);
   return match?[Number(match[1]),Number(match[2])]:[null,null];
 }
-function livePoints(row){
-  const left=firstNumber(row,["puntos_actual_a","puntos_set_a","puntosA","puntos_local_actual","score_current_a","point_a"]);
-  const right=firstNumber(row,["puntos_actual_b","puntos_set_b","puntosB","puntos_visitante_actual","score_current_b","point_b"]);
-  return left!==null&&right!==null?[left,right]:[null,null];
+function setScores(row){
+  return [1,2,3,4,5].map(set=>({
+    set,
+    a:firstNumber(row,["set"+set+"_a","set_"+set+"_a"]),
+    b:firstNumber(row,["set"+set+"_b","set_"+set+"_b"]),
+  })).filter(item=>item.a!==null&&item.b!==null&&(item.a>0||item.b>0));
 }
-function currentSet(row){
-  return firstNumber(row,["set_actual","setActual","current_set","set","numero_set"]);
+function liveState(row,scoreA,scoreB){
+  const explicitSet=firstNumber(row,["set_actual","setActual","current_set","set","numero_set"]);
+  const inferredSet=Math.max(1,Math.min(5,(Number(scoreA)||0)+(Number(scoreB)||0)+1));
+  const set=explicitSet||inferredSet;
+  const a=firstNumber(row,["puntos_actual_a","puntos_set_a","puntosA","puntos_local_actual","score_current_a","point_a","set"+set+"_a"]);
+  const b=firstNumber(row,["puntos_actual_b","puntos_set_b","puntosB","puntos_visitante_actual","score_current_b","point_b","set"+set+"_b"]);
+  return{set,a,b};
 }
 function scheduledAt(row){
   const raw=text(row?.fecha);
@@ -98,8 +105,8 @@ async function loadCompetition(config){
     const rawStatus=firstText(row,["status","estado","partido_status","estado_partido"]);
     const kind=statusKind(rawStatus);
     const [scoreA,scoreB]=scorePair(row);
-    const [pointA,pointB]=livePoints(row);
-    const set=currentSet(row);
+    const live=liveState(row,scoreA,scoreB);
+    const sets=setScores(row);
     const local=firstText(row,["id_equipo_a","equipo_a","local","team_a"]);
     const visitor=firstText(row,["id_equipo_b","equipo_b","visitante","team_b"]);
     if(!local||!visitor)return null;
@@ -120,14 +127,20 @@ async function loadCompetition(config){
       kind,
       scoreA,
       scoreB,
-      pointA,
-      pointB,
-      currentSet:set,
+      pointA:kind==="live"?live.a:null,
+      pointB:kind==="live"?live.b:null,
+      currentSet:kind==="live"?live.set:null,
+      setScores:sets,
+      logoA:firstText(row,["logo_a","logoA"]),
+      logoB:firstText(row,["logo_b","logoB"]),
+      service:kind==="live"?firstText(row,["servicio_actual","servicioActual"]):"",
+      matchNumber:firstText(row,["numero","nro_partido","partido"]),
+      tournament:firstText(row,["torneo","tournament"]),
+      stage:firstText(row,["etapa_formatted","etapa","stage"]),
       date:displayDate(when),
       time:displayTime(row?.horario),
       scheduledAt:when,
       place:firstText(row,["id_cancha","cancha","lugar"]),
-      __debug: kind==="live"?row:undefined,
     };
   }).filter(Boolean);
 }
