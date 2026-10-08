@@ -1557,44 +1557,38 @@ function Categories({profile,categories,refresh}) {
   </section>;
 }
 function Permissions({profile,categories}) {
-  const [subjects,setSubjects]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({}),[capabilityMsg,setCapabilityMsg]=useState(""),[capabilityBusy,setCapabilityBusy]=useState(false);
+  const PLAYER_GROUP_ID="__all_players__";
+  const [subjects,setSubjects]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({}),[playerGeneralEnabled,setPlayerGeneralEnabled]=useState(false),[capabilityMsg,setCapabilityMsg]=useState(""),[capabilityBusy,setCapabilityBusy]=useState(false);
 
   useEffect(()=>{async function load(){
-    const [profilesResult,playersResult,permissionsResult]=await Promise.all([
+    const [profilesResult,permissionsResult,uiResult]=await Promise.all([
       supabase.from("profiles")
         .select("id,full_name,role,active,approval_status,can_view_standings_comparison,can_view_general_standings")
-        .in("role",["admin","player"])
+        .eq("role","admin")
         .eq("active",true)
         .eq("approval_status","approved")
-        .order("full_name"),
-      supabase.from("players")
-        .select("id,user_id,full_name,category_name,category_id")
-        .eq("active",true)
-        .eq("approval_status","approved")
-        .not("user_id","is",null)
         .order("full_name"),
       supabase.from("admin_category_permissions").select("*"),
+      supabase.from("app_ui_settings")
+        .select("player_can_view_general_standings")
+        .eq("id","global")
+        .maybeSingle(),
     ]);
 
-    const playerByUserId=new Map((playersResult.data||[]).map(item=>[item.user_id,item]));
-    const profs=(profilesResult.data||[]).filter(item=>item.role==="admin").map(item=>({...item,subject_type:"admin"}));
-    const players=(profilesResult.data||[]).filter(item=>item.role==="player").map(item=>{
-      const player=playerByUserId.get(item.id);
-      return {...item,subject_type:"player",full_name:player?.full_name||item.full_name||"Jugador@",category_name:player?.category_name||""};
-    });
-
+    const profs=(profilesResult.data||[]).map(item=>({...item,subject_type:"admin"}));
     const self={id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,role:"super_admin",subject_type:"admin",preview_self:true,can_view_standings_comparison:true,can_view_general_standings:true};
-    setSubjects([self,...profs,...players]);
+    setSubjects([self,...profs]);
+    setPlayerGeneralEnabled(uiResult.data?.player_can_view_general_standings===true);
     setPerms(Object.fromEntries((permissionsResult.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])));
   }void load();},[profile.id,profile.full_name]);
 
   if(profile.role!=="super_admin")return null;
 
+  const selectedIsPlayers=selected===PLAYER_GROUP_ID;
   const selectedSubject=subjects.find(item=>item.id===selected)||null;
-  const selectedIsPlayer=selectedSubject?.subject_type==="player";
 
   async function setP(c,field,value){
-    if(!selected||selectedIsPlayer)return;
+    if(!selected||selectedIsPlayers)return;
     const key=`${selected}:${c.id}`,cur=perms[key]||{can_view:false,can_edit:false,can_attendance:false},next={...cur,[field]:value};
     if(next.can_edit)next.can_view=true;
     const r=!next.can_view&&!next.can_edit&&!next.can_attendance
@@ -1603,7 +1597,7 @@ function Permissions({profile,categories}) {
     if(!r.error)setPerms(p=>({...p,[key]:next}));
   }
 
-  async function setCapability(field,value,label){
+  async function setProfessorCapability(field,value,label){
     if(!selectedSubject||selectedSubject.preview_self)return;
     setCapabilityBusy(true);
     setCapabilityMsg("");
@@ -1611,11 +1605,12 @@ function Permissions({profile,categories}) {
       const r=await supabase.from("profiles")
         .update({[field]:value})
         .eq("id",selectedSubject.id)
+        .eq("role","admin")
         .select(`id,${field}`)
         .single();
       if(r.error)throw r.error;
       setSubjects(current=>current.map(item=>item.id===selectedSubject.id?{...item,[field]:r.data[field]}:item));
-      setCapabilityMsg(value?`✓ ${label} Habilitado Para ${selectedIsPlayer?"Este Jugador@":"Este Profe"}.`:`✓ ${label} Deshabilitado Para ${selectedIsPlayer?"Este Jugador@":"Este Profe"}.`);
+      setCapabilityMsg(value?`✓ ${label} Habilitado Para Este Profe.`:`✓ ${label} Deshabilitado Para Este Profe.`);
     }catch(e){
       setCapabilityMsg(errorText(e));
     }finally{
@@ -1623,13 +1618,46 @@ function Permissions({profile,categories}) {
     }
   }
 
-  const professors=subjects.filter(item=>item.subject_type==="admin");
-  const players=subjects.filter(item=>item.subject_type==="player");
+  async function setPlayersGeneralPermission(value){
+    setCapabilityBusy(true);
+    setCapabilityMsg("");
+    try{
+      const r=await supabase.from("app_ui_settings")
+        .update({player_can_view_general_standings:value,updated_by:profile.id,updated_at:new Date().toISOString()})
+        .eq("id","global")
+        .select("player_can_view_general_standings")
+        .single();
+      if(r.error)throw r.error;
+      setPlayerGeneralEnabled(r.data.player_can_view_general_standings===true);
+      setCapabilityMsg(value?"✓ Posiciones Generales Habilitado Para Todos Los Jugador@s.":"✓ Posiciones Generales Deshabilitado Para Todos Los Jugador@s.");
+    }catch(e){
+      setCapabilityMsg(errorText(e));
+    }finally{
+      setCapabilityBusy(false);
+    }
+  }
 
-  return <section><PageTitle title="Permisos" text="Definí Qué Herramientas Institucionales Puede Consultar Cada Profe O Jugador@ y, Para Profes, Qué Categorías Puede Gestionar."/>
-    <div className="card permission-professor-picker"><label>Usuario<select value={selected} onChange={e=>{setSelected(e.target.value);setCapabilityMsg("");}}><option value="">Seleccione Profe O Jugador@</option><optgroup label="Profes">{professors.map(item=><option key={item.id} value={item.id}>{item.full_name}</option>)}</optgroup>{players.length?<optgroup label="Jugador@s">{players.map(item=><option key={item.id} value={item.id}>{item.full_name}{item.category_name?` · ${item.category_name}`:""}</option>)}</optgroup>:null}</select></label></div>
-    {!selected?<div className="card empty permission-empty">Seleccione Un Profe O Jugador@ Para Configurar Sus Permisos.</div>:<>
-      {!selectedIsPlayer&&<div className="card permission-capability-card">
+  return <section><PageTitle title="Permisos" text="Definí Los Permisos Individuales De Cada Profe y El Acceso General De Todos Los Jugador@s A Posiciones Generales."/>
+    <div className="card permission-professor-picker"><label>Usuario<select value={selected} onChange={e=>{setSelected(e.target.value);setCapabilityMsg("");}}><option value="">Seleccione Profe O Jugador</option><optgroup label="Profes">{subjects.map(item=><option key={item.id} value={item.id}>{item.full_name}</option>)}</optgroup><optgroup label="Jugadores"><option value={PLAYER_GROUP_ID}>Jugador · Todos Los Jugador@s</option></optgroup></select></label></div>
+    {!selected?<div className="card empty permission-empty">Seleccione Un Profe O Jugador Para Configurar Sus Permisos.</div>:selectedIsPlayers?<>
+      <div className="card permission-capability-card">
+        <div>
+          <b>🏆 Posiciones Generales</b>
+          <span>Permite Que Todos Los Jugador@s Vean y Generen La Tabla Institucional De Posiciones Generales. No Otorga Permisos De Edición, Asistencia Ni Administración.</span>
+        </div>
+        <label className="permission-capability-toggle">
+          <input
+            type="checkbox"
+            checked={playerGeneralEnabled}
+            disabled={capabilityBusy}
+            onChange={e=>void setPlayersGeneralPermission(e.target.checked)}
+          />
+          <strong>{playerGeneralEnabled?"Habilitado Para Todos":"Deshabilitado Para Todos"}</strong>
+        </label>
+      </div>
+      {capabilityMsg&&<div className="message">{capabilityMsg}</div>}
+    </>:<>
+      <div className="card permission-capability-card">
         <div>
           <b>📊 Comparativo General De Instituciones</b>
           <span>Permite Ver El Comparativo General De Posiciones Entre Instituciones, Calculado Solamente Con Las Categorías Que Este Profe Tiene Asignadas.</span>
@@ -1639,28 +1667,28 @@ function Permissions({profile,categories}) {
             type="checkbox"
             checked={selectedSubject?.preview_self?true:selectedSubject?.can_view_standings_comparison===true}
             disabled={capabilityBusy||selectedSubject?.preview_self}
-            onChange={e=>void setCapability("can_view_standings_comparison",e.target.checked,"Comparativo General")}
+            onChange={e=>void setProfessorCapability("can_view_standings_comparison",e.target.checked,"Comparativo General")}
           />
           <strong>{selectedSubject?.preview_self?"Siempre Habilitado":selectedSubject?.can_view_standings_comparison?"Habilitado":"Deshabilitado"}</strong>
         </label>
-      </div>}
+      </div>
       <div className="card permission-capability-card">
         <div>
           <b>🏆 Posiciones Generales</b>
-          <span>{selectedIsPlayer?"Permite Ver y Generar La Tabla Institucional De Posiciones Generales Además De Su Tabla Oficial Habitual.":"Permite Ver y Generar La Tabla Institucional De Posiciones Generales Desde La Sección Posiciones."}</span>
+          <span>Permite Ver y Generar La Tabla Institucional De Posiciones Generales Desde La Sección Posiciones.</span>
         </div>
         <label className="permission-capability-toggle">
           <input
             type="checkbox"
             checked={selectedSubject?.preview_self?true:selectedSubject?.can_view_general_standings===true}
             disabled={capabilityBusy||selectedSubject?.preview_self}
-            onChange={e=>void setCapability("can_view_general_standings",e.target.checked,"Posiciones Generales")}
+            onChange={e=>void setProfessorCapability("can_view_general_standings",e.target.checked,"Posiciones Generales")}
           />
           <strong>{selectedSubject?.preview_self?"Siempre Habilitado":selectedSubject?.can_view_general_standings?"Habilitado":"Deshabilitado"}</strong>
         </label>
       </div>
       {capabilityMsg&&<div className="message">{capabilityMsg}</div>}
-      {!selectedIsPlayer&&<div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>}
+      <div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>
     </>}
   </section>;
 }
@@ -1746,10 +1774,10 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
   const [player,setPlayer]=useState(null),[playerCategory,setPlayerCategory]=useState(null),[rows,setRows]=useState([]),[editing,setEditing]=useState(false),[changingPassword,setChangingPassword]=useState(false),[msg,setMsg]=useState(""),[view,setView]=useState("profile"),[playerHiddenTabs,setPlayerHiddenTabs]=useState([]),[refreshing,setRefreshing]=useState(false),[scheduleVersion,setScheduleVersion]=useState(0),[playerCanViewGeneralStandings,setPlayerCanViewGeneralStandings]=useState(false);
   async function loadPlayerData(){
     if(!isAuthSession(session)&&!isLegacySession(session))return;
-    const ui=await supabase.from("app_ui_settings").select("disabled_tabs").eq("id","global").maybeSingle();
+    const ui=await supabase.from("app_ui_settings").select("disabled_tabs,player_can_view_general_standings").eq("id","global").maybeSingle();
     setPlayerHiddenTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]);
+    setPlayerCanViewGeneralStandings(ui.data?.player_can_view_general_standings===true);
     if(session?.legacy){
-      setPlayerCanViewGeneralStandings(false);
       setPlayer(session);
       const [attendanceResult,categoryResult]=await Promise.all([
         supabase.rpc("player_attendance",{p_name:session.name,p_code:session.code}),
@@ -1761,11 +1789,7 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
       setPlayerCategory(categoryResult.data||null);
       return;
     }
-    const [p,profilePermission]=await Promise.all([
-      supabase.from("players").select("*").eq("user_id",session.user.id).maybeSingle(),
-      supabase.from("profiles").select("can_view_general_standings").eq("id",session.user.id).maybeSingle(),
-    ]);
-    setPlayerCanViewGeneralStandings(profilePermission.data?.can_view_general_standings===true);
+    const p=await supabase.from("players").select("*").eq("user_id",session.user.id).maybeSingle();
     setPlayer(p.data);
     if(!p.data){setPlayerCategory(null);return;}
     const [attendanceResult,categoryResult]=await Promise.all([
