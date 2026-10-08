@@ -1007,3 +1007,49 @@ main.app>.topbar .topbar-exit{
     letter-spacing:-.01em;
   }
 }
+
+
+/* ===== HISTORIAL · EDICIÓN DE FECHA DE SESIÓN ===== */
+.history-session-date-editor{
+  display:grid;
+  gap:6px;
+  margin-top:12px;
+  max-width:260px;
+}
+
+.history-session-date-editor span{
+  font-size:11px;
+  font-weight:900;
+  color:#697386;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.history-session-date-editor input{
+  min-height:44px;
+  padding:9px 12px;
+  border:1px solid #d9dee7;
+  border-radius:12px;
+  background:#fff;
+  color:#242832;
+  font:inherit;
+  font-weight:750;
+}
+
+.history-session-date-editor input:focus{
+  outline:none;
+  border-color:#cf6e76;
+  box-shadow:0 0 0 3px rgba(181,18,27,.10);
+}
+
+@media(max-width:600px){
+  .history-session-date-editor{
+    max-width:none;
+    width:100%;
+    margin-top:10px;
+  }
+
+  .history-session-date-editor input{
+    min-height:48px;
+  }
+}
