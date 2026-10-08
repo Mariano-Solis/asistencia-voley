@@ -891,7 +891,7 @@ function PlayerEdit({player,categories,onClose,onSave,saving,canManageAccount=fa
 
 function History({profile,categories,permissions,players,refresh}) {
   const monthStart=`${today().slice(0,7)}-01`;
-  const [sessions,setSessions]=useState([]),[historyAttendance,setHistoryAttendance]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[originalRows,setOriginalRows]=useState([]),[historySaving,setHistorySaving]=useState(false),[selectedCategory,setSelectedCategory]=useState(null),[msg,setMsg]=useState(""),[historyRoster,setHistoryRoster]=useState({});
+  const [sessions,setSessions]=useState([]),[historyAttendance,setHistoryAttendance]=useState([]),[selected,setSelected]=useState(null),[rows,setRows]=useState([]),[originalRows,setOriginalRows]=useState([]),[historySaving,setHistorySaving]=useState(false),[selectedCategory,setSelectedCategory]=useState(null),[msg,setMsg]=useState(""),[historyRoster,setHistoryRoster]=useState({}),[historySessionDate,setHistorySessionDate]=useState("");
   const [showReport,setShowReport]=useState(false),[reportCategory,setReportCategory]=useState(categories[0]?.id||""),[reportFrom,setReportFrom]=useState(monthStart),[reportTo,setReportTo]=useState(today()),[reportBusy,setReportBusy]=useState(false);
 
   async function load(){
@@ -983,6 +983,7 @@ function History({profile,categories,permissions,players,refresh}) {
     setOriginalRows(editableRows.map(row=>({...row})));
     setHistoryRoster(Object.fromEntries(rosterRows.map(player=>[player.id,player])));
     setMsg("");
+    setHistorySessionDate(s.session_date || "");
     setSelected(s);
   }
 
@@ -1000,25 +1001,48 @@ function History({profile,categories,permissions,players,refresh}) {
   }, [rows, originalRows]);
 
   function closeHistorySession() {
-    if (historyChangedRows.length && !window.confirm("Hay Cambios De Asistencia Sin Guardar. ¿Querés Descartarlos y Volver?")) return;
+    const dateChanged=!!selected && historySessionDate!==selected.session_date;
+    if ((historyChangedRows.length || dateChanged) && !window.confirm("Hay Cambios Sin Guardar. ¿Querés Descartarlos y Volver?")) return;
     setSelected(null);
     setRows([]);
     setOriginalRows([]);
+    setHistorySessionDate("");
     setMsg("");
   }
 
   async function saveHistoryChanges() {
-    if (!selected || historySaving || !historyChangedRows.length) {
-      if (!historyChangedRows.length) setMsg("No Hay Cambios De Asistencia Para Guardar.");
+    if (!selected || historySaving) return;
+    const dateChanged=historySessionDate!==selected.session_date;
+    if (!historyChangedRows.length && !dateChanged) {
+      setMsg("No Hay Cambios Para Guardar.");
+      return;
+    }
+    if(dateChanged && !historySessionDate){
+      setMsg("Seleccioná Una Fecha Válida.");
       return;
     }
 
     const count = historyChangedRows.length;
-    if (!window.confirm(`Vas A Modificar Una Asistencia Ya Guardada. Hay ${count} Estado${count===1?"":"s"} Modificado${count===1?"":"s"}. ¿Deseás Guardar Los Cambios?`)) return;
+    const changes=[];
+    if(dateChanged)changes.push(`la fecha de ${dateText(selected.session_date)} a ${dateText(historySessionDate)}`);
+    if(count)changes.push(`${count} estado${count===1?"":"s"} de asistencia`);
+    if (!window.confirm(`Vas A Modificar Un Registro Ya Guardado (${changes.join(" y ")}). ¿Deseás Guardar Los Cambios?`)) return;
 
     setHistorySaving(true);
     setMsg("");
     try {
+      if(dateChanged){
+        const updatedSession=await supabase
+          .from("training_sessions")
+          .update({session_date:historySessionDate})
+          .eq("id",selected.id)
+          .select("*, categories(id,name,gender)")
+          .single();
+        if(updatedSession.error)throw updatedSession.error;
+        setSelected(updatedSession.data);
+        setSessions(current=>current.map(session=>session.id===selected.id?updatedSession.data:session));
+      }
+
       const rowsToUpsert=historyChangedRows.filter(row=>row.status);
       const rowsToDelete=historyChangedRows.filter(row=>!row.status);
 
@@ -1051,10 +1075,11 @@ function History({profile,categories,permissions,players,refresh}) {
       const verifiedRows=rows.map(row=>({...row,status:verifiedStatusByPlayer[row.player_id]||null}));
       setRows(verifiedRows);
       setOriginalRows(verifiedRows.map(row=>({...row})));
-      setMsg("✓ Cambios De Asistencia Guardados.");
+      setMsg("✓ Cambios Del Registro Guardados.");
       await Promise.all([refresh(),load()]);
     } catch (error) {
-      setMsg(errorText(error));
+      const text=errorText(error);
+      setMsg(error?.code==="23505" ? "Ya Existe Una Sesión De Esta Categoría y Actividad En La Fecha Elegida." : text);
     } finally {
       setHistorySaving(false);
     }
@@ -1152,6 +1177,7 @@ function History({profile,categories,permissions,players,refresh}) {
           <span className="eyebrow">{TYPES[selected.activity_type]?.[1]}</span>
           <h2>{TYPES[selected.activity_type]?.[0]} {selected.categories?.gender ? `${genderText(selected.categories.gender)} · ` : ""}{selected.categories?.name}</h2>
           <p>{selected.activity_type === "match" ? `Vs. ${selected.opponent || "—"}${selected.event_location ? ` · ${selected.event_location}` : ""}` : selected.activity_type === "tournament" ? `${selected.tournament_location || selected.event_location || "—"} · ${dateText(selected.tournament_start_date || selected.session_date)} → ${dateText(selected.tournament_end_date || selected.session_date)}` : "Registro De Entrenamiento"}</p>
+          {can(profile, selected.categories, permissions, true) && <label className="history-session-date-editor"><span>Fecha De La Sesión</span><input type="date" value={historySessionDate} disabled={historySaving} onChange={e=>{setHistorySessionDate(e.target.value);setMsg("");}}/></label>}
         </div>
         <div className="record-actions">{can(profile, selected.categories, permissions, true) && <button className="danger" onClick={remove}>🗑️ Eliminar</button>}</div>
       </div>
@@ -1169,10 +1195,10 @@ function History({profile,categories,permissions,players,refresh}) {
       </div>}
             <div className="simple-list">{rows.map(r=>{const p=players.find(x=>x.id===r.player_id)||historyRoster[r.player_id];return <div className="history-row" key={r.player_id}><Avatar player={p}/><div className="grow"><b>{p?.full_name || "Jugador@"}</b></div><StatusButtons value={r.status} disabled={historySaving || !can(profile, selected.categories, permissions, true)} onChange={status=>{setRows(current=>current.map(row=>row.player_id===r.player_id?{...row,status}:row));setMsg("");}}/></div>})}</div>
       {can(profile, selected.categories, permissions, true) && <div className="history-save-actions">
-        <button type="button" className="primary wide" disabled={historySaving || !historyChangedRows.length} onClick={saveHistoryChanges}>
-          {historySaving ? "Guardando..." : historyChangedRows.length ? `Guardar Cambios (${historyChangedRows.length})` : "Guardar Cambios"}
+        <button type="button" className="primary wide" disabled={historySaving || (!historyChangedRows.length && historySessionDate===selected.session_date)} onClick={saveHistoryChanges}>
+          {historySaving ? "Guardando..." : "Guardar Cambios"}
         </button>
-        {historyChangedRows.length>0 && <small>Los Cambios Todavía No Se Guardaron.</small>}
+        {(historyChangedRows.length>0 || historySessionDate!==selected.session_date) && <small>Los Cambios Todavía No Se Guardaron.</small>}
       </div>}
     </div>
     {msg&&<div className="message">{msg}</div>}
