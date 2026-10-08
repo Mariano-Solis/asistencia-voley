@@ -1557,21 +1557,44 @@ function Categories({profile,categories,refresh}) {
   </section>;
 }
 function Permissions({profile,categories}) {
-  const [admins,setAdmins]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({}),[capabilityMsg,setCapabilityMsg]=useState(""),[capabilityBusy,setCapabilityBusy]=useState(false);
+  const [subjects,setSubjects]=useState([]),[selected,setSelected]=useState(""),[perms,setPerms]=useState({}),[capabilityMsg,setCapabilityMsg]=useState(""),[capabilityBusy,setCapabilityBusy]=useState(false);
 
   useEffect(()=>{async function load(){
-    const a=await supabase.from("profiles").select("id,full_name,can_view_standings_comparison").eq("role","admin").order("full_name");
-    setAdmins([{id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,preview_self:true,can_view_standings_comparison:true},...(a.data||[])]);
-    const p=await supabase.from("admin_category_permissions").select("*");
-    setPerms(Object.fromEntries((p.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])));
+    const [profilesResult,playersResult,permissionsResult]=await Promise.all([
+      supabase.from("profiles")
+        .select("id,full_name,role,active,approval_status,can_view_standings_comparison,can_view_general_standings")
+        .in("role",["admin","player"])
+        .eq("active",true)
+        .eq("approval_status","approved")
+        .order("full_name"),
+      supabase.from("players")
+        .select("id,user_id,full_name,category_name,category_id")
+        .eq("active",true)
+        .eq("approval_status","approved")
+        .not("user_id","is",null)
+        .order("full_name"),
+      supabase.from("admin_category_permissions").select("*"),
+    ]);
+
+    const playerByUserId=new Map((playersResult.data||[]).map(item=>[item.user_id,item]));
+    const profs=(profilesResult.data||[]).filter(item=>item.role==="admin").map(item=>({...item,subject_type:"admin"}));
+    const players=(profilesResult.data||[]).filter(item=>item.role==="player").map(item=>{
+      const player=playerByUserId.get(item.id);
+      return {...item,subject_type:"player",full_name:player?.full_name||item.full_name||"Jugador@",category_name:player?.category_name||""};
+    });
+
+    const self={id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,role:"super_admin",subject_type:"admin",preview_self:true,can_view_standings_comparison:true,can_view_general_standings:true};
+    setSubjects([self,...profs,...players]);
+    setPerms(Object.fromEntries((permissionsResult.data||[]).map(x=>[`${x.admin_id}:${x.category_id}`,x])));
   }void load();},[profile.id,profile.full_name]);
 
   if(profile.role!=="super_admin")return null;
 
-  const selectedAdmin=admins.find(item=>item.id===selected)||null;
+  const selectedSubject=subjects.find(item=>item.id===selected)||null;
+  const selectedIsPlayer=selectedSubject?.subject_type==="player";
 
   async function setP(c,field,value){
-    if(!selected)return;
+    if(!selected||selectedIsPlayer)return;
     const key=`${selected}:${c.id}`,cur=perms[key]||{can_view:false,can_edit:false,can_attendance:false},next={...cur,[field]:value};
     if(next.can_edit)next.can_view=true;
     const r=!next.can_view&&!next.can_edit&&!next.can_attendance
@@ -1580,20 +1603,19 @@ function Permissions({profile,categories}) {
     if(!r.error)setPerms(p=>({...p,[key]:next}));
   }
 
-  async function setComparisonPermission(value){
-    if(!selectedAdmin||selectedAdmin.preview_self)return;
+  async function setCapability(field,value,label){
+    if(!selectedSubject||selectedSubject.preview_self)return;
     setCapabilityBusy(true);
     setCapabilityMsg("");
     try{
       const r=await supabase.from("profiles")
-        .update({can_view_standings_comparison:value})
-        .eq("id",selectedAdmin.id)
-        .eq("role","admin")
-        .select("id,can_view_standings_comparison")
+        .update({[field]:value})
+        .eq("id",selectedSubject.id)
+        .select(`id,${field}`)
         .single();
       if(r.error)throw r.error;
-      setAdmins(current=>current.map(item=>item.id===selectedAdmin.id?{...item,can_view_standings_comparison:r.data.can_view_standings_comparison}:item));
-      setCapabilityMsg(value?"✓ Comparativo General Habilitado Para Este Profe.":"✓ Comparativo General Deshabilitado Para Este Profe.");
+      setSubjects(current=>current.map(item=>item.id===selectedSubject.id?{...item,[field]:r.data[field]}:item));
+      setCapabilityMsg(value?`✓ ${label} Habilitado Para ${selectedIsPlayer?"Este Jugador@":"Este Profe"}.`:`✓ ${label} Deshabilitado Para ${selectedIsPlayer?"Este Jugador@":"Este Profe"}.`);
     }catch(e){
       setCapabilityMsg(errorText(e));
     }finally{
@@ -1601,10 +1623,13 @@ function Permissions({profile,categories}) {
     }
   }
 
-  return <section><PageTitle title="Permisos" text="Definí Qué Categorías Puede Ver, Editar O Usar Para Asistencia y Qué Herramientas Institucionales Puede Consultar Cada Profe."/>
-    <div className="card permission-professor-picker"><label>Profe<select value={selected} onChange={e=>{setSelected(e.target.value);setCapabilityMsg("");}}><option value="">Seleccione Profe</option>{admins.map(a=><option key={a.id} value={a.id}>{a.full_name}</option>)}</select></label></div>
-    {!selected?<div className="card empty permission-empty">Seleccione Profe Para Configurar Sus Permisos.</div>:<>
-      <div className="card permission-capability-card">
+  const professors=subjects.filter(item=>item.subject_type==="admin");
+  const players=subjects.filter(item=>item.subject_type==="player");
+
+  return <section><PageTitle title="Permisos" text="Definí Qué Herramientas Institucionales Puede Consultar Cada Profe O Jugador@ y, Para Profes, Qué Categorías Puede Gestionar."/>
+    <div className="card permission-professor-picker"><label>Usuario<select value={selected} onChange={e=>{setSelected(e.target.value);setCapabilityMsg("");}}><option value="">Seleccione Profe O Jugador@</option><optgroup label="Profes">{professors.map(item=><option key={item.id} value={item.id}>{item.full_name}</option>)}</optgroup>{players.length?<optgroup label="Jugador@s">{players.map(item=><option key={item.id} value={item.id}>{item.full_name}{item.category_name?` · ${item.category_name}`:""}</option>)}</optgroup>:null}</select></label></div>
+    {!selected?<div className="card empty permission-empty">Seleccione Un Profe O Jugador@ Para Configurar Sus Permisos.</div>:<>
+      {!selectedIsPlayer&&<div className="card permission-capability-card">
         <div>
           <b>📊 Comparativo General De Instituciones</b>
           <span>Permite Ver El Comparativo General De Posiciones Entre Instituciones, Calculado Solamente Con Las Categorías Que Este Profe Tiene Asignadas.</span>
@@ -1612,15 +1637,30 @@ function Permissions({profile,categories}) {
         <label className="permission-capability-toggle">
           <input
             type="checkbox"
-            checked={selectedAdmin?.preview_self?true:selectedAdmin?.can_view_standings_comparison===true}
-            disabled={capabilityBusy||selectedAdmin?.preview_self}
-            onChange={e=>void setComparisonPermission(e.target.checked)}
+            checked={selectedSubject?.preview_self?true:selectedSubject?.can_view_standings_comparison===true}
+            disabled={capabilityBusy||selectedSubject?.preview_self}
+            onChange={e=>void setCapability("can_view_standings_comparison",e.target.checked,"Comparativo General")}
           />
-          <strong>{selectedAdmin?.preview_self?"Siempre Habilitado":selectedAdmin?.can_view_standings_comparison?"Habilitado":"Deshabilitado"}</strong>
+          <strong>{selectedSubject?.preview_self?"Siempre Habilitado":selectedSubject?.can_view_standings_comparison?"Habilitado":"Deshabilitado"}</strong>
+        </label>
+      </div>}
+      <div className="card permission-capability-card">
+        <div>
+          <b>🏆 Posiciones Generales</b>
+          <span>{selectedIsPlayer?"Permite Ver y Generar La Tabla Institucional De Posiciones Generales Además De Su Tabla Oficial Habitual.":"Permite Ver y Generar La Tabla Institucional De Posiciones Generales Desde La Sección Posiciones."}</span>
+        </div>
+        <label className="permission-capability-toggle">
+          <input
+            type="checkbox"
+            checked={selectedSubject?.preview_self?true:selectedSubject?.can_view_general_standings===true}
+            disabled={capabilityBusy||selectedSubject?.preview_self}
+            onChange={e=>void setCapability("can_view_general_standings",e.target.checked,"Posiciones Generales")}
+          />
+          <strong>{selectedSubject?.preview_self?"Siempre Habilitado":selectedSubject?.can_view_general_standings?"Habilitado":"Deshabilitado"}</strong>
         </label>
       </div>
       {capabilityMsg&&<div className="message">{capabilityMsg}</div>}
-      <div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>
+      {!selectedIsPlayer&&<div className="permission-list">{categories.map(c=>{const p=perms[`${selected}:${c.id}`]||{};return <div className="card permission-row" key={c.id}><b>{genderText(c.gender)} · {c.name}</b><label><input type="checkbox" checked={!!p.can_view} onChange={e=>setP(c,"can_view",e.target.checked)}/> Ver</label><label><input type="checkbox" checked={!!p.can_edit} onChange={e=>setP(c,"can_edit",e.target.checked)}/> Editar</label><label><input type="checkbox" checked={!!p.can_attendance} onChange={e=>setP(c,"can_attendance",e.target.checked)}/> Asistencia</label></div>})}</div>}
     </>}
   </section>;
 }
@@ -1703,12 +1743,13 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
 }
 
 function PlayerDashboard({session,onLogout,onBackAdmin}) {
-  const [player,setPlayer]=useState(null),[playerCategory,setPlayerCategory]=useState(null),[rows,setRows]=useState([]),[editing,setEditing]=useState(false),[changingPassword,setChangingPassword]=useState(false),[msg,setMsg]=useState(""),[view,setView]=useState("profile"),[playerHiddenTabs,setPlayerHiddenTabs]=useState([]),[refreshing,setRefreshing]=useState(false),[scheduleVersion,setScheduleVersion]=useState(0);
+  const [player,setPlayer]=useState(null),[playerCategory,setPlayerCategory]=useState(null),[rows,setRows]=useState([]),[editing,setEditing]=useState(false),[changingPassword,setChangingPassword]=useState(false),[msg,setMsg]=useState(""),[view,setView]=useState("profile"),[playerHiddenTabs,setPlayerHiddenTabs]=useState([]),[refreshing,setRefreshing]=useState(false),[scheduleVersion,setScheduleVersion]=useState(0),[playerCanViewGeneralStandings,setPlayerCanViewGeneralStandings]=useState(false);
   async function loadPlayerData(){
     if(!isAuthSession(session)&&!isLegacySession(session))return;
     const ui=await supabase.from("app_ui_settings").select("disabled_tabs").eq("id","global").maybeSingle();
     setPlayerHiddenTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]);
     if(session?.legacy){
+      setPlayerCanViewGeneralStandings(false);
       setPlayer(session);
       const [attendanceResult,categoryResult]=await Promise.all([
         supabase.rpc("player_attendance",{p_name:session.name,p_code:session.code}),
@@ -1720,7 +1761,11 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
       setPlayerCategory(categoryResult.data||null);
       return;
     }
-    const p=await supabase.from("players").select("*").eq("user_id",session.user.id).maybeSingle();
+    const [p,profilePermission]=await Promise.all([
+      supabase.from("players").select("*").eq("user_id",session.user.id).maybeSingle(),
+      supabase.from("profiles").select("can_view_general_standings").eq("id",session.user.id).maybeSingle(),
+    ]);
+    setPlayerCanViewGeneralStandings(profilePermission.data?.can_view_general_standings===true);
     setPlayer(p.data);
     if(!p.data){setPlayerCategory(null);return;}
     const [attendanceResult,categoryResult]=await Promise.all([
@@ -1743,7 +1788,7 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
   if(!player)return <main className="loading-screen"><Brand/>Cargando Tu Perfil...</main>;
   const counts={present:rows.filter(r=>r.status==="present").length,late:rows.filter(r=>r.status==="late").length,absent:rows.filter(r=>r.status==="absent").length};
   const playerSessionCount=new Set(rows.map(row=>row.session_id).filter(Boolean)).size;
-  return <main className="player-app"><header className="topbar"><Brand compact/><button onClick={onLogout}>Salir</button></header><div className="player-wrap"><div className="player-section-nav">{onBackAdmin&&<button type="button" className="player-back-admin" onClick={onBackAdmin}>← Administración</button>}<button type="button" className={view==="profile"?"active":""} onClick={()=>setView("profile")}>👤 Mi Perfil</button>{!playerHiddenTabs.includes("Horarios")&&<button type="button" className={view==="schedule"?"active":""} onClick={()=>setView("schedule")}>🕐 Horarios</button>}{!playerHiddenTabs.includes("Programación")&&<button type="button" className={view==="programming"?"active":""} onClick={()=>setView("programming")}>📅 Programación</button>}{!playerHiddenTabs.includes("Partidos")&&<button type="button" className={view==="matches"?"active":""} onClick={()=>setView("matches")}>🏐 Partidos</button>}{!playerHiddenTabs.includes("Posiciones")&&<button type="button" className={view==="standings"?"active":""} onClick={()=>setView("standings")}>📊 Posiciones</button>}<button type="button" className={view==="payments"?"active":""} onClick={()=>setView("payments")}>💳 Pagos</button></div>{view!=="matches"&&<div className="tab-refresh-row player-tab-refresh-row"><button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPlayerView}><span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando...":"Actualizar"}</button></div>}{view==="schedule"?<div className="player-schedule-wrap"><TrainingSchedule key={`player-schedule:${scheduleVersion}`} playerMode/></div>:view==="programming"?<div className="player-programming-wrap"><ProgramacionHub key={`player-programming:${scheduleVersion}:${player.category_id||"none"}`} compact simpleMode allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="matches"?<div className="player-programming-wrap"><PartidosHub key={`player-matches:${scheduleVersion}:${player.category_id||"none"}`} compact unrestricted/></div>:view==="standings"?<div className="player-standings-wrap"><StandingsHub key={`player-standings:${scheduleVersion}:${player.category_id||"none"}`} compact playerMode allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="payments"?<PlayerPaymentPanel key={`player-payments:${scheduleVersion}`} player={player} embedded/>:<><section className="hero-profile card"><Avatar player={player}/><div className="grow"><span className="eyebrow">Mi Perfil</span><h1>{player.full_name || player.name}</h1><p>{player.category_name || "Categoría Pendiente"} · {player.team ? `Equipo ${player.team}` : "Sin Asignar"}</p></div><div className="form-actions"><button className="profile-edit-btn" onClick={()=>setEditing(true)}>✏️ Editar Mis Datos</button>{!session.legacy&&<button className="profile-edit-btn" onClick={()=>setChangingPassword(true)}>🔐 Cambiar Contraseña</button>}</div></section><div className="stats"><div className="card"><b>{counts.present}</b><span>Presentes</span></div><div className="card"><b>{counts.late}</b><span>Tardanzas</span></div><div className="card"><b>{counts.absent}</b><span>Ausencias</span></div></div><AttendanceAnalytics title="Mi Resumen De Asistencia" subtitle="Tu Asistencia, Tardanzas e Inasistencias Acumuladas." rows={rows} sessionsCount={playerSessionCount} compact/><div className="card access-box"><span>Tu Código Personal</span><strong>{player.access_code || session.code || "—"}</strong><button onClick={()=>copyText(player.access_code||session.code).then(()=>setMsg("✓ Código Copiado."))}>📋 Copiar Código</button></div><div className="card"><div className="card-head"><h2>Mi Asistencia</h2></div><div className="simple-list">{rows.map((r,i)=><div className="history-row" key={r.session_id||i}><div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type]?.[1]}</span></div><span className={`badge ${r.status}`}>{STATUS[r.status]?.[1]}</span></div>)}</div></div>{msg&&<div className="message">{msg}</div>}</>}</div>{editing&&!session.legacy&&<PlayerSelfEdit player={player} onClose={()=>setEditing(false)} onSaved={updated=>{setPlayer(updated);setEditing(false);setMsg("✓ Perfil Actualizado Correctamente.")}}/>}{changingPassword&&!session.legacy&&<PlayerPasswordChange onClose={()=>setChangingPassword(false)} onChanged={()=>{setChangingPassword(false);setMsg("✓ Contraseña Actualizada Correctamente.")}}/>}</main>;
+  return <main className="player-app"><header className="topbar"><Brand compact/><button onClick={onLogout}>Salir</button></header><div className="player-wrap"><div className="player-section-nav">{onBackAdmin&&<button type="button" className="player-back-admin" onClick={onBackAdmin}>← Administración</button>}<button type="button" className={view==="profile"?"active":""} onClick={()=>setView("profile")}>👤 Mi Perfil</button>{!playerHiddenTabs.includes("Horarios")&&<button type="button" className={view==="schedule"?"active":""} onClick={()=>setView("schedule")}>🕐 Horarios</button>}{!playerHiddenTabs.includes("Programación")&&<button type="button" className={view==="programming"?"active":""} onClick={()=>setView("programming")}>📅 Programación</button>}{!playerHiddenTabs.includes("Partidos")&&<button type="button" className={view==="matches"?"active":""} onClick={()=>setView("matches")}>🏐 Partidos</button>}{!playerHiddenTabs.includes("Posiciones")&&<button type="button" className={view==="standings"?"active":""} onClick={()=>setView("standings")}>📊 Posiciones</button>}<button type="button" className={view==="payments"?"active":""} onClick={()=>setView("payments")}>💳 Pagos</button></div>{view!=="matches"&&<div className="tab-refresh-row player-tab-refresh-row"><button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPlayerView}><span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando...":"Actualizar"}</button></div>}{view==="schedule"?<div className="player-schedule-wrap"><TrainingSchedule key={`player-schedule:${scheduleVersion}`} playerMode/></div>:view==="programming"?<div className="player-programming-wrap"><ProgramacionHub key={`player-programming:${scheduleVersion}:${player.category_id||"none"}`} compact simpleMode allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="matches"?<div className="player-programming-wrap"><PartidosHub key={`player-matches:${scheduleVersion}:${player.category_id||"none"}`} compact unrestricted/></div>:view==="standings"?<div className="player-standings-wrap"><StandingsHub key={`player-standings:${scheduleVersion}:${player.category_id||"none"}`} compact playerMode allowGeneralPositions={playerCanViewGeneralStandings} allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="payments"?<PlayerPaymentPanel key={`player-payments:${scheduleVersion}`} player={player} embedded/>:<><section className="hero-profile card"><Avatar player={player}/><div className="grow"><span className="eyebrow">Mi Perfil</span><h1>{player.full_name || player.name}</h1><p>{player.category_name || "Categoría Pendiente"} · {player.team ? `Equipo ${player.team}` : "Sin Asignar"}</p></div><div className="form-actions"><button className="profile-edit-btn" onClick={()=>setEditing(true)}>✏️ Editar Mis Datos</button>{!session.legacy&&<button className="profile-edit-btn" onClick={()=>setChangingPassword(true)}>🔐 Cambiar Contraseña</button>}</div></section><div className="stats"><div className="card"><b>{counts.present}</b><span>Presentes</span></div><div className="card"><b>{counts.late}</b><span>Tardanzas</span></div><div className="card"><b>{counts.absent}</b><span>Ausencias</span></div></div><AttendanceAnalytics title="Mi Resumen De Asistencia" subtitle="Tu Asistencia, Tardanzas e Inasistencias Acumuladas." rows={rows} sessionsCount={playerSessionCount} compact/><div className="card access-box"><span>Tu Código Personal</span><strong>{player.access_code || session.code || "—"}</strong><button onClick={()=>copyText(player.access_code||session.code).then(()=>setMsg("✓ Código Copiado."))}>📋 Copiar Código</button></div><div className="card"><div className="card-head"><h2>Mi Asistencia</h2></div><div className="simple-list">{rows.map((r,i)=><div className="history-row" key={r.session_id||i}><div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type]?.[1]}</span></div><span className={`badge ${r.status}`}>{STATUS[r.status]?.[1]}</span></div>)}</div></div>{msg&&<div className="message">{msg}</div>}</>}</div>{editing&&!session.legacy&&<PlayerSelfEdit player={player} onClose={()=>setEditing(false)} onSaved={updated=>{setPlayer(updated);setEditing(false);setMsg("✓ Perfil Actualizado Correctamente.")}}/>}{changingPassword&&!session.legacy&&<PlayerPasswordChange onClose={()=>setChangingPassword(false)} onChanged={()=>{setChangingPassword(false);setMsg("✓ Contraseña Actualizada Correctamente.")}}/>}</main>;
 }
 function PlayerPasswordChange({onClose,onChanged}) {
   const [password,setPassword]=useState("");
@@ -1803,7 +1848,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     let cancelled=false;
     async function loadProfessors(){
       const r=await supabase.from("profiles")
-        .select("id,full_name,role,active,approval_status,can_approve_payments,can_view_standings_comparison")
+        .select("id,full_name,role,active,approval_status,can_approve_payments,can_view_standings_comparison,can_view_general_standings")
         .eq("role","admin")
         .eq("active",true)
         .eq("approval_status","approved")
@@ -1953,7 +1998,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
       {tab==="programming"&&<ProgramacionHub key={"preview-programming:"+version+":"+previewProfile.id} compact simpleMode allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
       {tab==="matches"&&<PartidosHub key={"preview-matches:"+version+":"+previewProfile.id} compact unrestricted/>} 
-      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact staffMode allowComparison={previewProfile.can_view_standings_comparison===true||previewProfile.preview_self===true} allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
+      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact staffMode allowComparison={previewProfile.can_view_standings_comparison===true||previewProfile.preview_self===true} allowGeneralPositions={previewProfile.can_view_general_standings===true||previewProfile.preview_self===true} allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
       {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
       {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
       {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
@@ -2193,7 +2238,7 @@ function App() {
     {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
     {tab==='programming'&&<ProgramacionHub key={`programming:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} simpleMode={profile.role!=="super_admin"}/>} 
     {tab==='matches'&&<PartidosHub key={`matches:${tabRefreshVersion}:${profile.id}`} unrestricted/>} 
-    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} staffMode={profile.role!=="super_admin"} allowComparison={profile.can_view_standings_comparison===true}/>} 
+    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} staffMode={profile.role!=="super_admin"} allowComparison={profile.can_view_standings_comparison===true} allowGeneralPositions={profile.role==="super_admin"||profile.can_view_general_standings===true}/>} 
     {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
     {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} userId={profile.id} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
     {tab==='requests'&&<RequestsPage profile={profile}/>}

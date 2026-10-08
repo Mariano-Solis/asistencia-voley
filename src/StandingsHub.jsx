@@ -371,7 +371,7 @@ async function loadWebTable(entry, signal) {
   };
 }
 
-export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false, staffMode = false, allowComparison = false }) {
+export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false, staffMode = false, allowComparison = false, allowGeneralPositions = false }) {
   const allowedKeys = useMemo(
     () => buildAllowedKeys(allowedCategories, unrestricted),
     [allowedCategories, unrestricted]
@@ -423,22 +423,27 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     () => availableEntries.filter((item) => item.competition === competition && item.branch === branch),
     [competition, branch, accessSignature]
   );
+  const generalCatalogOptions = useMemo(
+    () => (unrestricted || allowGeneralPositions ? TABLE_CATALOG : availableEntries)
+      .filter((item) => item.competition === competition && item.branch === branch),
+    [unrestricted, allowGeneralPositions, competition, branch, accessSignature]
+  );
 
   useEffect(() => {
-    const keys = options.map((item) => item.key);
+    const keys = generalCatalogOptions.map((item) => item.key);
     setGeneralSelectedKeys(keys);
     setGeneralTables([]);
     setGeneralFixtures(null);
     setGeneralOpen(false);
     setGeneralMessage("");
     generalAbortRef.current?.abort();
-  }, [competition, branch, options.map((item) => item.key).join("|")]);
+  }, [competition, branch, generalCatalogOptions.map((item) => item.key).join("|")]);
 
   function toggleGeneralCategory(key) {
     setGeneralSelectedKeys((current) => {
       const next = current.includes(key)
         ? current.filter((item) => item !== key)
-        : [...current, key].sort((a, b) => options.findIndex((item) => item.key === a) - options.findIndex((item) => item.key === b));
+        : [...current, key].sort((a, b) => generalCatalogOptions.findIndex((item) => item.key === a) - generalCatalogOptions.findIndex((item) => item.key === b));
       return next;
     });
     setGeneralOpen(false);
@@ -446,7 +451,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   }
 
   function selectAllGeneralCategories() {
-    setGeneralSelectedKeys(options.map((item) => item.key));
+    setGeneralSelectedKeys(generalCatalogOptions.map((item) => item.key));
     setGeneralOpen(false);
     setGeneralMessage("");
   }
@@ -465,7 +470,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     setGeneralMessage("");
 
     try {
-      const selectedEntries = options.filter((item) => generalSelectedKeys.includes(item.key));
+      const selectedEntries = generalCatalogOptions.filter((item) => generalSelectedKeys.includes(item.key));
       const cached = new Map(tables.map((table) => [table.tableKey, table]));
       const missingEntries = selectedEntries.filter((entry) => !cached.has(entry.key));
 
@@ -718,8 +723,87 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     () => buildGeneralPositionRanking(generalTables, generalSelectedKeys, generalFixtures),
     [generalTables, generalSelectedKeys.join("|"), generalFixtures]
   );
-  const generalOptions = options.filter((item) => generalSelectedKeys.includes(item.key));
-  const generalLoadedOptions = generalOptions.filter((item) => generalTables.some((table) => table.tableKey === item.key));
+  const generalSelectedOptions = generalCatalogOptions.filter((item) => generalSelectedKeys.includes(item.key));
+  const generalLoadedOptions = generalSelectedOptions.filter((item) => generalTables.some((table) => table.tableKey === item.key));
+
+  const generalPositionsSection = <section className="standings-card card general-positions-card">
+      <div className="standings-card-head general-positions-head">
+        <div>
+          <span className="eyebrow">Ranking Institucional Por Posición</span>
+          <h2>Posiciones Generales</h2>
+          <p>1.º = 12 Puntos · 2.º = 11 · … · 12.º = 1. Se Suman Sólo Los Puntos Por Posición De Las Categorías Que Elijas.</p>
+        </div>
+        {generalLastUpdated && <small>Última Generación {formatTime(generalLastUpdated)}</small>}
+      </div>
+
+      <div className="general-positions-controls">
+        <div>
+          <span>Categorías Del Ranking</span>
+          <div className="general-positions-chips">
+            <button
+              type="button"
+              className={generalSelectedKeys.length === generalCatalogOptions.length && generalCatalogOptions.length ? "active" : ""}
+              onClick={selectAllGeneralCategories}
+            >Todas</button>
+            {generalCatalogOptions.map((item) => <button
+              type="button"
+              key={item.key}
+              className={generalSelectedKeys.includes(item.key) ? "active" : ""}
+              onClick={() => toggleGeneralCategory(item.key)}
+            >{item.label}</button>)}
+          </div>
+        </div>
+
+        <button type="button" className="general-positions-generate" onClick={() => void loadGeneralPositions()} disabled={generalLoading || !generalSelectedKeys.length}>
+          <span className={generalLoading ? "spinning" : ""}>↻</span>
+          {generalLoading ? "Generando..." : generalOpen ? "Recalcular Posiciones Generales" : "Generar Posiciones Generales"}
+        </button>
+      </div>
+
+      {generalMessage && <div className="message standings-message">{generalMessage}</div>}
+
+      {generalOpen && generalRanking.length ? <div className="standings-table-wrap general-positions-table-wrap">
+        <table className="standings-table general-positions-table">
+          <thead><tr>
+            <th>#</th>
+            <th>Institución</th>
+            <th>Total</th>
+            <th>Puntos</th>
+            {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
+            <th>PJ</th>
+            <th>PF</th>
+            <th>Dif. Sets</th>
+            <th>Dif. Tantos</th>
+          </tr></thead>
+          <tbody>{generalRanking.map((row) => {
+            const detailByKey = new Map(row.details.map((detail) => [detail.tableKey, detail]));
+            return <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
+              <td><span className="standings-position">{row.computedRank}</span></td>
+              <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
+              <td className="general-position-total"><b>{row.totalPoints}</b></td>
+              <td className="general-position-official-points"><b>{row.officialPoints}</b></td>
+              {generalLoadedOptions.map((item) => {
+                const detail = detailByKey.get(item.key);
+                return <td key={item.key} className="general-position-score">
+                  {detail ? <><b>{detail.points}</b><small>{detail.position}.º</small></> : <><b>0</b><small>—</small></>}
+                </td>;
+              })}
+              <td className="general-position-count"><b>{row.played}</b></td>
+              <td className="general-position-count"><b>{row.remaining === null ? "—" : row.remaining}</b></td>
+              <td className="general-position-tiebreak"><b>{row.setDifference > 0 ? `+${row.setDifference}` : row.setDifference}</b><small>{row.setsWon}-{row.setsLost}</small></td>
+              <td className="general-position-tiebreak"><b>{row.pointDifference > 0 ? `+${row.pointDifference}` : row.pointDifference}</b><small>{row.pointsWon}-{row.pointsLost}</small></td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div> : generalOpen ? <div className="standings-loading">No Hay Datos Para Las Categorías Seleccionadas.</div> : null}
+
+      <div className="standings-foot general-positions-foot">
+        <span><b>Criterio:</b> 1.º suma 12 puntos; 2.º, 11; 3.º, 10; …; 12.º, 1. Si una institución no figura en una categoría, suma 0 en esa categoría.</span>
+        <span><b>Puntos</b>: suma de los puntos oficiales que tiene la institución en cada una de las categorías seleccionadas. <b>PJ</b>: suma de partidos jugados en las categorías seleccionadas. <b>PF</b>: partidos con estado pendiente/upcoming que todavía le quedan a la institución en esas mismas categorías. Son informativos y no modifican el puntaje del ranking.</span>
+        <span><b>No intervienen en el puntaje</b> partidos jugados, partidos faltantes, victorias, derrotas, sets ni puntos oficiales del torneo.</span>
+        <small>Desempate: 1.º mayor diferencia de sets (sets ganados − sets perdidos); 2.º mayor diferencia de tantos (tantos a favor − tantos en contra). Si ambas diferencias también son iguales, se ordena alfabéticamente sólo como último criterio técnico.</small>
+      </div>
+    </section>;
 
   useEffect(() => {
     if (selectedTeam !== "__ALL__" && !teams.includes(selectedTeam)) {
@@ -877,6 +961,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           </div>;
         })}
       </div>
+      {allowGeneralPositions ? generalPositionsSection : null}
     </section>;
   }
 
@@ -935,6 +1020,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
           <small>Fuente De Datos: Courtrack · Federación Mendocina De Voleibol.</small>
         </div>
       </div> : null}
+      {allowGeneralPositions ? generalPositionsSection : null}
     </section>;
   }
 
@@ -1094,83 +1180,6 @@ export default function StandingsHub({ compact = false, allowedCategories = null
       </div>)}
     </div>
 
-    <section className="standings-card card general-positions-card">
-      <div className="standings-card-head general-positions-head">
-        <div>
-          <span className="eyebrow">Ranking Institucional Por Posición</span>
-          <h2>Posiciones Generales</h2>
-          <p>1.º = 12 Puntos · 2.º = 11 · … · 12.º = 1. Se Suman Sólo Los Puntos Por Posición De Las Categorías Que Elijas.</p>
-        </div>
-        {generalLastUpdated && <small>Última Generación {formatTime(generalLastUpdated)}</small>}
-      </div>
-
-      <div className="general-positions-controls">
-        <div>
-          <span>Categorías Del Ranking</span>
-          <div className="general-positions-chips">
-            <button
-              type="button"
-              className={generalSelectedKeys.length === options.length && options.length ? "active" : ""}
-              onClick={selectAllGeneralCategories}
-            >Todas</button>
-            {options.map((item) => <button
-              type="button"
-              key={item.key}
-              className={generalSelectedKeys.includes(item.key) ? "active" : ""}
-              onClick={() => toggleGeneralCategory(item.key)}
-            >{item.label}</button>)}
-          </div>
-        </div>
-
-        <button type="button" className="general-positions-generate" onClick={() => void loadGeneralPositions()} disabled={generalLoading || !generalSelectedKeys.length}>
-          <span className={generalLoading ? "spinning" : ""}>↻</span>
-          {generalLoading ? "Generando..." : generalOpen ? "Recalcular Posiciones Generales" : "Generar Posiciones Generales"}
-        </button>
-      </div>
-
-      {generalMessage && <div className="message standings-message">{generalMessage}</div>}
-
-      {generalOpen && generalRanking.length ? <div className="standings-table-wrap general-positions-table-wrap">
-        <table className="standings-table general-positions-table">
-          <thead><tr>
-            <th>#</th>
-            <th>Institución</th>
-            <th>Total</th>
-            <th>Puntos</th>
-            {generalLoadedOptions.map((item) => <th key={item.key}>{item.label}</th>)}
-            <th>PJ</th>
-            <th>PF</th>
-            <th>Dif. Sets</th>
-            <th>Dif. Tantos</th>
-          </tr></thead>
-          <tbody>{generalRanking.map((row) => {
-            const detailByKey = new Map(row.details.map((detail) => [detail.tableKey, detail]));
-            return <tr key={row.team} className={row.team === "MSM" ? "is-msm" : ""}>
-              <td><span className="standings-position">{row.computedRank}</span></td>
-              <td><div className="standings-team">{row.logo ? <img src={row.logo} alt="" loading="lazy"/> : null}<strong>{row.team}</strong></div></td>
-              <td className="general-position-total"><b>{row.totalPoints}</b></td>
-              <td className="general-position-official-points"><b>{row.officialPoints}</b></td>
-              {generalLoadedOptions.map((item) => {
-                const detail = detailByKey.get(item.key);
-                return <td key={item.key} className="general-position-score">
-                  {detail ? <><b>{detail.points}</b><small>{detail.position}.º</small></> : <><b>0</b><small>—</small></>}
-                </td>;
-              })}
-              <td className="general-position-count"><b>{row.played}</b></td>
-              <td className="general-position-count"><b>{row.remaining === null ? "—" : row.remaining}</b></td>
-              <td className="general-position-tiebreak"><b>{row.setDifference > 0 ? `+${row.setDifference}` : row.setDifference}</b><small>{row.setsWon}-{row.setsLost}</small></td>
-              <td className="general-position-tiebreak"><b>{row.pointDifference > 0 ? `+${row.pointDifference}` : row.pointDifference}</b><small>{row.pointsWon}-{row.pointsLost}</small></td>
-            </tr>;
-          })}</tbody>
-        </table>
-      </div> : generalOpen ? <div className="standings-loading">No Hay Datos Para Las Categorías Seleccionadas.</div> : null}
-
-      <div className="standings-foot general-positions-foot">
-        <span><b>Criterio:</b> 1.º suma 12 puntos; 2.º, 11; 3.º, 10; …; 12.º, 1. Si una institución no figura en una categoría, suma 0 en esa categoría.</span>
-        <span><b>Puntos</b>: suma de los puntos oficiales que tiene la institución en cada una de las categorías seleccionadas. <b>PJ</b>: suma de partidos jugados en las categorías seleccionadas. <b>PF</b>: partidos con estado pendiente/upcoming que todavía le quedan a la institución en esas mismas categorías. Son informativos y no modifican el puntaje del ranking.</span>
-        <span><b>No intervienen en el puntaje</b> partidos jugados, partidos faltantes, victorias, derrotas, sets ni puntos oficiales del torneo.</span>
-        <small>Desempate: 1.º mayor diferencia de sets (sets ganados − sets perdidos); 2.º mayor diferencia de tantos (tantos a favor − tantos en contra). Si ambas diferencias también son iguales, se ordena alfabéticamente sólo como último criterio técnico.</small>
-      </div>
-    </section>
+    {generalPositionsSection}
   </section>;
 }
