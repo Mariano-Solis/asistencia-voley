@@ -100,6 +100,9 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   const [fixtureCategoryKeys, setFixtureCategoryKeys] = useState(null);
   const [fixtureInstitution, setFixtureInstitution] = useState("MSM");
   const [fixtureOpponent, setFixtureOpponent] = useState("all");
+  const [programRoundIds, setProgramRoundIds] = useState(null);
+  const [programStatus, setProgramStatus] = useState("all");
+  const [programCategoryKeys, setProgramCategoryKeys] = useState(null);
   const abortRef = useRef(null);
 
   const allowedKeys = useMemo(() => {
@@ -178,6 +181,119 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   }, [data, unrestricted, allowedKeys]);
 
   const latestRound = rounds.length ? Math.max(...rounds.map((round) => Number(round.round || 0))) : null;
+
+  const programCategories = useMemo(() => {
+    const byKey = new Map();
+    for (const round of rounds) {
+      for (const match of round.matches) {
+        if (!match?.permissionKey) continue;
+        if (!byKey.has(match.permissionKey)) {
+          byKey.set(match.permissionKey, {
+            key: match.permissionKey,
+            label: match.categoryLabel || match.permissionKey,
+            branch: matchBranch(match),
+          });
+        }
+      }
+    }
+    return [...byKey.values()].sort((a, b) => {
+      if (a.branch !== b.branch) return a.branch === "female" ? -1 : 1;
+      return a.label.localeCompare(b.label, "es");
+    });
+  }, [rounds]);
+
+  const programRoundSet = useMemo(
+    () => programRoundIds === null ? null : new Set(programRoundIds.map(Number)),
+    [programRoundIds]
+  );
+  const programCategorySet = useMemo(
+    () => programCategoryKeys === null ? null : new Set(programCategoryKeys),
+    [programCategoryKeys]
+  );
+
+  const filteredProgramRounds = useMemo(() => rounds
+    .filter((round) => programRoundSet === null || programRoundSet.has(Number(round.round)))
+    .map((round) => ({
+      ...round,
+      matches: round.matches.filter((match) => {
+        if (programCategorySet !== null && !programCategorySet.has(match.permissionKey)) return false;
+        if (programStatus === "confirmed" && !match.confirmed) return false;
+        if (programStatus === "tentative" && match.confirmed) return false;
+        return true;
+      }),
+    }))
+    .filter((round) => round.matches.length > 0),
+  [rounds, programRoundSet, programCategorySet, programStatus]);
+
+  const programVisibleMatchCount = useMemo(
+    () => filteredProgramRounds.reduce((sum, round) => sum + round.matches.length, 0),
+    [filteredProgramRounds]
+  );
+
+  const programRoundSummary = programRoundIds === null
+    ? "Todas Las Fechas"
+    : programRoundIds.length === 0
+      ? "Ninguna Fecha"
+      : programRoundIds.length === 1
+        ? `Fecha ${programRoundIds[0]}`
+        : `${programRoundIds.length} Fechas Seleccionadas`;
+
+  const programCategorySummary = programCategoryKeys === null
+    ? "Todas Las Categorías"
+    : programCategoryKeys.length === 0
+      ? "Ninguna Categoría"
+      : programCategoryKeys.length === 1
+        ? programCategories.find((item) => item.key === programCategoryKeys[0])?.label || "1 Categoría"
+        : `${programCategoryKeys.length} Categorías Seleccionadas`;
+
+  function toggleProgramRound(round) {
+    const value = Number(round);
+    setProgramRoundIds((current) => {
+      if (current === null) {
+        return rounds.map((item) => Number(item.round)).filter((item) => item !== value);
+      }
+      return current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value].sort((a, b) => a - b);
+    });
+  }
+
+  function toggleProgramCategory(key) {
+    setProgramCategoryKeys((current) => {
+      if (current === null) {
+        return programCategories.map((item) => item.key).filter((item) => item !== key);
+      }
+      return current.includes(key) ? current.filter((item) => item !== key) : [...current, key];
+    });
+  }
+
+  function selectProgramCategories(branch) {
+    if (branch === "all") {
+      setProgramCategoryKeys(null);
+      return;
+    }
+    setProgramCategoryKeys(programCategories.filter((item) => item.branch === branch).map((item) => item.key));
+  }
+
+  function resetProgramFilters() {
+    setProgramRoundIds(null);
+    setProgramStatus("all");
+    setProgramCategoryKeys(null);
+  }
+
+  useEffect(() => {
+    if (programRoundIds === null) return;
+    const valid = new Set(rounds.map((round) => Number(round.round)));
+    const next = programRoundIds.filter((round) => valid.has(Number(round)));
+    if (next.length !== programRoundIds.length) setProgramRoundIds(next);
+  }, [rounds, programRoundIds]);
+
+  useEffect(() => {
+    if (programCategoryKeys === null) return;
+    const valid = new Set(programCategories.map((item) => item.key));
+    const next = programCategoryKeys.filter((key) => valid.has(key));
+    if (next.length !== programCategoryKeys.length) setProgramCategoryKeys(next);
+  }, [programCategories, programCategoryKeys]);
 
   const leagueFixtures = useMemo(() => {
     const source = Array.isArray(data?.leagueFixtures) ? data.leagueFixtures : [];
@@ -562,7 +678,85 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
 
     {loading && !data ? <div className="card programacion-loading">Consultando La Programación Oficial...</div> : null}
 
-    {!loading && rounds.map((round) => {
+    {!loading && rounds.length > 0 ? <section className="card programacion-program-filter">
+      <div className="programacion-program-filter-head">
+        <div>
+          <span className="programacion-kicker">Filtro De Programación</span>
+          <h2>Elegir Qué Partidos Ver</h2>
+          <p>Combiná Una O Varias Fechas, Categorías y El Estado Confirmado O Tentativo.</p>
+        </div>
+        <span className="programacion-program-filter-count">{programVisibleMatchCount} Partido{programVisibleMatchCount === 1 ? "" : "s"}</span>
+      </div>
+
+      <div className="programacion-program-filter-grid">
+        <div className="programacion-program-filter-selector">
+          <span>Fecha</span>
+          <details className="programacion-category-dropdown programacion-program-filter-dropdown">
+            <summary><strong>{programRoundSummary}</strong><span aria-hidden="true">⌄</span></summary>
+            <div className="programacion-category-dropdown-menu">
+              <div className="programacion-category-dropdown-actions">
+                <button type="button" onClick={() => setProgramRoundIds(null)}>Todas</button>
+                <button type="button" onClick={() => setProgramRoundIds([])}>Ninguna</button>
+              </div>
+              <div className="programacion-category-dropdown-list">
+                {rounds.map((round) => {
+                  const checked = programRoundSet === null || programRoundSet.has(Number(round.round));
+                  const confirmed = round.matches.length > 0 && round.matches.every((match) => match.confirmed);
+                  return <label key={round.round} className={checked ? "selected" : ""}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleProgramRound(round.round)}/>
+                    <span>Fecha {round.round}</span>
+                    <small>{confirmed ? "Confirmada" : "Tentativa"}</small>
+                  </label>;
+                })}
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div className="programacion-program-filter-selector">
+          <span>Equipo / Categoría</span>
+          <details className="programacion-category-dropdown programacion-program-filter-dropdown">
+            <summary><strong>{programCategorySummary}</strong><span aria-hidden="true">⌄</span></summary>
+            <div className="programacion-category-dropdown-menu">
+              <div className="programacion-category-dropdown-actions programacion-program-category-actions">
+                <button type="button" onClick={() => selectProgramCategories("all")}>Todas</button>
+                <button type="button" onClick={() => selectProgramCategories("female")}>Femenino</button>
+                <button type="button" onClick={() => selectProgramCategories("male")}>Masculino</button>
+                <button type="button" onClick={() => setProgramCategoryKeys([])}>Ninguna</button>
+              </div>
+              <div className="programacion-category-dropdown-list">
+                {programCategories.map((item) => {
+                  const checked = programCategorySet === null || programCategorySet.has(item.key);
+                  return <label key={item.key} className={checked ? "selected" : ""}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleProgramCategory(item.key)}/>
+                    <span>{item.label}</span>
+                    <small>{branchLabel(item.branch)}</small>
+                  </label>;
+                })}
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <label className="programacion-program-filter-selector">
+          <span>Estado</span>
+          <select value={programStatus} onChange={(event) => setProgramStatus(event.target.value)}>
+            <option value="all">Confirmados y Tentativos</option>
+            <option value="confirmed">Sólo Confirmados</option>
+            <option value="tentative">Sólo Tentativos</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="programacion-program-filter-summary">
+        <span>{programRoundSummary}</span>
+        <span>{programCategorySummary}</span>
+        <span>{programStatus === "all" ? "Todos Los Estados" : programStatus === "confirmed" ? "Confirmados" : "Tentativos"}</span>
+        {(programRoundIds !== null || programCategoryKeys !== null || programStatus !== "all") && <button type="button" onClick={resetProgramFilters}>Restablecer</button>}
+      </div>
+    </section> : null}
+
+    {!loading && filteredProgramRounds.map((round) => {
       const isLatest = Number(round.round) === latestRound;
       const visibleConfirmed = round.matches.length > 0 && round.matches.every((match) => match.confirmed);
       const status = visibleConfirmed ? "Confirmada" : "Tentativa";
@@ -598,6 +792,8 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
         {!visibleConfirmed && round.matches.length > 0 ? <p className="programacion-note">Esta Fecha Es Tentativa. La Aplicación Volverá A Consultar Automáticamente La Fuente Oficial y Se Actualizará Cuando La FMV La Confirme.</p> : null}
       </article>;
     })}
+
+    {!loading && rounds.length > 0 && filteredProgramRounds.length === 0 ? <div className="card programacion-empty">No Hay Partidos Que Coincidan Con Los Filtros Seleccionados.</div> : null}
 
     {!simpleMode && !loading && leagueFixtures.length > 0 ? <section className="programacion-fixture-general card">
       <div className="programacion-fixture-head">
