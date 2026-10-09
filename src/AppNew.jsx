@@ -128,7 +128,7 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
           }
         });
         if (error) throw error;
-        if (!data.session) { if (preparedSelfie) await savePendingPlayerPhoto(email, preparedSelfie).catch(() => {}); setMessage("✓ Cuenta Creada. Revisá Tu Correo Para Confirmarla y Luego Ingresá Como Jugador@."); setMode("player"); return; }
+        if (!data.session) { if (preparedSelfie) await savePendingPlayerPhoto(email, preparedSelfie).catch(() => {}); setMessage("✓ Cuenta Creada. Queda Pendiente De Aprobación. Cuando Un Profe Autorizado O El Super Administrador La Apruebe, Podrás Ingresar Con Tu Correo y Contraseña."); setMode("player"); return; }
         if (!isAuthSession(data.session)) throw new Error("La Sesión No Es Válida. Volvé A Ingresar.");
         const uid = data.session.user.id;
         const playerRow = await supabase.from("players").select("*").eq("user_id", uid).single();
