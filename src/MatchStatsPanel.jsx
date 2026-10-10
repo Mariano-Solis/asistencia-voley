@@ -68,11 +68,46 @@ function actionLabel(event){
   const outcome=skill?.outcomes.find(item=>item.key===event.outcome);
   return [skill?.label?.replace(/^[^ ]+ /,""),outcome?.label].filter(Boolean).join(" · ");
 }
+function computeTeamSummary(events){
+  const row={
+    serve:0,aces:0,serveErrors:0,receptions:0,receptionPositive:0,receptionPerfect:0,receptionErrors:0,
+    attacks:0,attackPoints:0,attackErrors:0,blocked:0,blockPoints:0,blockErrors:0,unforcedErrors:0,
+    pointsUs:0,pointsOpponent:0,
+  };
+  for(const event of events){
+    if(event.point_for==="us")row.pointsUs++;
+    if(event.point_for==="opponent")row.pointsOpponent++;
+    if(event.skill==="serve"){row.serve++;if(event.outcome==="ace")row.aces++;if(event.outcome==="error")row.serveErrors++;}
+    if(event.skill==="reception"){row.receptions++;if(["perfect","positive"].includes(event.outcome))row.receptionPositive++;if(event.outcome==="perfect")row.receptionPerfect++;if(event.outcome==="error")row.receptionErrors++;}
+    if(event.skill==="attack"){row.attacks++;if(event.outcome==="point")row.attackPoints++;if(event.outcome==="error")row.attackErrors++;if(event.outcome==="blocked")row.blocked++;}
+    if(event.skill==="block"){if(event.outcome==="point")row.blockPoints++;if(event.outcome==="error")row.blockErrors++;}
+    if(event.skill==="error")row.unforcedErrors++;
+  }
+  return {
+    ...row,
+    receptionPositivePct:row.receptions?(row.receptionPositive/row.receptions)*100:null,
+    receptionPerfectPct:row.receptions?(row.receptionPerfect/row.receptions)*100:null,
+    attackEfficiency:row.attacks?((row.attackPoints-row.attackErrors-row.blocked)/row.attacks)*100:null,
+    totalErrors:row.serveErrors+row.receptionErrors+row.attackErrors+row.blockErrors+row.unforcedErrors,
+  };
+}
+function computeSetScores(events){
+  const map=new Map();
+  for(const event of events){
+    const set=Number(event.set_number||0);
+    if(!set)continue;
+    if(!map.has(set))map.set(set,{set,us:0,opponent:0});
+    const row=map.get(set);
+    if(event.point_for==="us")row.us++;
+    if(event.point_for==="opponent")row.opponent++;
+  }
+  return [...map.values()].sort((a,b)=>a.set-b.set);
+}
 function computePlayerSummary(events,players){
   const byId=new Map(players.map(player=>[player.id,{
     id:player.id,name:player.full_name||[player.last_name,player.first_name].filter(Boolean).join(" ")||"Jugador@",
     serve:0,aces:0,serveErrors:0,receptions:0,receptionPositive:0,receptionPerfect:0,receptionErrors:0,
-    attacks:0,attackPoints:0,attackErrors:0,blocked:0,blockPoints:0,errors:0,
+    attacks:0,attackPoints:0,attackErrors:0,blocked:0,blockPoints:0,blockErrors:0,errors:0,
   }]));
   for(const event of events){
     if(!event.player_id||!byId.has(event.player_id))continue;
@@ -80,7 +115,7 @@ function computePlayerSummary(events,players){
     if(event.skill==="serve"){row.serve++;if(event.outcome==="ace")row.aces++;if(event.outcome==="error")row.serveErrors++;}
     if(event.skill==="reception"){row.receptions++;if(["perfect","positive"].includes(event.outcome))row.receptionPositive++;if(event.outcome==="perfect")row.receptionPerfect++;if(event.outcome==="error")row.receptionErrors++;}
     if(event.skill==="attack"){row.attacks++;if(event.outcome==="point")row.attackPoints++;if(event.outcome==="error")row.attackErrors++;if(event.outcome==="blocked")row.blocked++;}
-    if(event.skill==="block"&&event.outcome==="point")row.blockPoints++;
+    if(event.skill==="block"){if(event.outcome==="point")row.blockPoints++;if(event.outcome==="error")row.blockErrors++;}
     if(event.skill==="error")row.errors++;
   }
   return [...byId.values()].map(row=>({
@@ -104,14 +139,17 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
 
   const readOnly=!canManage;
   const ourIsLocal=normalize(match?.local).startsWith("MSM");
-  const ourTeam=ourIsLocal?match?.local:match?.visitor;
-  const rivalTeam=ourIsLocal?match?.visitor:match?.local;
+  const ourIsVisitor=normalize(match?.visitor).startsWith("MSM");
+  const validMsmMatch=ourIsLocal||ourIsVisitor;
+  const ourTeam=ourIsLocal?match?.local:ourIsVisitor?match?.visitor:"MSM";
+  const rivalTeam=ourIsLocal?match?.visitor:ourIsVisitor?match?.local:"Rival";
 
   async function actorId(){
     const result=await supabase.auth.getUser();
     return result.data?.user?.id||null;
   }
   async function load(){
+    if(!validMsmMatch){setLoading(false);setMessage("Las Estadísticas Institucionales Sólo Se Habilitan En Partidos Donde Participa MSM.");return;}
     if(!category?.id){setLoading(false);setMessage("No Se Pudo Vincular Este Partido Con Una Categoría Interna.");return;}
     setLoading(true);setMessage("");
     try{
@@ -226,22 +264,27 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
     finally{setSaving(false);}
   }
 
+  async function removeEvent(event,{quick=false}={}){
+    if(!canManage||!session||!event||saving)return;
+    if(!quick&&!window.confirm(`Eliminar Esta Acción: ${actionLabel(event)}?`))return;
+    setSaving(true);setMessage("");
+    try{
+      if(event.local_pending){
+        const next=pending.filter(item=>item.id!==event.id);
+        setPending(next);writeQueue(session.id,next);
+      }else{
+        const removed=await supabase.from("match_stat_events").delete().eq("id",event.id);
+        if(removed.error)throw removed.error;
+      }
+      setEvents(current=>current.filter(item=>item.id!==event.id));
+    }catch(error){setMessage(String(error?.message||"No Se Pudo Eliminar La Acción."));}
+    finally{setSaving(false);}
+  }
   async function undo(){
     if(!canManage||!session||!events.length||saving)return;
     const last=events[events.length-1];
     if(!window.confirm(`Deshacer La Última Acción: ${actionLabel(last)}?`))return;
-    setSaving(true);setMessage("");
-    try{
-      if(last.local_pending){
-        const next=pending.filter(item=>item.id!==last.id);
-        setPending(next);writeQueue(session.id,next);
-      }else{
-        const removed=await supabase.from("match_stat_events").delete().eq("id",last.id);
-        if(removed.error)throw removed.error;
-      }
-      setEvents(current=>current.filter(item=>item.id!==last.id));
-    }catch(error){setMessage(String(error?.message||"No Se Pudo Deshacer La Acción."));}
-    finally{setSaving(false);}
+    await removeEvent(last,{quick:true});
   }
 
   async function nextSet(){
@@ -258,6 +301,13 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
     if(result.error){setMessage(result.error.message);return;}
     setSession(result.data);
   }
+  async function reopen(){
+    if(!canManage||!session||session.status!=="completed")return;
+    if(!window.confirm("Reabrir Este Partido Para Corregir O Continuar La Toma De Estadísticas?"))return;
+    const result=await supabase.from("match_stat_sessions").update({status:"in_progress",completed_at:null,updated_at:new Date().toISOString()}).eq("id",session.id).select("*").single();
+    if(result.error){setMessage(result.error.message);return;}
+    setSession(result.data);
+  }
 
   const visibleEvents=useMemo(()=>currentPlayerId&&!canManage?events.filter(item=>item.player_id===currentPlayerId):events,[events,currentPlayerId,canManage]);
   const currentSetEvents=events.filter(item=>item.set_number===session?.current_set);
@@ -266,8 +316,11 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
     opponent:currentSetEvents.filter(item=>item.point_for==="opponent").length,
   };
   const summaries=useMemo(()=>computePlayerSummary(visibleEvents,players),[visibleEvents,players]);
+  const teamSummary=useMemo(()=>computeTeamSummary(events),[events]);
+  const setScores=useMemo(()=>computeSetScores(events),[events]);
+  const playerNameById=useMemo(()=>Object.fromEntries(players.map(player=>[player.id,player.full_name||[player.last_name,player.first_name].filter(Boolean).join(" ")||"Jugador@"])),[players]);
   const selectedSkillConfig=SKILLS.find(item=>item.key===selectedSkill)||SKILLS[0];
-  const recent=visibleEvents.slice(-6).reverse();
+  const recent=visibleEvents.slice(-10).reverse();
 
   return createPortal(<div className="match-stats-backdrop" role="dialog" aria-modal="true">
     <section className="match-stats-panel">
@@ -285,6 +338,19 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
 
         {pending.length>0&&<div className="match-stats-pending"><b>{pending.length} Acción{pending.length===1?"":"es"} Pendiente{pending.length===1?"":"s"}</b><button type="button" disabled={syncing} onClick={()=>void syncQueue()}>{syncing?"Sincronizando...":"Sincronizar"}</button></div>}
         {message&&<div className="match-stats-message">{message}</div>}
+
+        {canManage&&<section className="match-stats-team-summary">
+          <div className="match-stats-section-title"><div><span>Equipo</span><h3>Resumen Técnico De MSM</h3></div><b>{events.length} Acciones</b></div>
+          <div className="match-stats-team-metrics">
+            <div><span>Aces</span><b>{teamSummary.aces}</b><small>{teamSummary.serve} Saques</small></div>
+            <div><span>Recepción +</span><b>{pct(teamSummary.receptionPositivePct)}</b><small>{teamSummary.receptions} Recepciones</small></div>
+            <div><span>Recepción Perfecta</span><b>{pct(teamSummary.receptionPerfectPct)}</b><small>{teamSummary.receptionPerfect} Perfectas</small></div>
+            <div><span>Ataque</span><b>{teamSummary.attackPoints}/{teamSummary.attacks}</b><small>{pct(teamSummary.attackEfficiency)} Eficiencia</small></div>
+            <div><span>Bloqueos</span><b>{teamSummary.blockPoints}</b><small>Puntos Directos</small></div>
+            <div><span>Errores</span><b>{teamSummary.totalErrors}</b><small>Técnicos Registrados</small></div>
+          </div>
+          {setScores.length?<div className="match-stats-set-summary">{setScores.map(row=><div key={row.set}><span>Set {row.set}</span><b>{row.us} – {row.opponent}</b></div>)}</div>:null}
+        </section>}
 
         {canManage&&session.status!=="completed"?<>
           <div className="match-stats-roster">
@@ -305,7 +371,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
             <button type="button" disabled={session.current_set>=5} onClick={nextSet}>Finalizar Set</button>
             <button type="button" className="danger" onClick={finish}>Finalizar Partido</button>
           </div>
-        </>:null}
+        </>:canManage&&session.status==="completed"?<div className="match-stats-completed-actions"><span>✓ Toma De Estadísticas Finalizada</span><button type="button" onClick={reopen}>Reabrir Para Corregir</button></div>:null}
 
         <section className="match-stats-summary">
           <div className="match-stats-section-title"><div><span>Resumen</span><h3>{canManage?"Rendimiento Por Jugador@":"Mis Estadísticas"}</h3></div><b>{visibleEvents.length} Acciones</b></div>
@@ -316,11 +382,11 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
             <div><span>Ataque</span><b>{row.attackPoints}/{row.attacks}</b></div>
             <div><span>Ef. Ataque</span><b>{pct(row.attackEfficiency)}</b></div>
             <div><span>Bloqueos</span><b>{row.blockPoints}</b></div>
-            <div><span>Errores</span><b>{row.errors+row.serveErrors+row.receptionErrors+row.attackErrors}</b></div>
+            <div><span>Errores</span><b>{row.errors+row.serveErrors+row.receptionErrors+row.attackErrors+row.blockErrors}</b></div>
           </article>)}</div>:<div className="match-stats-empty compact">Todavía No Hay Acciones Registradas.</div>}
         </section>
 
-        {canManage&&recent.length?<section className="match-stats-recent"><h3>Últimas Acciones</h3>{recent.map(item=><div key={item.id}><span>Set {item.set_number}</span><b>{actionLabel(item)}</b>{item.local_pending&&<small>Local</small>}</div>)}</section>:null}
+        {canManage&&recent.length?<section className="match-stats-recent"><h3>Últimas Acciones</h3>{recent.map(item=><div key={item.id}><span>Set {item.set_number}</span><b>{item.player_id&&playerNameById[item.player_id]?playerNameById[item.player_id]+" · ":""}{actionLabel(item)}</b>{item.local_pending&&<small>Local</small>}<button type="button" aria-label="Eliminar acción" disabled={saving} onClick={()=>void removeEvent(item)}>×</button></div>)}</section>:null}
       </>}
     </section>
   </div>,document.body);
