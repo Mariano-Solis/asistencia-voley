@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { createPortal } from "react-dom";
+import MatchStatsPanel from "./MatchStatsPanel";
 
 const API_PATH="/api/fmv-partidos";
 const NATIVE_API="https://www.voleysanmartin.com.ar/api/fmv-partidos";
@@ -41,7 +42,7 @@ function scoreText(match){
   return Number.isFinite(match.scoreA)&&Number.isFinite(match.scoreB)?[match.scoreA,match.scoreB]:["—","—"];
 }
 
-export default function PartidosHub({allowedCategories=null,unrestricted=false,compact=false}){
+export default function PartidosHub({allowedCategories=null,unrestricted=false,compact=false,canManageStats=false,canViewStats=false,currentPlayerId=null}){
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [refreshing,setRefreshing]=useState(false);
@@ -51,6 +52,7 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
   const [category,setCategory]=useState("all");
   const [institution,setInstitution]=useState("all");
   const [selectedId,setSelectedId]=useState("");
+  const [statsMatchId,setStatsMatchId]=useState("");
   const abortRef=useRef(null);
 
   const allowedKeys=useMemo(()=>{
@@ -120,6 +122,14 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
     matchInstitution(match,institution)
   ),[permitted,branch,category,institution]);
 
+  const categoryByPermissionKey=useMemo(()=>{
+    const map=new Map();
+    for(const item of Array.isArray(allowedCategories)?allowedCategories:[]){
+      for(const key of categoryPermissionKeys(item))map.set(key,item);
+    }
+    return map;
+  },[allowedCategories]);
+
   const selectedMatch=useMemo(()=>{
     if(!selectedId)return null;
     const all=[...(data?.live||[]),...(data?.results||[])];
@@ -128,6 +138,8 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
 
   function openMatch(match){setSelectedId(match.id)}
   function closeMatch(){setSelectedId("")}
+  function openStats(match){setStatsMatchId(match.id)}
+  function closeStats(){setStatsMatchId("")}
   function cardKeyDown(event,match){
     if(event.key==="Enter"||event.key===" "){event.preventDefault();openMatch(match)}
   }
@@ -166,11 +178,34 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
       })}</div>:<div className="partidos-empty">{mode==="live"?"No Hay Partidos Marcados Como En Vivo Para Estos Filtros.":"No Hay Resultados Disponibles Para Estos Filtros."}</div>
     }
     <p className="partidos-footnote">Los datos se consultan únicamente al abrir esta pestaña o al tocar “Actualizar”. No hay seguimiento ni consumo en segundo plano.</p>
-    {selectedMatch&&<MatchDetail match={selectedMatch} updatedAt={data?.fetchedAt} refreshing={refreshing} onRefresh={()=>void load({quiet:true})} onClose={closeMatch}/>}
+    {selectedMatch&&<MatchDetail
+      match={selectedMatch}
+      updatedAt={data?.fetchedAt}
+      refreshing={refreshing}
+      onRefresh={()=>void load({quiet:true})}
+      onClose={closeMatch}
+      category={categoryByPermissionKey.get(selectedMatch.permissionKey)||null}
+      canManageStats={canManageStats}
+      canViewStats={canViewStats}
+      onOpenStats={()=>openStats(selectedMatch)}
+    />}
+    {statsMatchId&&(()=>{
+      const all=[...(data?.live||[]),...(data?.results||[])];
+      const statsMatch=all.find(item=>item.id===statsMatchId);
+      const statsCategory=statsMatch?categoryByPermissionKey.get(statsMatch.permissionKey)||null:null;
+      return statsMatch&&statsCategory?<MatchStatsPanel
+        match={statsMatch}
+        category={statsCategory}
+        canManage={canManageStats}
+        canView={canViewStats}
+        currentPlayerId={currentPlayerId}
+        onClose={closeStats}
+      />:null;
+    })()}
   </section>;
 }
 
-function MatchDetail({match,updatedAt,refreshing,onRefresh,onClose}){
+function MatchDetail({match,updatedAt,refreshing,onRefresh,onClose,category,canManageStats,canViewStats,onOpenStats}){
   const live=match.kind==="live";
   const scores=scoreText(match);
   const setRows=Array.isArray(match.setScores)?match.setScores:[];
@@ -221,6 +256,7 @@ function MatchDetail({match,updatedAt,refreshing,onRefresh,onClose}){
           {match.matchNumber&&<span>🏐 Partido {match.matchNumber}</span>}
         </div>
 
+        {(canManageStats||canViewStats)&&category?<button type="button" className="partido-detail-stats-button" onClick={onOpenStats}>📊 {canManageStats?"Tomar / Ver Estadísticas":"Ver Mis Estadísticas"}</button>:null}
         <button type="button" className="partido-detail-refresh" disabled={refreshing} onClick={onRefresh}>
           <span className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando Tanteador...":"Actualizar Tanteador"}
         </button>
