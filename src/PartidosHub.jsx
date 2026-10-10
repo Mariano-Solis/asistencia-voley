@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { createPortal } from "react-dom";
 import MatchStatsPanel from "./MatchStatsPanel";
+import { supabase } from "./supabase";
 
 const API_PATH="/api/fmv-partidos";
 const NATIVE_API="https://www.voleysanmartin.com.ar/api/fmv-partidos";
@@ -41,6 +42,24 @@ function matchInstitution(match,value){
 function scoreText(match){
   return Number.isFinite(match.scoreA)&&Number.isFinite(match.scoreB)?[match.scoreA,match.scoreB]:["—","—"];
 }
+function isMsmMatch(match){
+  const local=normalizeName(match?.local);
+  const visitor=normalizeName(match?.visitor);
+  return local.startsWith("MSM")||visitor.startsWith("MSM");
+}
+function archiveMatch(session){
+  return {
+    id:session.external_match_id,
+    kind:session.status==="completed"?"result":"live",
+    local:session.our_team||"MSM",
+    visitor:session.rival_team||"Rival",
+    categoryLabel:session.category_label,
+    branch:session.branch,
+    date:session.match_date||"",
+    place:session.location||"",
+    permissionKey:null,
+  };
+}
 
 export default function PartidosHub({allowedCategories=null,unrestricted=false,compact=false,canManageStats=false,canViewStats=false,currentPlayerId=null}){
   const [data,setData]=useState(null);
@@ -52,7 +71,11 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
   const [category,setCategory]=useState("all");
   const [institution,setInstitution]=useState("all");
   const [selectedId,setSelectedId]=useState("");
-  const [statsMatchId,setStatsMatchId]=useState("");
+  const [statsTarget,setStatsTarget]=useState(null);
+  const [statsArchiveOpen,setStatsArchiveOpen]=useState(false);
+  const [statsArchive,setStatsArchive]=useState([]);
+  const [statsArchiveLoading,setStatsArchiveLoading]=useState(false);
+  const [statsArchiveMessage,setStatsArchiveMessage]=useState("");
   const abortRef=useRef(null);
 
   const allowedKeys=useMemo(()=>{
@@ -138,8 +161,38 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
 
   function openMatch(match){setSelectedId(match.id)}
   function closeMatch(){setSelectedId("")}
-  function openStats(match){setStatsMatchId(match.id)}
-  function closeStats(){setStatsMatchId("")}
+  function openStats(match,categoryOverride=null){
+    const targetCategory=categoryOverride||categoryByPermissionKey.get(match.permissionKey)||null;
+    if(!targetCategory)return;
+    setStatsTarget({match,category:targetCategory});
+  }
+  function closeStats(){setStatsTarget(null)}
+  async function loadStatsArchive(){
+    if(!(canManageStats||canViewStats))return;
+    setStatsArchiveLoading(true);
+    setStatsArchiveMessage("");
+    try{
+      const result=await supabase.from("match_stat_sessions")
+        .select("id,external_match_id,category_id,category_label,branch,match_date,location,our_team,rival_team,status,current_set,created_at,updated_at,completed_at")
+        .order("match_date",{ascending:false,nullsFirst:false})
+        .order("created_at",{ascending:false})
+        .limit(60);
+      if(result.error)throw result.error;
+      setStatsArchive(result.data||[]);
+    }catch(error){
+      setStatsArchiveMessage(error?.message||"No Se Pudieron Cargar Las Estadísticas Guardadas.");
+    }finally{
+      setStatsArchiveLoading(false);
+    }
+  }
+  async function toggleStatsArchive(){
+    const next=!statsArchiveOpen;
+    setStatsArchiveOpen(next);
+    if(next)await loadStatsArchive();
+  }
+  function openArchivedStats(item){
+    openStats(archiveMatch(item),{id:item.category_id,name:item.category_label,gender:item.branch});
+  }
   function cardKeyDown(event,match){
     if(event.key==="Enter"||event.key===" "){event.preventDefault();openMatch(match)}
   }
@@ -156,6 +209,7 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
         <button type="button" className={mode==="results"?"active":""} onClick={()=>setMode("results")}>✓ Resultados</button>
       </div>
       <button type="button" className="partidos-refresh" onClick={()=>void load({quiet:true})} disabled={loading||refreshing}><span className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando...":"Actualizar"}</button>
+      {(canManageStats||canViewStats)&&<button type="button" className={"partidos-stats-archive-button "+(statsArchiveOpen?"active":"")} onClick={()=>void toggleStatsArchive()}>📊 Estadísticas Guardadas</button>}
     </div>
 
     <div className="partidos-filters card">
@@ -164,6 +218,18 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
       <label>Institución<select value={institution} onChange={event=>setInstitution(event.target.value)}><option value="all">Todas</option>{institutions.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
     </div>
 
+    {statsArchiveOpen&&<section className="partidos-stats-archive card">
+      <div className="partidos-stats-archive-head">
+        <div><span>Historial Técnico</span><h2>{currentPlayerId?"Mis Estadísticas De Partido":"Estadísticas Guardadas"}</h2><p>{currentPlayerId?"Sólo Tus Propias Acciones, En Modo Lectura.":"Partidos De MSM Con Estadísticas Registradas."}</p></div>
+        <button type="button" onClick={()=>void loadStatsArchive()} disabled={statsArchiveLoading}>↻ {statsArchiveLoading?"Actualizando...":"Actualizar"}</button>
+      </div>
+      {statsArchiveMessage&&<div className="partidos-message">{statsArchiveMessage}</div>}
+      {statsArchiveLoading&&!statsArchive.length?<div className="partidos-empty">Cargando Estadísticas...</div>:statsArchive.length?<div className="partidos-stats-archive-grid">{statsArchive.map(item=><button type="button" key={item.id} onClick={()=>openArchivedStats(item)}>
+        <span>{item.branch==="female"?"Femenino":"Masculino"} · {item.category_label}</span>
+        <b>{item.our_team} vs {item.rival_team}</b>
+        <small>{item.match_date||"Fecha Sin Registrar"} · {item.status==="completed"?"Finalizado":"En Curso"}</small>
+      </button>)}</div>:<div className="partidos-empty">{currentPlayerId?"Todavía No Tenés Estadísticas Personales Cargadas.":"Todavía No Hay Partidos Con Estadísticas Guardadas."}</div>}
+    </section>}
     {message&&<div className="partidos-message">{message}</div>}
     {loading?<div className="partidos-empty">Consultando Partidos...</div>:
       visible.length?<div className="partidos-grid">{visible.map(match=>{
@@ -189,19 +255,14 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
       canViewStats={canViewStats}
       onOpenStats={()=>openStats(selectedMatch)}
     />}
-    {statsMatchId&&(()=>{
-      const all=[...(data?.live||[]),...(data?.results||[])];
-      const statsMatch=all.find(item=>item.id===statsMatchId);
-      const statsCategory=statsMatch?categoryByPermissionKey.get(statsMatch.permissionKey)||null:null;
-      return statsMatch&&statsCategory?<MatchStatsPanel
-        match={statsMatch}
-        category={statsCategory}
-        canManage={canManageStats}
-        canView={canViewStats}
-        currentPlayerId={currentPlayerId}
-        onClose={closeStats}
-      />:null;
-    })()}
+    {statsTarget&&<MatchStatsPanel
+      match={statsTarget.match}
+      category={statsTarget.category}
+      canManage={canManageStats}
+      canView={canViewStats}
+      currentPlayerId={currentPlayerId}
+      onClose={closeStats}
+    />}
   </section>;
 }
 
@@ -256,7 +317,7 @@ function MatchDetail({match,updatedAt,refreshing,onRefresh,onClose,category,canM
           {match.matchNumber&&<span>🏐 Partido {match.matchNumber}</span>}
         </div>
 
-        {(canManageStats||canViewStats)&&category?<button type="button" className="partido-detail-stats-button" onClick={onOpenStats}>📊 {canManageStats?"Tomar / Ver Estadísticas":"Ver Mis Estadísticas"}</button>:null}
+        {(canManageStats||canViewStats)&&category&&isMsmMatch(match)?<button type="button" className="partido-detail-stats-button" onClick={onOpenStats}>📊 {canManageStats?"Tomar / Ver Estadísticas":"Ver Mis Estadísticas"}</button>:null}
         <button type="button" className="partido-detail-refresh" disabled={refreshing} onClick={onRefresh}>
           <span className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando Tanteador...":"Actualizar Tanteador"}
         </button>

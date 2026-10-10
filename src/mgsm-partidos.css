@@ -736,3 +736,119 @@
     font-size:28px;
   }
 }
+
+
+/* =========================================================
+   PARTIDOS · HISTORIAL DE ESTADÍSTICAS MSM
+========================================================= */
+.partidos-stats-archive-button{
+  min-height:40px;
+  padding:9px 13px;
+  border:1px solid #e3e5e8;
+  border-radius:10px;
+  background:#fff;
+  color:#8f0d14;
+  font-size:11px;
+  font-weight:900;
+}
+.partidos-stats-archive-button.active{
+  background:#fff1f2;
+  border-color:#e5aeb3;
+  color:#a81019;
+}
+.partidos-stats-archive{
+  padding:14px;
+  display:grid;
+  gap:12px;
+}
+.partidos-stats-archive-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.partidos-stats-archive-head span{
+  color:#b5121b;
+  font-size:9px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.partidos-stats-archive-head h2{
+  margin:3px 0 3px;
+  font-size:18px;
+  color:#252a32;
+}
+.partidos-stats-archive-head p{
+  margin:0;
+  color:#7c828b;
+  font-size:10px;
+}
+.partidos-stats-archive-head>button{
+  flex:0 0 auto;
+  padding:8px 10px;
+  border:1px solid #e2e5e9;
+  border-radius:10px;
+  background:#fff;
+  color:#444b55;
+  font-size:10px;
+  font-weight:850;
+}
+.partidos-stats-archive-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.partidos-stats-archive-grid>button{
+  min-width:0;
+  padding:11px 12px;
+  display:grid;
+  gap:4px;
+  text-align:left;
+  border:1px solid #e5e8ec;
+  border-radius:13px;
+  background:#fff;
+  color:#2e333b;
+}
+.partidos-stats-archive-grid>button:hover,
+.partidos-stats-archive-grid>button:focus-visible{
+  border-color:#d7a0a5;
+  box-shadow:0 6px 16px rgba(181,18,27,.08);
+  outline:none;
+}
+.partidos-stats-archive-grid span{
+  color:#8a9098;
+  font-size:8.5px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.partidos-stats-archive-grid b{
+  overflow:hidden;
+  font-size:12px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.partidos-stats-archive-grid small{
+  color:#7a818a;
+  font-size:9px;
+  font-weight:700;
+}
+@media(max-width:700px){
+  .partidos-toolbar{
+    flex-wrap:wrap;
+  }
+  .partidos-stats-archive-button{
+    width:100%;
+  }
+  .partidos-stats-archive-grid{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:520px){
+  .partidos-stats-archive-head{
+    display:grid;
+  }
+  .partidos-stats-archive-head>button{
+    justify-self:start;
+  }
+}
