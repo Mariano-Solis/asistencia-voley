@@ -76,6 +76,7 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
   const [statsArchive,setStatsArchive]=useState([]);
   const [statsArchiveLoading,setStatsArchiveLoading]=useState(false);
   const [statsArchiveMessage,setStatsArchiveMessage]=useState("");
+  const [deletingStatsId,setDeletingStatsId]=useState("");
   const abortRef=useRef(null);
 
   const allowedKeys=useMemo(()=>{
@@ -193,6 +194,33 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
   function openArchivedStats(item){
     openStats(archiveMatch(item),{id:item.category_id,name:item.category_label,gender:item.branch});
   }
+  async function deleteArchivedStats(item){
+    if(!canManageStats||!item?.id||deletingStatsId)return;
+    const label=[item.our_team,item.rival_team].filter(Boolean).join(" vs ");
+    const confirmed=window.confirm(
+      `Eliminar Definitivamente Las Estadísticas De ${label||"Este Partido"}?\n\nSe Borrará La Sesión Completa y Todas Las Acciones Registradas. Esta Acción No Se Puede Deshacer.`
+    );
+    if(!confirmed)return;
+    setDeletingStatsId(item.id);
+    setStatsArchiveMessage("");
+    try{
+      const result=await supabase.from("match_stat_sessions")
+        .delete()
+        .eq("id",item.id)
+        .select("id")
+        .maybeSingle();
+      if(result.error)throw result.error;
+      if(!result.data?.id)throw new Error("No Tenés Permiso Para Eliminar Esta Estadística O Ya Fue Eliminada.");
+      try{localStorage.removeItem(`mgsm-match-stats-queue:${item.id}`)}catch{}
+      setStatsArchive(current=>current.filter(row=>row.id!==item.id));
+      if(statsTarget?.match?.id===item.external_match_id&&statsTarget?.category?.id===item.category_id)setStatsTarget(null);
+      setStatsArchiveMessage("✓ Estadística Eliminada Correctamente.");
+    }catch(error){
+      setStatsArchiveMessage(error?.message||"No Se Pudo Eliminar La Estadística Guardada.");
+    }finally{
+      setDeletingStatsId("");
+    }
+  }
   function cardKeyDown(event,match){
     if(event.key==="Enter"||event.key===" "){event.preventDefault();openMatch(match)}
   }
@@ -224,11 +252,21 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
         <button type="button" onClick={()=>void loadStatsArchive()} disabled={statsArchiveLoading}>↻ {statsArchiveLoading?"Actualizando...":"Actualizar"}</button>
       </div>
       {statsArchiveMessage&&<div className="partidos-message">{statsArchiveMessage}</div>}
-      {statsArchiveLoading&&!statsArchive.length?<div className="partidos-empty">Cargando Estadísticas...</div>:statsArchive.length?<div className="partidos-stats-archive-grid">{statsArchive.map(item=><button type="button" key={item.id} onClick={()=>openArchivedStats(item)}>
-        <span>{item.branch==="female"?"Femenino":"Masculino"} · {item.category_label}</span>
-        <b>{item.our_team} vs {item.rival_team}</b>
-        <small>{item.match_date||"Fecha Sin Registrar"} · {item.status==="completed"?"Finalizado":"En Curso"}</small>
-      </button>)}</div>:<div className="partidos-empty">{currentPlayerId?"Todavía No Tenés Estadísticas Personales Cargadas.":"Todavía No Hay Partidos Con Estadísticas Guardadas."}</div>}
+      {statsArchiveLoading&&!statsArchive.length?<div className="partidos-empty">Cargando Estadísticas...</div>:statsArchive.length?<div className="partidos-stats-archive-grid">{statsArchive.map(item=><article className="partidos-stats-archive-item" key={item.id}>
+        <button type="button" className="partidos-stats-archive-open" onClick={()=>openArchivedStats(item)}>
+          <span>{item.branch==="female"?"Femenino":"Masculino"} · {item.category_label}</span>
+          <b>{item.our_team} vs {item.rival_team}</b>
+          <small>{item.match_date||"Fecha Sin Registrar"} · {item.status==="completed"?"Finalizado":"En Curso"}</small>
+        </button>
+        {canManageStats&&<button
+          type="button"
+          className="partidos-stats-archive-delete"
+          disabled={deletingStatsId===item.id}
+          onClick={()=>void deleteArchivedStats(item)}
+          aria-label={`Eliminar Estadísticas De ${item.our_team} Contra ${item.rival_team}`}
+          title="Eliminar Estadística Completa"
+        >{deletingStatsId===item.id?"…":"🗑"}</button>}
+      </article>)}</div>:<div className="partidos-empty">{currentPlayerId?"Todavía No Tenés Estadísticas Personales Cargadas.":"Todavía No Hay Partidos Con Estadísticas Guardadas."}</div>}
     </section>}
     {message&&<div className="partidos-message">{message}</div>}
     {loading?<div className="partidos-empty">Consultando Partidos...</div>:
