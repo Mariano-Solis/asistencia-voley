@@ -287,9 +287,10 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
         const row={...payload.new,local_pending:false};
         setEvents(current=>sortEvents([...current.filter(item=>item.id!==row.id),row]));
       })
-      .on("postgres_changes",{event:"DELETE",schema:"public",table:"match_stat_events",filter:`session_id=eq.${session.id}`},payload=>{
-        const id=payload.old?.id;
-        if(id)setEvents(current=>current.filter(item=>item.id!==id));
+      .on("postgres_changes",{event:"DELETE",schema:"public",table:"match_stat_events"},payload=>{
+        const oldRow=payload.old||{};
+        if(oldRow.session_id!==session.id)return;
+        if(oldRow.id)setEvents(current=>current.filter(item=>item.id!==oldRow.id));
       })
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"match_stat_sessions",filter:`id=eq.${session.id}`},payload=>{
         setSession(current=>({...current,...payload.new}));
