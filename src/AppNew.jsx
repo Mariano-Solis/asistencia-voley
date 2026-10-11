@@ -68,8 +68,8 @@ function mergeNavigationOrder(items, savedOrder = []) {
   const byLabel = Object.fromEntries(items.map(item => [item[1], item]));
   const ordered = orderedLabels.map(label => byLabel[label]).filter(Boolean);
 
-  // Orden fijo de cierre: Entrenamiento, Planificación y Solapas cierran la navegación.
-  const tailLabels = ["Entrenamiento", "Planificación", "Solapas"];
+  // Solapas queda fija al final; el resto se puede ordenar libremente.
+  const tailLabels = ["Solapas"];
   const regular = ordered.filter(([, label]) => !tailLabels.includes(label));
   const tail = tailLabels.map(label => byLabel[label]).filter(Boolean);
   return [...regular, ...tail];
@@ -1720,7 +1720,7 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
   useEffect(()=>setOrderDraft(mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label)),[navigationOrder,labels.join("|")]);
   const visibilityOptions=["Asistencia","Jugador@s","Historial","Horarios","Programación","Partidos","Posiciones","Pizarra","Entrenamiento","Planificación","Pagos","Solicitudes","Profes","Categorías","Permisos"];
 
-  const fixedTail = ["Entrenamiento","Planificación","Solapas"];
+  const fixedTail = ["Solapas"];
   const normalizeOrder = (order) => {
     const regular = order.filter(label => !fixedTail.includes(label));
     return [...regular, ...fixedTail.filter(label => labels.includes(label))];
