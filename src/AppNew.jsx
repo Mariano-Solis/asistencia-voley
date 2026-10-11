@@ -2096,7 +2096,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
       {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
       {tab==="programming"&&<ProgramacionHub key={"preview-programming:"+version+":"+previewProfile.id} compact simpleMode allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
-      {tab==="matches"&&<PartidosHub key={"preview-matches:"+version+":"+previewProfile.id} compact unrestricted allowedCategories={professorStandingsCategories} canManageStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true} canViewStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true}/>} 
+      {tab==="matches"&&<PartidosHub key={"preview-matches:"+version+":"+previewProfile.id} compact unrestricted allowedCategories={professorStandingsCategories} canManageStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true} canViewStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true} canOpenBoard={previewProfile.preview_self===true||!Array.isArray(previewProfile.professor_allowed_tabs)||previewProfile.professor_allowed_tabs.includes("Pizarra")}/>} 
       {tab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact staffMode allowComparison={previewProfile.can_view_standings_comparison===true||previewProfile.preview_self===true} allowGeneralPositions={previewProfile.can_view_general_standings===true||previewProfile.preview_self===true} allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
       {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
       {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
@@ -2165,10 +2165,13 @@ function App() {
     return ()=>{mounted=false;authEpoch.current++;subscription.unsubscribe();};
   },[]);
   useEffect(()=>{
-    const openQuickBoard=()=>setQuickBoardOpen(true);
+    const openQuickBoard=()=>{
+      const allowed=profile?.role==="super_admin"||!Array.isArray(profile?.professor_allowed_tabs)||profile.professor_allowed_tabs.includes("Pizarra");
+      if(allowed&&!disabledTabs.includes("Pizarra"))setQuickBoardOpen(true);
+    };
     window.addEventListener("voley:quick-board-open",openQuickBoard);
     return()=>window.removeEventListener("voley:quick-board-open",openQuickBoard);
-  },[]);
+  },[profile?.role,profile?.professor_allowed_tabs,disabledTabs.join("|")]);
 
   useEffect(()=>{
     let stopped = false;
@@ -2361,7 +2364,7 @@ function App() {
     {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
     {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
     {tab==='programming'&&<ProgramacionHub key={`programming:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} simpleMode={profile.role!=="super_admin"}/>} 
-    {tab==='matches'&&<PartidosHub key={`matches:${tabRefreshVersion}:${profile.id}`} unrestricted allowedCategories={categories} canManageStats={profile.role==="super_admin"||profile.can_manage_match_stats===true} canViewStats={profile.role==="super_admin"||profile.can_manage_match_stats===true}/>} 
+    {tab==='matches'&&<PartidosHub key={`matches:${tabRefreshVersion}:${profile.id}`} unrestricted allowedCategories={categories} canManageStats={profile.role==="super_admin"||profile.can_manage_match_stats===true} canViewStats={profile.role==="super_admin"||profile.can_manage_match_stats===true} canOpenBoard={profile.role==="super_admin"||!Array.isArray(profile.professor_allowed_tabs)||profile.professor_allowed_tabs.includes("Pizarra")}/>} 
     {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} staffMode={profile.role!=="super_admin"} allowComparison={profile.can_view_standings_comparison===true} allowGeneralPositions={profile.role==="super_admin"||profile.can_view_general_standings===true}/>} 
     {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
     {tab==='planning'&&<PlanningHub key={`planning:${tabRefreshVersion}:${profile.id}`} profile={profile} categories={categories} permissions={permissions}/>}
