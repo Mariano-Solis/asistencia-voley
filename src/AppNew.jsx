@@ -1933,6 +1933,8 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
   const [previewProfile,setPreviewProfile]=useState(null);
   const [previewPermissions,setPreviewPermissions]=useState({});
   const [previewOrder,setPreviewOrder]=useState([]);
+  const [previewHiddenTabs,setPreviewHiddenTabs]=useState([]);
+  const [previewBoardOpen,setPreviewBoardOpen]=useState(false);
   const [tab,setTab]=useState("home");
   const [loading,setLoading]=useState(true);
   const [refreshing,setRefreshing]=useState(false);
@@ -1964,7 +1966,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
   },[]);
 
   async function loadProfessorContext(id){
-    if(!id){setPreviewProfile(null);setPreviewPermissions({});setPreviewOrder([]);return;}
+    if(!id){setPreviewProfile(null);setPreviewPermissions({});setPreviewOrder([]);setPreviewHiddenTabs([]);setPreviewBoardOpen(false);return;}
     const selected=professors.find(item=>item.id===id);
     if(!selected)return;
     const [pe,pref]=await Promise.all([
@@ -1972,7 +1974,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
         .select("category_id,can_view,can_edit,can_attendance")
         .eq("admin_id",id),
       supabase.from("user_ui_preferences")
-        .select("navigation_order")
+        .select("navigation_order,hidden_tabs")
         .eq("user_id",id)
         .maybeSingle()
     ]);
@@ -1980,6 +1982,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     setPreviewProfile({...selected,role:"admin",permission_strict:true});
     setPreviewPermissions(map);
     setPreviewOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]);
+    setPreviewHiddenTabs(Array.isArray(pref.data?.hidden_tabs)?pref.data.hidden_tabs:[]);
   }
 
   useEffect(()=>{
@@ -2069,17 +2072,17 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
 
   const nav=[["home","Asistencia"],["players","Jugador@s"],["history","Historial"],["schedule","Horarios"],["programming","Programación"],["matches","Partidos"],["standings","Posiciones"],["quickBoard","Pizarra"],["payments","Pagos"],["requests","Solicitudes"],["training","Entrenamiento"],["planning","Planificación"],["settings","Solapas"]];
   const authorizedTabs=previewProfile?.preview_self||!Array.isArray(previewProfile?.professor_allowed_tabs)?PROFESSOR_TAB_OPTIONS:previewProfile.professor_allowed_tabs;
-  const allowedNav=nav.filter(([,label])=>!disabledTabs.includes(label)&&authorizedTabs.includes(label));
+  const allowedNav=nav.filter(([,label])=>!disabledTabs.includes(label)&&authorizedTabs.includes(label)&&!previewHiddenTabs.includes(label));
   const visibleNav=mergeNavigationOrder(allowedNav,previewOrder);
 
-  return <main className="app professor-preview-app">
+  return <><main className="app professor-preview-app">
     <header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{previewProfile.full_name||"Profe"}</span><button className="topbar-exit" onClick={onLogout}>Salir</button></div></header>
     <div className="professor-preview-admin-bar">
       <button type="button" onClick={onBackAdmin}>← Administración</button>
       <span>👨‍🏫 Vista Profe · {previewProfile.full_name}</span>
       <button type="button" className="professor-preview-change" onClick={()=>{setSelectedId("");setTab("home");}}>Cambiar Profe</button>
     </div>
-    <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
+    <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={key==="quickBoard"?(previewBoardOpen?"active":""):(!previewBoardOpen&&tab===key?"active":"")} onClick={()=>key==="quickBoard"?setPreviewBoardOpen(true):setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
     <div className="content"><div className="watermark"/><div className="content-inner">
       {previewProfile.preview_self&&professorCategoryIds.length===0&&<div className="professor-preview-no-permissions">Tu Perfil Profe Todavía No Tiene Categorías Asignadas. Volvé A Administración → Permisos y Configurá Las Categorías Que Querés Tener Como Profe.</div>}
       {!["training","settings","requests","matches"].includes(tab)&&<div className="tab-refresh-row">
@@ -2099,10 +2102,10 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
       {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
       {tab==="planning"&&<PlanningHub key={"preview-planning:"+version+":"+previewProfile.id} profile={previewProfile} categories={visibleCategories} permissions={previewPermissions} simulationMode/>}
-      {tab==="settings"&&<SolapasSettings profile={previewProfile} disabledTabs={disabledTabs} onSavedVisibility={()=>{}} navigationItems={allowedNav} navigationOrder={previewOrder} onSavedOrder={setPreviewOrder} readOnly/>}
+      {tab==="settings"&&<SolapasSettings profile={previewProfile} disabledTabs={disabledTabs} onSavedVisibility={()=>{}} navigationItems={allowedNav} navigationOrder={previewOrder} onSavedOrder={setPreviewOrder} personalHiddenTabs={previewHiddenTabs} onSavedPersonalVisibility={setPreviewHiddenTabs} readOnly/>}
     </div></div>
     <footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer>
-  </main>;
+  </main><QuickTacticalBoard open={previewBoardOpen} onClose={()=>setPreviewBoardOpen(false)}/></>;
 }
 
 function App() {
