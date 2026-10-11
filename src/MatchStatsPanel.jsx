@@ -476,7 +476,10 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
     <section className="match-stats-panel ultra-live">
       <header className="match-stats-head">
         <div><span>📊 Estadísticas Ultra Live</span><h2>{ourTeam||"MSM"} vs {rivalTeam||"Rival"}</h2><small>{match.categoryLabel||category?.name}</small></div>
-        <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
+        <div className="match-stats-head-actions">
+          {canManage&&<button type="button" className="match-stats-board-shortcut" onClick={()=>window.dispatchEvent(new CustomEvent("voley:quick-board-open"))}>🖍️ Pizarra</button>}
+          <button type="button" className="match-stats-close" onClick={onClose} aria-label="Cerrar">×</button>
+        </div>
       </header>
 
       {loading?<div className="match-stats-empty">Cargando Estadísticas...</div>:!session?<div className="match-stats-empty">{message||"Sin Estadísticas Disponibles."}</div>:<>
