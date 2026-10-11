@@ -166,7 +166,7 @@ function computePlayerSummary(events,players){
   })).filter(row=>events.some(event=>event.player_id===row.id));
 }
 
-export default function MatchStatsPanel({match,category,canManage=false,canView=false,currentPlayerId=null,onClose}){
+export default function MatchStatsPanel({match,category,canManage=false,canView=false,currentPlayerId=null,canOpenBoard=true,onClose}){
   const [session,setSession]=useState(null);
   const [events,setEvents]=useState([]);
   const [players,setPlayers]=useState([]);
@@ -477,7 +477,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
       <header className="match-stats-head">
         <div><span>📊 Estadísticas Ultra Live</span><h2>{ourTeam||"MSM"} vs {rivalTeam||"Rival"}</h2><small>{match.categoryLabel||category?.name}</small></div>
         <div className="match-stats-head-actions">
-          {canManage&&<button type="button" className="match-stats-board-shortcut" onClick={()=>window.dispatchEvent(new CustomEvent("voley:quick-board-open"))}>🖍️ Pizarra</button>}
+          {canManage&&canOpenBoard&&<button type="button" className="match-stats-board-shortcut" onClick={()=>window.dispatchEvent(new CustomEvent("voley:quick-board-open"))}>🖍️ Pizarra</button>}
           <button type="button" className="match-stats-close" onClick={onClose} aria-label="Cerrar">×</button>
         </div>
       </header>
