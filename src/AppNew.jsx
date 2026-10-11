@@ -10,6 +10,7 @@ import StandingsHub from "./StandingsHub";
 import ProgramacionHub from "./ProgramacionHub";
 import PartidosHub from "./PartidosHub";
 import PlanningHub from "./PlanningHub";
+import QuickTacticalBoard from "./QuickTacticalBoard";
 import officialLogo from "../Logo.jpg";
 import { playerPhotoPath, preparePlayerPhoto, savePendingPlayerPhoto } from "./playerPhoto";
 import { exportAttendanceWorkbook, exportCategoryWorkbook, exportInstitutionAttendanceWorkbook } from "./xlsxCategoryExport";
@@ -67,8 +68,8 @@ function mergeNavigationOrder(items, savedOrder = []) {
   const byLabel = Object.fromEntries(items.map(item => [item[1], item]));
   const ordered = orderedLabels.map(label => byLabel[label]).filter(Boolean);
 
-  // Orden fijo de cierre: Entrenamiento, Planificación y Solapas cierran la navegación.
-  const tailLabels = ["Entrenamiento", "Planificación", "Solapas"];
+  // Solapas queda fija al final; el resto se puede ordenar libremente.
+  const tailLabels = ["Solapas"];
   const regular = ordered.filter(([, label]) => !tailLabels.includes(label));
   const tail = tailLabels.map(label => byLabel[label]).filter(Boolean);
   return [...regular, ...tail];
@@ -1710,15 +1711,16 @@ function RequestsPage({ profile, allowedCategoryIds = null }) {
   return <section className="registration-approval-page"><header className="registration-approval-title"><div><h1>Solicitudes</h1><p>Aprobá Las Cuentas Pendientes Sin Recargar La Página.</p></div><button type="button" onClick={()=>load(true)}>↻ Actualizar</button></header>{msg&&<div className="registration-approval-message">{msg}</div>}{loading?<div className="registration-approval-empty">Cargando Solicitudes...</div>:<>{profile.role==="super_admin"&&<section className="registration-approval-section"><div className="registration-approval-section-head"><h2>👨‍🏫 Profes</h2><span>{pendingProfessors.length} Pendiente{pendingProfessors.length===1?"":"s"}</span></div>{pendingProfessors.length?pendingProfessors.map(x=>card("professor",x)):<div className="registration-approval-empty">No Hay Solicitudes De Profes Pendientes.</div>}</section>}<section className="registration-approval-section"><div className="registration-approval-section-head"><h2>🏐 Jugador@s</h2><span>{pendingPlayers.length} Pendiente{pendingPlayers.length===1?"":"s"}</span></div>{pendingPlayers.length?pendingPlayers.map(x=>card("player",x)):<div className="registration-approval-empty">No Hay Solicitudes De Jugador@s Pendientes.</div>}</section></>}</section>;
 }
 
-function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationItems, navigationOrder, onSavedOrder, readOnly = false }) {
+function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationItems, navigationOrder, onSavedOrder, personalHiddenTabs=[], onSavedPersonalVisibility=()=>{}, readOnly = false }) {
   const labels = navigationItems.map(([,label])=>label);
-  const [visibilityDraft,setVisibilityDraft]=useState(disabledTabs),[orderDraft,setOrderDraft]=useState(()=>mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label));
+  const [visibilityDraft,setVisibilityDraft]=useState(disabledTabs),[personalVisibilityDraft,setPersonalVisibilityDraft]=useState(personalHiddenTabs),[orderDraft,setOrderDraft]=useState(()=>mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label));
   const [msg,setMsg]=useState(""),[savingVisibility,setSavingVisibility]=useState(false),[savingOrder,setSavingOrder]=useState(false),[dragged,setDragged]=useState("");
   useEffect(()=>setVisibilityDraft(disabledTabs),[disabledTabs]);
+  useEffect(()=>setPersonalVisibilityDraft(personalHiddenTabs),[personalHiddenTabs]);
   useEffect(()=>setOrderDraft(mergeNavigationOrder(navigationItems,navigationOrder).map(([,label])=>label)),[navigationOrder,labels.join("|")]);
-  const visibilityOptions=["Asistencia","Jugador@s","Historial","Horarios","Programación","Partidos","Posiciones","Entrenamiento","Planificación","Pagos","Solicitudes","Profes","Categorías","Permisos"];
+  const visibilityOptions=["Asistencia","Jugador@s","Historial","Horarios","Programación","Partidos","Posiciones","Pizarra","Entrenamiento","Planificación","Pagos","Solicitudes","Profes","Categorías","Permisos"];
 
-  const fixedTail = ["Entrenamiento","Planificación","Solapas"];
+  const fixedTail = ["Solapas"];
   const normalizeOrder = (order) => {
     const regular = order.filter(label => !fixedTail.includes(label));
     return [...regular, ...fixedTail.filter(label => labels.includes(label))];
@@ -1754,6 +1756,16 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
       setMsg("✓ Orden De Solapas Guardado Para Tu Cuenta.");
     }catch(e){setMsg(errorText(e));}finally{setSavingOrder(false);}
   }
+  async function savePersonalVisibility(){
+    if(readOnly)return;
+    setSavingVisibility(true);setMsg("");
+    try{
+      const r=await supabase.from("user_ui_preferences").upsert({user_id:profile.id,hidden_tabs:personalVisibilityDraft,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+      if(r.error)throw r.error;
+      onSavedPersonalVisibility(personalVisibilityDraft);
+      setMsg("✓ Solapas Personales Actualizadas.");
+    }catch(e){setMsg(errorText(e));}finally{setSavingVisibility(false);}
+  }
   async function saveVisibility(){
     if(profile.role!=="super_admin")return;
     setSavingVisibility(true);setMsg("");
@@ -1773,6 +1785,7 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
       </div>)}</div>
       <button className="primary wide" type="button" disabled={savingOrder||readOnly} onClick={saveOrder}>{readOnly?"Vista Previa · Sin Guardar":savingOrder?"Guardando...":"Guardar Orden"}</button>
     </div>
+    <div className="card solapas-page-card"><div className="card-head"><div><h2>Mostrar U Ocultar Para Mí</h2><span>Elegí Qué Solapas Querés Tener A Mano En Tu Cuenta. No Afecta A Los Demás.</span></div></div><div className="solapas-page-grid">{navigationItems.filter(([,label])=>label!=="Solapas").map(([,label])=><label className="solapas-option" key={"personal-"+label}><input type="checkbox" checked={!personalVisibilityDraft.includes(label)} onChange={e=>setPersonalVisibilityDraft(cur=>e.target.checked?cur.filter(x=>x!==label):[...cur,label])}/><span>{label}</span></label>)}</div><button className="primary wide" type="button" disabled={savingVisibility||readOnly} onClick={savePersonalVisibility}>{readOnly?"Vista Previa · Sin Guardar":savingVisibility?"Guardando...":"Guardar Mis Solapas"}</button></div>
     {profile.role==="super_admin"&&<div className="card solapas-page-card"><div className="card-head"><div><h2>Visibilidad Global</h2><span>Definí Qué Secciones Pueden Ver Los Profes y Jugador@s.</span></div></div><div className="solapas-page-grid">{visibilityOptions.map(label=><label className="solapas-option" key={label}><input type="checkbox" checked={!visibilityDraft.includes(label)} onChange={e=>setVisibilityDraft(cur=>e.target.checked?cur.filter(x=>x!==label):[...cur,label])}/><span>{label}</span></label>)}</div><button className="primary wide" type="button" disabled={savingVisibility} onClick={saveVisibility}>{savingVisibility?"Guardando...":"Guardar Visibilidad"}</button></div>}
     {msg&&<div className="message">{msg}</div>}
   </section>;
@@ -2045,12 +2058,12 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
 
 function App() {
   const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[playerSession,setPlayerSession]=useState(readStoredPlayer),[players,setPlayers]=useState([]),[categories,setCategories]=useState([]),[permissions,setPermissions]=useState({}),[tab,setTab]=useState("home");
-  const [disabledTabs,setDisabledTabs]=useState([]),[navigationOrder,setNavigationOrder]=useState([]);
+  const [disabledTabs,setDisabledTabs]=useState([]),[navigationOrder,setNavigationOrder]=useState([]),[personalHiddenTabs,setPersonalHiddenTabs]=useState([]),[quickBoardOpen,setQuickBoardOpen]=useState(false);
   const [dualPlayerAvailable,setDualPlayerAvailable]=useState(false),[dualPlayerMode,setDualPlayerMode]=useState(false),[professorPreviewMode,setProfessorPreviewMode]=useState(false);
   const [pendingRequestCount,setPendingRequestCount]=useState(0);
   const [tabRefreshVersion,setTabRefreshVersion]=useState(0),[tabRefreshing,setTabRefreshing]=useState(false);
   const authIntent = useRef(null), authEpoch = useRef(0);
-  function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); setDisabledTabs([]); setNavigationOrder([]); setDualPlayerAvailable(false); setDualPlayerMode(false); setProfessorPreviewMode(false); setPendingRequestCount(0); }
+  function clearIdentity() { setSession(null); setProfile(null); setPlayerSession(null); setPlayers([]); setCategories([]); setPermissions({}); setDisabledTabs([]); setNavigationOrder([]); setPersonalHiddenTabs([]); setQuickBoardOpen(false); setDualPlayerAvailable(false); setDualPlayerMode(false); setProfessorPreviewMode(false); setPendingRequestCount(0); }
   async function applySession(current) {
     const epoch = ++authEpoch.current;
     if (!isAuthSession(current)) { clearIdentity(); return; }
@@ -2069,7 +2082,7 @@ function App() {
       supabase.from('admin_category_permissions').select('category_id,can_view,can_edit,can_attendance').eq('admin_id',current.user.id),
       supabase.from('players').select('*').eq('active',true).order('full_name'),
       supabase.from('app_ui_settings').select('disabled_tabs').eq('id','global').maybeSingle(),
-      supabase.from('user_ui_preferences').select('navigation_order').eq('user_id',current.user.id).maybeSingle()
+      supabase.from('user_ui_preferences').select('navigation_order,hidden_tabs').eq('user_id',current.user.id).maybeSingle()
     ]);
     if (epoch !== authEpoch.current) return;
     const map = Object.fromEntries((pe.data||[]).map(x=>[x.category_id,x]));
@@ -2085,7 +2098,7 @@ function App() {
     const allowedCategories = (c.data||[]).filter(category =>
       can(p.data,category,map) || canAttend(p.data,category,map)
     );
-    setPermissions(map); setCategories(allowedCategories); setPlayers(nextPlayers); setDisabledTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]); setNavigationOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]); setDualPlayerAvailable(!!ownPlayer);
+    setPermissions(map); setCategories(allowedCategories); setPlayers(nextPlayers); setDisabledTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]); setNavigationOrder(Array.isArray(pref.data?.navigation_order)?pref.data.navigation_order:[]); setPersonalHiddenTabs(Array.isArray(pref.data?.hidden_tabs)?pref.data.hidden_tabs:[]); setDualPlayerAvailable(!!ownPlayer);
     setPlayerSession(null); setProfile(p.data); setSession(current);
   }
   useEffect(()=>{
@@ -2099,6 +2112,12 @@ function App() {
     });
     return ()=>{mounted=false;authEpoch.current++;subscription.unsubscribe();};
   },[]);
+  useEffect(()=>{
+    const openQuickBoard=()=>setQuickBoardOpen(true);
+    window.addEventListener("voley:quick-board-open",openQuickBoard);
+    return()=>window.removeEventListener("voley:quick-board-open",openQuickBoard);
+  },[]);
+
   useEffect(()=>{
     let stopped = false;
     let channel = null;
@@ -2251,16 +2270,17 @@ function App() {
     onAuthEnd={()=>{authIntent.current=null;}}
     onAdmin={acceptAdmin}
     onPlayer={acceptPlayer}/>;
-  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['programming','Programación'],['matches','Partidos'],['standings','Posiciones'],['training','Entrenamiento'],['planning','Planificación'],['payments','Pagos'],['requests','Solicitudes']];
+  const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['programming','Programación'],['matches','Partidos'],['standings','Posiciones'],['quickBoard','Pizarra'],['training','Entrenamiento'],['planning','Planificación'],['payments','Pagos'],['requests','Solicitudes']];
   if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Jugador']);
   if(profile.role==='super_admin'){
     nav.splice(dualPlayerAvailable?3:2,0,['professorPreview','Profe']);
     nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
   }
   nav.push(['settings','Solapas']);
-  const allowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
+  const globallyAllowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
+  const allowedNav = globallyAllowedNav.filter(([,label])=>label==="Solapas"||!personalHiddenTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":tab===k?"active":""} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
+  return <><main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":k==="quickBoard"?(quickBoardOpen?"active":""):(!quickBoardOpen&&tab===k?"active":"")} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):k==="quickBoard"?setQuickBoardOpen(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
     {!["training","settings","requests","matches"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
         <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
@@ -2281,7 +2301,7 @@ function App() {
     {tab==='admins'&&<AdminUsers key={`admins:${tabRefreshVersion}`} profile={profile}/>}
     {tab==='categories'&&<Categories key={`categories:${tabRefreshVersion}`} profile={profile} categories={categories} refresh={refresh}/>}
     {tab==='permissions'&&<Permissions key={`permissions:${tabRefreshVersion}`} profile={profile} categories={categories}/>}
-    {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={allowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder}/>}
-  </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main>;
+    {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={globallyAllowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder} personalHiddenTabs={personalHiddenTabs} onSavedPersonalVisibility={setPersonalHiddenTabs}/>}
+  </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main><QuickTacticalBoard open={quickBoardOpen} onClose={()=>setQuickBoardOpen(false)}/></>;
 }
 export default App;

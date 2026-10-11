@@ -1241,3 +1241,47 @@
     flex-direction:column;
   }
 }
+
+
+/* Acceso inmediato a Pizarra desde Estadísticas Ultra Live */
+.match-stats-head-actions{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex:0 0 auto;
+}
+.match-stats-board-shortcut{
+  min-height:38px;
+  padding:7px 10px;
+  border:1px solid #efc9cd;
+  border-radius:11px;
+  background:#fff1f2;
+  color:#a81019;
+  font-size:9px;
+  font-weight:950;
+  white-space:nowrap;
+}
+.match-stats-close{
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
+  padding:0;
+  border-radius:12px;
+  background:#f0f2f5;
+  color:#24272d;
+  font-size:25px;
+}
+@media(max-width:520px){
+  .match-stats-head-actions{gap:5px}
+  .match-stats-board-shortcut{
+    min-height:35px;
+    padding:6px 8px;
+    font-size:8px;
+  }
+  .match-stats-close{
+    width:35px;
+    height:35px;
+    flex-basis:35px;
+    font-size:21px;
+  }
+}

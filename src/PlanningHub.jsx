@@ -94,7 +94,7 @@ function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointe
   </svg>;
 }
 
-function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null}){
+function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fastMode=false}){
   const data=normalizeBoardData(value);
   const [color,setColor]=useState("#c3131b");
   const [tool,setTool]=useState("draw");
@@ -167,12 +167,13 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null}){
     });
   }
   function clearDrawing(){
-    if(data.strokes.length&&window.confirm("¿Borrar Todo Lo Dibujado En La Pizarra?")){
+    if(!data.strokes.length)return;
+    if(fastMode||window.confirm("¿Borrar Todo Lo Dibujado En La Pizarra?")){
       onChange(current=>({...normalizeBoardData(current),strokes:[]}));
     }
   }
   function resetTokens(){
-    if(window.confirm("¿Reiniciar Todas Las Fichas y La Pelota A Su Posición Inicial?")){
+    if(fastMode||window.confirm("¿Reiniciar Todas Las Fichas y La Pelota A Su Posición Inicial?")){
       onChange(current=>({...normalizeBoardData(current),tokens:defaultBoardTokens()}));
     }
   }
@@ -186,7 +187,7 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null}){
       <span>Color</span>
       {["#c3131b","#1668c7","#111827"].map(item=><button type="button" key={item} className={color===item?"active":""} style={{background:item}} onClick={()=>{setColor(item);setTool("draw")}} aria-label={"Color "+item}/>)}
       <button type="button" className="planning-board-action" onClick={undo} disabled={!data.strokes.length}>↶ Deshacer</button>
-      <button type="button" className="planning-board-action" onClick={clearDrawing} disabled={!data.strokes.length}>Limpiar Dibujo</button>
+      <button type="button" className="planning-board-action" onClick={clearDrawing} disabled={!data.strokes.length}>{fastMode?"🧹 Borrar Dibujo":"Limpiar Dibujo"}</button>
       <button type="button" className="planning-board-action" onClick={resetTokens}>Reiniciar Fichas</button>
       {!fullscreen&&onExpand&&<button type="button" className="planning-board-action planning-board-expand" onClick={onExpand}>⛶ Expandir</button>}
     </div>
@@ -206,6 +207,8 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null}){
     <small>{tool==="move"?"Arrastrá Las Fichas y La Pelota Con El Dedo.":tool==="erase"?"Tocá Una Ficha Para Quitarla.":"Dibujá Con El Dedo O Mouse. Podés Cambiar De Color, Deshacer O Limpiar."}</small>
   </div>;
 }
+
+export { TacticalBoardEditor, defaultBoardTokens, normalizeBoardData, BoardSvg };
 
 export default function PlanningHub({
   profile=null,

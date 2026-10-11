@@ -1,0 +1,125 @@
+.quick-board-overlay{
+  position:fixed;
+  inset:0;
+  z-index:2600;
+  background:#eef1f4;
+}
+.quick-board-shell{
+  width:100%;
+  height:100dvh;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  background:#f4f6f8;
+}
+.quick-board-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  background:#b5121b;
+  color:#fff;
+}
+.quick-board-header span{
+  display:block;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  opacity:.82;
+}
+.quick-board-header h2{
+  margin:1px 0;
+  color:#fff;
+  font-size:18px;
+}
+.quick-board-header small{
+  display:block;
+  color:rgba(255,255,255,.82);
+  font-size:8.5px;
+  font-weight:700;
+}
+.quick-board-close{
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
+  padding:0;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:11px;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  font-size:24px;
+}
+.quick-board-body{
+  min-height:0;
+  overflow:auto;
+  padding:7px;
+}
+.quick-board-body .planning-board-editor.fullscreen{
+  min-height:100%;
+}
+.quick-board-body .planning-board-tools{
+  position:sticky;
+  top:0;
+  z-index:4;
+  padding:6px;
+  box-shadow:0 4px 12px rgba(20,26,32,.07);
+}
+.quick-board-body .planning-board-action{
+  min-height:39px;
+  font-size:9px;
+}
+.quick-board-body .planning-court{
+  width:100%;
+  max-height:none !important;
+}
+.quick-board-footer{
+  display:grid;
+  grid-template-columns:1fr 1.35fr;
+  gap:7px;
+  padding:8px;
+  border-top:1px solid #dfe3e7;
+  background:#fff;
+}
+.quick-board-footer button{
+  min-height:43px;
+  border:1px solid #dfe3e7;
+  border-radius:11px;
+  background:#f8f9fa;
+  color:#4c535d;
+  font-size:10px;
+  font-weight:900;
+}
+.quick-board-footer .primary{
+  border-color:#b5121b;
+  background:#b5121b;
+  color:#fff;
+}
+@media(max-width:520px){
+  .quick-board-header{
+    padding:8px 9px;
+  }
+  .quick-board-header h2{
+    font-size:16px;
+  }
+  .quick-board-header small{
+    font-size:7.5px;
+  }
+  .quick-board-body{
+    padding:5px;
+  }
+  .quick-board-body .planning-board-tools{
+    gap:5px;
+  }
+  .quick-board-body .planning-board-tools>span{
+    width:100%;
+  }
+  .quick-board-body .planning-board-action{
+    min-height:37px;
+    padding:5px 7px;
+    font-size:8px;
+  }
+  .quick-board-body .planning-court{
+    min-height:52dvh;
+  }
+}
