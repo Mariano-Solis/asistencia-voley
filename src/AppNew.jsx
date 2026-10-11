@@ -2311,6 +2311,20 @@ function App() {
     }
     setPlayerSession(current);
   }
+  useEffect(()=>{
+    if(profile?.role!=="admin")return;
+    const allowed=Array.isArray(profile.professor_allowed_tabs)?profile.professor_allowed_tabs:null;
+    if(!allowed)return;
+    const byKey={
+      home:"Asistencia",players:"Jugador@s",history:"Historial",schedule:"Horarios",programming:"Programación",
+      matches:"Partidos",standings:"Posiciones",quickBoard:"Pizarra",training:"Entrenamiento",planning:"Planificación",
+      payments:"Pagos",requests:"Solicitudes",settings:"Solapas"
+    };
+    const currentLabel=byKey[tab];
+    if(currentLabel&&(!allowed.includes(currentLabel)||disabledTabs.includes(currentLabel)))setTab("home");
+    if(quickBoardOpen&&(!allowed.includes("Pizarra")||disabledTabs.includes("Pizarra")))setQuickBoardOpen(false);
+  },[profile?.role,profile?.professor_allowed_tabs,tab,quickBoardOpen,disabledTabs.join("|")]);
+
   if (professorPreviewMode&&profile?.role==="super_admin"&&isAuthSession(session)) return <ProfessorPreviewDashboard superAdminProfile={profile} allPlayers={players} allCategories={categories} disabledTabs={disabledTabs} onLogout={logout} onBackAdmin={()=>setProfessorPreviewMode(false)}/>;
   if (dualPlayerMode&&isAuthSession(session)) return <PlayerDashboard session={session} onLogout={logout} onBackAdmin={()=>setDualPlayerMode(false)}/>;
   if ((isAuthSession(playerSession)||isLegacySession(playerSession))&&!session) return <PlayerDashboard session={playerSession} onLogout={logout}/>;
@@ -2332,13 +2346,6 @@ function App() {
     : nav.filter(([,label])=>!disabledTabs.includes(label)&&(!authorizedTabs||authorizedTabs.includes(label)));
   const allowedNav = globallyAllowedNav.filter(([,label])=>!personalHiddenTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  useEffect(()=>{
-    const labels=allowedNav.map(([,label])=>label);
-    const currentLabel=nav.find(([key])=>key===tab)?.[1];
-    if(currentLabel&&!labels.includes(currentLabel))setTab("home");
-    if(quickBoardOpen&&!labels.includes("Pizarra"))setQuickBoardOpen(false);
-  },[profile?.professor_allowed_tabs,disabledTabs.join("|")]);
-
   return <><main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":k==="quickBoard"?(quickBoardOpen?"active":""):(!quickBoardOpen&&tab===k?"active":"")} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):k==="quickBoard"?setQuickBoardOpen(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
     {!["training","settings","requests","matches"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
