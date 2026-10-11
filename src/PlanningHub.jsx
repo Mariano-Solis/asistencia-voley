@@ -28,7 +28,38 @@ function planningPath(categoryId,file){
   const id=globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now();
   return `${categoryId}/${id}-${safeName(file?.name)}`;
 }
-function BoardSvg({strokes=[],interactive=false,onPointerDown,onPointerMove,onPointerUp}){
+function defaultBoardTokens(){
+  return [
+    {id:"home-1",type:"home",label:"1",x:105,y:72},
+    {id:"home-2",type:"home",label:"2",x:105,y:150},
+    {id:"home-3",type:"home",label:"3",x:105,y:228},
+    {id:"home-4",type:"home",label:"4",x:220,y:72},
+    {id:"home-5",type:"home",label:"5",x:220,y:150},
+    {id:"home-6",type:"home",label:"6",x:220,y:228},
+    {id:"away-1",type:"away",label:"1",x:380,y:72},
+    {id:"away-2",type:"away",label:"2",x:380,y:150},
+    {id:"away-3",type:"away",label:"3",x:380,y:228},
+    {id:"away-4",type:"away",label:"4",x:495,y:72},
+    {id:"away-5",type:"away",label:"5",x:495,y:150},
+    {id:"away-6",type:"away",label:"6",x:495,y:228},
+    {id:"ball-1",type:"ball",label:"🏐",x:270,y:150},
+  ];
+}
+function normalizeBoardData(value){
+  if(Array.isArray(value))return {strokes:value,tokens:defaultBoardTokens()};
+  return {
+    strokes:Array.isArray(value?.strokes)?value.strokes:[],
+    tokens:Array.isArray(value?.tokens)&&value.tokens.length?value.tokens:defaultBoardTokens(),
+  };
+}
+function boardHasChanges(value){
+  const data=normalizeBoardData(value);
+  return data.strokes.length>0||data.tokens.some((token,index)=>{
+    const original=defaultBoardTokens()[index];
+    return !original||token.x!==original.x||token.y!==original.y;
+  });
+}
+function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointerMove,onPointerUp}){
   return <svg
     className={"planning-court "+(interactive?"interactive":"")}
     viewBox="0 0 600 300"
@@ -46,6 +77,10 @@ function BoardSvg({strokes=[],interactive=false,onPointerDown,onPointerMove,onPo
     <line x1="174" y1="42" x2="174" y2="258" stroke="#fff" strokeWidth="3"/>
     <line x1="426" y1="42" x2="426" y2="258" stroke="#fff" strokeWidth="3"/>
     <line x1="300" y1="26" x2="300" y2="274" stroke="#555" strokeWidth="4"/>
+    {tokens.map(token=><g key={token.id} className={"planning-token planning-token-"+token.type} transform={`translate(${token.x} ${token.y})`}>
+      <circle r={token.type==="ball"?17:18}/>
+      <text textAnchor="middle" dominantBaseline="middle" dy={token.type==="ball"?1:0}>{token.label}</text>
+    </g>)}
     {strokes.map((stroke,index)=><polyline
       key={index}
       points={(stroke.points||[]).map(p=>`${p.x},${p.y}`).join(" ")}
@@ -59,68 +94,116 @@ function BoardSvg({strokes=[],interactive=false,onPointerDown,onPointerMove,onPo
   </svg>;
 }
 
-function TacticalBoardEditor({value,onChange}){
+function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null}){
+  const data=normalizeBoardData(value);
   const [color,setColor]=useState("#c3131b");
+  const [tool,setTool]=useState("draw");
   const drawing=useRef(false);
-  const current=useRef(-1);
+  const currentStroke=useRef(-1);
+  const movingTokenId=useRef(null);
 
   function point(event){
     const svg=event.currentTarget;
     const rect=svg.getBoundingClientRect();
     return {
-      x:Math.max(0,Math.min(600,((event.clientX-rect.left)/rect.width)*600)),
-      y:Math.max(0,Math.min(300,((event.clientY-rect.top)/rect.height)*300)),
+      x:Math.max(48,Math.min(552,((event.clientX-rect.left)/rect.width)*600)),
+      y:Math.max(42,Math.min(258,((event.clientY-rect.top)/rect.height)*300)),
     };
+  }
+  function tokenAt(p){
+    return data.tokens.find(token=>{
+      const dx=token.x-p.x,dy=token.y-p.y;
+      return Math.sqrt(dx*dx+dy*dy)<=(token.type==="ball"?24:27);
+    })||null;
   }
   function down(event){
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    const next=[...(value||[]),{color,width:5,points:[point(event)]}];
-    current.current=next.length-1;
-    drawing.current=true;
-    onChange(next);
-  }
-  function move(event){
-    if(!drawing.current)return;
     const p=point(event);
-    onChange(prev=>{
-      const next=(typeof prev==="function"?prev(value):prev)||value||[];
-      const copy=next.map((stroke,index)=>index===current.current?{...stroke,points:[...(stroke.points||[]),p]}:stroke);
-      return copy;
+    if(tool==="move"){
+      const token=tokenAt(p);
+      movingTokenId.current=token?.id||null;
+      return;
+    }
+    if(tool==="erase"){
+      const token=tokenAt(p);
+      if(token){
+        onChange(current=>({...normalizeBoardData(current),tokens:normalizeBoardData(current).tokens.filter(item=>item.id!==token.id)}));
+      }
+      return;
+    }
+    const nextStroke={color,width:5,points:[p]};
+    currentStroke.current=data.strokes.length;
+    drawing.current=true;
+    onChange(current=>{
+      const board=normalizeBoardData(current);
+      return {...board,strokes:[...board.strokes,nextStroke]};
     });
   }
-  function up(){drawing.current=false;current.current=-1;}
-  function undo(){onChange((value||[]).slice(0,-1));}
-  function clear(){if((value||[]).length&&window.confirm("¿Borrar Todo Lo Dibujado En La Pizarra?"))onChange([]);}
+  function move(event){
+    const p=point(event);
+    if(tool==="move"&&movingTokenId.current){
+      onChange(current=>{
+        const board=normalizeBoardData(current);
+        return {...board,tokens:board.tokens.map(token=>token.id===movingTokenId.current?{...token,x:p.x,y:p.y}:token)};
+      });
+      return;
+    }
+    if(tool!=="draw"||!drawing.current)return;
+    onChange(current=>{
+      const board=normalizeBoardData(current);
+      return {...board,strokes:board.strokes.map((stroke,index)=>index===currentStroke.current?{...stroke,points:[...(stroke.points||[]),p]}:stroke)};
+    });
+  }
+  function up(){
+    drawing.current=false;
+    currentStroke.current=-1;
+    movingTokenId.current=null;
+  }
+  function undo(){
+    onChange(current=>{
+      const board=normalizeBoardData(current);
+      return {...board,strokes:board.strokes.slice(0,-1)};
+    });
+  }
+  function clearDrawing(){
+    if(data.strokes.length&&window.confirm("¿Borrar Todo Lo Dibujado En La Pizarra?")){
+      onChange(current=>({...normalizeBoardData(current),strokes:[]}));
+    }
+  }
+  function resetTokens(){
+    if(window.confirm("¿Reiniciar Todas Las Fichas y La Pelota A Su Posición Inicial?")){
+      onChange(current=>({...normalizeBoardData(current),tokens:defaultBoardTokens()}));
+    }
+  }
 
-  return <div className="planning-board-editor">
+  return <div className={"planning-board-editor "+(fullscreen?"fullscreen":"")}>
     <div className="planning-board-tools">
+      <span>Herramienta</span>
+      <button type="button" className={"planning-board-action "+(tool==="draw"?"active":"")} onClick={()=>setTool("draw")}>✏️ Dibujar</button>
+      <button type="button" className={"planning-board-action "+(tool==="move"?"active":"")} onClick={()=>setTool("move")}>🧩 Mover Fichas</button>
+      <button type="button" className={"planning-board-action "+(tool==="erase"?"active":"")} onClick={()=>setTool("erase")}>🗑 Quitar Ficha</button>
       <span>Color</span>
-      {["#c3131b","#1668c7","#111827"].map(item=><button type="button" key={item} className={color===item?"active":""} style={{background:item}} onClick={()=>setColor(item)} aria-label={"Color "+item}/>)}
-      <button type="button" className="planning-board-action" onClick={undo} disabled={!value?.length}>↶ Deshacer</button>
-      <button type="button" className="planning-board-action" onClick={clear} disabled={!value?.length}>Limpiar</button>
+      {["#c3131b","#1668c7","#111827"].map(item=><button type="button" key={item} className={color===item?"active":""} style={{background:item}} onClick={()=>{setColor(item);setTool("draw")}} aria-label={"Color "+item}/>)}
+      <button type="button" className="planning-board-action" onClick={undo} disabled={!data.strokes.length}>↶ Deshacer</button>
+      <button type="button" className="planning-board-action" onClick={clearDrawing} disabled={!data.strokes.length}>Limpiar Dibujo</button>
+      <button type="button" className="planning-board-action" onClick={resetTokens}>Reiniciar Fichas</button>
+      {!fullscreen&&onExpand&&<button type="button" className="planning-board-action planning-board-expand" onClick={onExpand}>⛶ Expandir</button>}
     </div>
     <BoardSvg
-      strokes={(value||[]).map(stroke=>stroke.color?stroke:{...stroke,color})}
+      strokes={data.strokes}
+      tokens={data.tokens}
       interactive
-      onPointerDown={event=>{
-        setColor(currentColor=>currentColor);
-        event.preventDefault();
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        const p=point(event);
-        const next=[...(value||[]),{color,width:5,points:[p]}];
-        current.current=next.length-1;
-        drawing.current=true;
-        onChange(next);
-      }}
-      onPointerMove={event=>{
-        if(!drawing.current)return;
-        const p=point(event);
-        onChange(currentStrokes=>(currentStrokes||[]).map((stroke,index)=>index===current.current?{...stroke,points:[...(stroke.points||[]),p]}:stroke));
-      }}
+      onPointerDown={down}
+      onPointerMove={move}
       onPointerUp={up}
     />
-    <small>Dibujá Con El Dedo O Mouse. Podés Cambiar De Color, Deshacer O Limpiar.</small>
+    <div className="planning-board-legend">
+      <span><i className="home"/> Equipo Propio</span>
+      <span><i className="away"/> Rival</span>
+      <span><i className="ball"/> 🏐 Pelota</span>
+    </div>
+    <small>{tool==="move"?"Arrastrá Las Fichas y La Pelota Con El Dedo.":tool==="erase"?"Tocá Una Ficha Para Quitarla.":"Dibujá Con El Dedo O Mouse. Podés Cambiar De Color, Deshacer O Limpiar."}</small>
   </div>;
 }
 
@@ -146,7 +229,8 @@ export default function PlanningHub({
   const [targetDate,setTargetDate]=useState("");
   const [visible,setVisible]=useState(true);
   const [file,setFile]=useState(null);
-  const [strokes,setStrokes]=useState([]);
+  const [boardData,setBoardData]=useState(()=>normalizeBoardData(null));
+  const [boardExpanded,setBoardExpanded]=useState(false);
   const [preview,setPreview]=useState(null);
   const fileRef=useRef(null);
 
@@ -192,7 +276,7 @@ export default function PlanningHub({
   useEffect(()=>{void load()},[selectedCategory?.id,legacy]);
 
   function resetComposer(){
-    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setFile(null);setStrokes([]);
+    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setFile(null);setBoardData(normalizeBoardData(null));setBoardExpanded(false);
     if(fileRef.current)fileRef.current.value="";
   }
 
@@ -218,7 +302,6 @@ export default function PlanningHub({
   async function saveBoard(){
     if(!canEditSelected||!selectedCategory?.id)return;
     if(!title.trim())throw new Error("Escribí Un Título Para La Pizarra.");
-    if(!strokes.length)throw new Error("Dibujá Algo En La Pizarra Antes De Guardar.");
     const user=await supabase.auth.getUser();
     const uid=user.data?.user?.id;
     if(!uid)throw new Error("No Hay Una Sesión Activa.");
@@ -228,7 +311,7 @@ export default function PlanningHub({
       item_type:"board",
       title:title.trim(),
       body:body.trim()||null,
-      board_data:{strokes},
+      board_data:normalizeBoardData(boardData),
       target_date:targetDate||null,
       visible_to_players:visible,
     });
@@ -370,8 +453,11 @@ export default function PlanningHub({
       </div>
 
       <div className="planning-board-callout">
-        <div><span>🏐</span><div><b>Pizarra Táctica</b><small>Dibujá Jugadas, Rotaciones y Estrategias.</small></div></div>
-        <button type="button" onClick={()=>setComposer(composer==="board"?"":"board")}>{composer==="board"?"Cerrar Pizarra":"Abrir Pizarra →"}</button>
+        <div><span>🏐</span><div><b>Pizarra Táctica</b><small>Dibujá Jugadas, Mové Fichas y Marcá Estrategias.</small></div></div>
+        <div className="planning-board-callout-actions">
+          <button type="button" onClick={()=>setComposer(composer==="board"?"":"board")}>{composer==="board"?"Cerrar Pizarra":"Abrir Pizarra →"}</button>
+          {composer==="board"&&<button type="button" className="secondary" onClick={()=>setBoardExpanded(true)}>⛶ Expandir</button>}
+        </div>
       </div>
 
       {composer&&<form className="planning-composer" onSubmit={save}>
@@ -390,7 +476,7 @@ export default function PlanningHub({
           </label>
           <label>Descripción (Opcional)<textarea value={body} onChange={e=>setBody(e.target.value)} maxLength={3000} rows={3} placeholder="Indicaciones Para L@s Jugador@s..."/></label>
         </>}
-        {composer==="board"&&<TacticalBoardEditor value={strokes} onChange={setStrokes}/>}
+        {composer==="board"&&<TacticalBoardEditor value={boardData} onChange={setBoardData} onExpand={()=>setBoardExpanded(true)}/>}
         <label className="planning-visible-toggle"><input type="checkbox" checked={visible} onChange={e=>setVisible(e.target.checked)}/><span><b>Visible Para Jugador@s</b><small>Si Lo Desmarcás, Queda Como Borrador Sólo Para Profes.</small></span></label>
         <div className="planning-composer-actions"><button type="button" onClick={resetComposer}>Cancelar</button><button className="primary" disabled={busy}>{busy?"Guardando...":"Guardar En "+(selectedCategory?.name||"Categoría")}</button></div>
       </form>}
@@ -412,7 +498,7 @@ export default function PlanningHub({
           <div className="planning-item-main">
             <div className="planning-item-title-row"><div><span>{meta.label}{item.target_date?" · "+localDate(item.target_date):""}</span><h3>{item.title}</h3></div>{!isPlayer&&<em className={item.visible_to_players?"published":"draft"}>{item.visible_to_players?"👁 Visible Para Jugador@s":"🔒 Borrador"}</em>}</div>
             {item.body&&<p className={item.item_type==="routine"?"planning-routine-text":""}>{item.body}</p>}
-            {item.item_type==="board"&&<button type="button" className="planning-board-preview-button" onClick={()=>openItem(item)}><BoardSvg strokes={item.board_data?.strokes||[]}/><span>Abrir Pizarra</span></button>}
+            {item.item_type==="board"&&<button type="button" className="planning-board-preview-button" onClick={()=>openItem(item)}><BoardSvg strokes={item.board_data?.strokes||[]} tokens={item.board_data?.tokens||[]}/><span>Abrir Pizarra</span></button>}
             {item.item_type==="pdf"&&<button type="button" className="planning-open-file" onClick={()=>openItem(item)}>📄 Abrir PDF {item.file_size?"· "+compactBytes(item.file_size):""}</button>}
             {item.item_type==="image"&&url&&<button type="button" className="planning-open-file" onClick={()=>openItem(item)}>🖼️ Ver Imagen {item.file_size?"· "+compactBytes(item.file_size):""}</button>}
           </div>
@@ -424,11 +510,27 @@ export default function PlanningHub({
       })}</div>:<div className="planning-empty">{isPlayer?"Todavía No Hay Actividades Publicadas Para Tu Categoría.":"Todavía No Hay Material En Esta Categoría. Creá El Primero."}</div>}
     </section>
 
+    {boardExpanded&&createPortal(<div className="planning-board-fullscreen-backdrop" role="dialog" aria-modal="true" aria-label="Pizarra Táctica En Pantalla Completa">
+      <section className="planning-board-fullscreen-card">
+        <header className="planning-board-fullscreen-header">
+          <div><span>Pizarra Táctica</span><h2>{title.trim()||"Jugada En Vivo"}</h2><small>{categoryTitle(selectedCategory)}</small></div>
+          <button type="button" onClick={()=>setBoardExpanded(false)} aria-label="Cerrar Pantalla Completa">×</button>
+        </header>
+        <div className="planning-board-fullscreen-body">
+          <TacticalBoardEditor value={boardData} onChange={setBoardData} fullscreen/>
+        </div>
+        <footer className="planning-board-fullscreen-footer">
+          <span>Los Cambios Se Mantienen Al Volver A Planificación.</span>
+          <button type="button" onClick={()=>setBoardExpanded(false)}>✓ Volver A Planificación</button>
+        </footer>
+      </section>
+    </div>,document.body)}
+
     {preview&&createPortal(<div className="planning-preview-backdrop" role="dialog" aria-modal="true" onClick={()=>setPreview(null)}>
       <div className="planning-preview-card" onClick={e=>e.stopPropagation()}>
         <header><div><span>{TYPES[preview.item.item_type]?.label}</span><h2>{preview.item.title}</h2></div><button type="button" onClick={()=>setPreview(null)}>×</button></header>
         {preview.kind==="image"&&<img src={preview.url} alt={preview.item.title}/>}
-        {preview.kind==="board"&&<BoardSvg strokes={preview.item.board_data?.strokes||[]}/>}
+        {preview.kind==="board"&&<BoardSvg strokes={preview.item.board_data?.strokes||[]} tokens={preview.item.board_data?.tokens||[]}/>}
         {preview.item.body&&<p>{preview.item.body}</p>}
       </div>
     </div>,document.body)}
