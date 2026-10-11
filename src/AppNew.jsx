@@ -21,6 +21,7 @@ const LOGO = officialLogo;
 const PUBLIC_APP_URL = "https://voleysanmartin.com.ar/";
 const TYPES = { training: ["🏐", "Entrenamiento"], match: ["🏆", "Partido"], tournament: ["🥇", "Torneo"] };
 const STATUS = { present: ["✓", "Presente"], late: ["◷", "Tarde"], absent: ["✕", "Ausente"] };
+const PROFESSOR_TAB_OPTIONS = ["Asistencia","Jugador@s","Historial","Horarios","Programación","Partidos","Posiciones","Pizarra","Entrenamiento","Planificación","Pagos","Solicitudes","Solapas"];
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Mendoza" });
 const clean = v => String(v ?? "").trim();
 const gender = v => ["female", "femenino", "femenina", "mujer", "f"].includes(clean(v).toLowerCase()) ? "female" : "male";
@@ -1565,7 +1566,7 @@ function Permissions({profile,categories}) {
   useEffect(()=>{async function load(){
     const [profilesResult,permissionsResult,uiResult]=await Promise.all([
       supabase.from("profiles")
-        .select("id,full_name,role,active,approval_status,can_view_standings_comparison,can_view_general_standings,can_manage_match_stats")
+        .select("id,full_name,role,active,approval_status,can_view_standings_comparison,can_view_general_standings,can_manage_match_stats,professor_allowed_tabs")
         .eq("role","admin")
         .eq("active",true)
         .eq("approval_status","approved")
@@ -1578,7 +1579,7 @@ function Permissions({profile,categories}) {
     ]);
 
     const profs=(profilesResult.data||[]).map(item=>({...item,subject_type:"admin"}));
-    const self={id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,role:"super_admin",subject_type:"admin",preview_self:true,can_view_standings_comparison:true,can_view_general_standings:true,can_manage_match_stats:true};
+    const self={id:profile.id,full_name:`${profile.full_name||"Super Admin"} · Mi Perfil Profe`,role:"super_admin",subject_type:"admin",preview_self:true,can_view_standings_comparison:true,can_view_general_standings:true,can_manage_match_stats:true,professor_allowed_tabs:null};
     setSubjects([self,...profs]);
     setPlayerGeneralEnabled(uiResult.data?.player_can_view_general_standings===true);
     setPlayerMatchStatsEnabled(uiResult.data?.player_can_view_match_stats===true);
@@ -1614,6 +1615,28 @@ function Permissions({profile,categories}) {
       if(r.error)throw r.error;
       setSubjects(current=>current.map(item=>item.id===selectedSubject.id?{...item,[field]:r.data[field]}:item));
       setCapabilityMsg(value?`✓ ${label} Habilitado Para Este Profe.`:`✓ ${label} Deshabilitado Para Este Profe.`);
+    }catch(e){
+      setCapabilityMsg(errorText(e));
+    }finally{
+      setCapabilityBusy(false);
+    }
+  }
+
+  async function setProfessorTabs(nextTabs){
+    if(!selectedSubject||selectedSubject.preview_self)return;
+    setCapabilityBusy(true);
+    setCapabilityMsg("");
+    try{
+      const normalized=PROFESSOR_TAB_OPTIONS.filter(label=>nextTabs.includes(label));
+      const r=await supabase.from("profiles")
+        .update({professor_allowed_tabs:normalized})
+        .eq("id",selectedSubject.id)
+        .eq("role","admin")
+        .select("id,professor_allowed_tabs")
+        .single();
+      if(r.error)throw r.error;
+      setSubjects(current=>current.map(item=>item.id===selectedSubject.id?{...item,professor_allowed_tabs:r.data.professor_allowed_tabs}:item));
+      setCapabilityMsg("✓ Solapas Autorizadas Actualizadas Para Este Profe.");
     }catch(e){
       setCapabilityMsg(errorText(e));
     }finally{
@@ -1685,6 +1708,31 @@ function Permissions({profile,categories}) {
           <input type="checkbox" checked={selectedSubject?.preview_self?true:selectedSubject?.can_view_general_standings===true} disabled={capabilityBusy||selectedSubject?.preview_self} onChange={e=>void setProfessorCapability("can_view_general_standings",e.target.checked,"Posiciones Generales")}/>
           <strong>{selectedSubject?.preview_self?"Siempre Habilitado":selectedSubject?.can_view_general_standings?"Habilitado":"Deshabilitado"}</strong>
         </label>
+      </div>
+      <div className="card permission-capability-card permission-tabs-card">
+        <div>
+          <b>🧩 Solapas Autorizadas Para Este Profe</b>
+          <span>El Profe Sólo Verá Las Herramientas Que Dejes Marcadas. Si Desmarcás “Solapas”, No Podrá Reordenar Ni Ocultar Su Interfaz.</span>
+        </div>
+        {selectedSubject?.preview_self?<strong>Super Admin · Acceso Completo</strong>:<div className="permission-professor-tabs">
+          <div className="permission-professor-tabs-actions">
+            <button type="button" disabled={capabilityBusy} onClick={()=>void setProfessorTabs(PROFESSOR_TAB_OPTIONS)}>✓ Autorizar Todas</button>
+            <button type="button" disabled={capabilityBusy} onClick={()=>void setProfessorTabs([])}>Ocultar Todas</button>
+          </div>
+          <div className="solapas-page-grid">
+            {PROFESSOR_TAB_OPTIONS.map(label=>{
+              const current=Array.isArray(selectedSubject?.professor_allowed_tabs)?selectedSubject.professor_allowed_tabs:PROFESSOR_TAB_OPTIONS;
+              const checked=current.includes(label);
+              return <label className="solapas-option" key={"prof-tab-"+label}>
+                <input type="checkbox" checked={checked} disabled={capabilityBusy} onChange={e=>{
+                  const next=e.target.checked?[...current,label]:current.filter(item=>item!==label);
+                  void setProfessorTabs(next);
+                }}/>
+                <span>{label}</span>
+              </label>;
+            })}
+          </div>
+        </div>}
       </div>
       <div className="card permission-capability-card">
         <div>
@@ -1895,7 +1943,7 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     let cancelled=false;
     async function loadProfessors(){
       const r=await supabase.from("profiles")
-        .select("id,full_name,role,active,approval_status,can_approve_payments,can_view_standings_comparison,can_view_general_standings,can_manage_match_stats")
+        .select("id,full_name,role,active,approval_status,can_approve_payments,can_view_standings_comparison,can_view_general_standings,can_manage_match_stats,professor_allowed_tabs")
         .eq("role","admin")
         .eq("active",true)
         .eq("approval_status","approved")
@@ -2019,8 +2067,9 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
     </main>;
   }
 
-  const nav=[["home","Asistencia"],["players","Jugador@s"],["history","Historial"],["schedule","Horarios"],["programming","Programación"],["matches","Partidos"],["standings","Posiciones"],["payments","Pagos"],["requests","Solicitudes"],["training","Entrenamiento"],["planning","Planificación"],["settings","Solapas"]];
-  const allowedNav=nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
+  const nav=[["home","Asistencia"],["players","Jugador@s"],["history","Historial"],["schedule","Horarios"],["programming","Programación"],["matches","Partidos"],["standings","Posiciones"],["quickBoard","Pizarra"],["payments","Pagos"],["requests","Solicitudes"],["training","Entrenamiento"],["planning","Planificación"],["settings","Solapas"]];
+  const authorizedTabs=previewProfile?.preview_self||!Array.isArray(previewProfile?.professor_allowed_tabs)?PROFESSOR_TAB_OPTIONS:previewProfile.professor_allowed_tabs;
+  const allowedNav=nav.filter(([,label])=>!disabledTabs.includes(label)&&authorizedTabs.includes(label));
   const visibleNav=mergeNavigationOrder(allowedNav,previewOrder);
 
   return <main className="app professor-preview-app">
@@ -2277,9 +2326,19 @@ function App() {
     nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
   }
   nav.push(['settings','Solapas']);
-  const globallyAllowedNav = profile.role === "super_admin" ? nav : nav.filter(([,label])=>label==="Solapas"||!disabledTabs.includes(label));
-  const allowedNav = globallyAllowedNav.filter(([,label])=>label==="Solapas"||!personalHiddenTabs.includes(label));
+  const authorizedTabs = profile.role==="super_admin"||!Array.isArray(profile.professor_allowed_tabs)?null:profile.professor_allowed_tabs;
+  const globallyAllowedNav = profile.role === "super_admin"
+    ? nav
+    : nav.filter(([,label])=>!disabledTabs.includes(label)&&(!authorizedTabs||authorizedTabs.includes(label)));
+  const allowedNav = globallyAllowedNav.filter(([,label])=>!personalHiddenTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
+  useEffect(()=>{
+    const labels=allowedNav.map(([,label])=>label);
+    const currentLabel=nav.find(([key])=>key===tab)?.[1];
+    if(currentLabel&&!labels.includes(currentLabel))setTab("home");
+    if(quickBoardOpen&&!labels.includes("Pizarra"))setQuickBoardOpen(false);
+  },[profile?.professor_allowed_tabs,disabledTabs.join("|")]);
+
   return <><main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":k==="quickBoard"?(quickBoardOpen?"active":""):(!quickBoardOpen&&tab===k?"active":"")} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):k==="quickBoard"?setQuickBoardOpen(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
     {!["training","settings","requests","matches"].includes(tab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
