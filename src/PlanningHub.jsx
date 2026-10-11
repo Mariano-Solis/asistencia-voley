@@ -334,13 +334,13 @@ export default function PlanningHub({
   }
 
   if(legacy)return <section className="planning-page">
-    <div className="planning-title"><div className="planning-title-icon">📅</div><div><h1>Planificación</h1><p>Actividades y materiales de tu categoría.</p></div></div>
+    <div className="planning-title"><div className="planning-title-icon">☑️</div><div><h1>Planificación</h1><p>Actividades y materiales de tu categoría.</p></div></div>
     <div className="planning-empty">Para Ver La Planificación Ingresá Con Tu Correo y Contraseña. El Acceso Por Código Personal No Puede Abrir Archivos Privados De La Categoría.</div>
   </section>;
 
   return <section className="planning-page">
     <div className="planning-title">
-      <div className="planning-title-icon">📅</div>
+      <div className="planning-title-icon">☑️</div>
       <div>
         <h1>Planificación</h1>
         <p>{isPlayer?"Actividades, rutinas y materiales compartidos con tu categoría.":"Creá y compartí planes de entrenamiento, ejercicios y materiales con l@s jugador@s de cada categoría."}</p>
