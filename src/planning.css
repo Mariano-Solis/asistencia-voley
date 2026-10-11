@@ -20,3 +20,319 @@
 .planning-preview-backdrop{position:fixed;inset:0;z-index:1800;display:grid;place-items:center;padding:12px;background:rgba(17,20,25,.68);backdrop-filter:blur(3px)}.planning-preview-card{width:min(820px,100%);max-height:calc(100dvh - 24px);overflow:auto;border-radius:18px;background:#fff;box-shadow:0 30px 90px rgba(0,0,0,.35)}.planning-preview-card header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#b5121b;color:#fff}.planning-preview-card header span{font-size:9px;font-weight:900;text-transform:uppercase;opacity:.85}.planning-preview-card header h2{margin:2px 0 0;color:#fff;font-size:18px}.planning-preview-card header button{width:36px;height:36px;padding:0;border:1px solid rgba(255,255,255,.28);border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-size:20px}.planning-preview-card>img{display:block;max-width:100%;max-height:75dvh;margin:auto}.planning-preview-card>.planning-court{padding:12px;box-sizing:border-box}.planning-preview-card>p{margin:0;padding:14px;color:#555d67;white-space:pre-wrap;line-height:1.55}
 @media(max-width:760px){.planning-category-card{grid-template-columns:1fr}.planning-create-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.planning-composer-grid{grid-template-columns:1fr}.planning-item{grid-template-columns:52px minmax(0,1fr) auto}.planning-item-icon{width:48px;height:48px}.planning-item-image{width:50px;height:50px}}
 @media(max-width:520px){.planning-title-icon{width:54px;height:54px;font-size:25px}.planning-title h1{font-size:25px}.planning-title p{font-size:11px}.planning-create-card,.planning-materials{padding:11px}.planning-create-actions button{min-height:105px}.planning-board-callout{align-items:stretch;flex-direction:column}.planning-board-callout>button{width:100%}.planning-section-head{display:grid}.planning-section-head>b{justify-self:start}.planning-item{grid-template-columns:46px minmax(0,1fr);position:relative}.planning-item-actions{grid-column:1/-1;justify-content:flex-end}.planning-item-title-row{display:grid}.planning-item-title-row em{justify-self:start}.planning-item-icon{width:42px;height:42px;font-size:21px}.planning-item-image{width:44px;height:44px}}
+
+
+/* =========================================================
+   PIZARRA TÁCTICA PRO · FULLSCREEN + FICHAS
+========================================================= */
+
+.planning-board-callout-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.planning-board-callout-actions button{
+  min-height:40px;
+  padding:8px 12px;
+  border:1px solid #df4c54;
+  border-radius:11px;
+  background:#fff;
+  color:#a81019;
+  font-size:11px;
+  font-weight:900;
+}
+.planning-board-callout-actions .secondary{
+  border-color:#dfe2e6;
+  background:#f7f8fa;
+  color:#444b55;
+}
+
+.planning-board-tools{
+  padding:8px;
+  border:1px solid #eceef1;
+  border-radius:12px;
+  background:#fff;
+}
+.planning-board-action.active{
+  border-color:#b5121b !important;
+  background:#b5121b !important;
+  color:#fff !important;
+  box-shadow:0 4px 12px rgba(181,18,27,.16) !important;
+}
+.planning-board-expand{
+  margin-left:auto;
+  border-color:#f0c6ca !important;
+  background:#fff1f2 !important;
+  color:#a81019 !important;
+}
+
+.planning-token{
+  pointer-events:none;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.18));
+}
+.planning-token circle{
+  stroke:#fff;
+  stroke-width:3;
+}
+.planning-token text{
+  fill:#fff;
+  font-size:14px;
+  font-weight:950;
+  font-family:Arial,sans-serif;
+  user-select:none;
+}
+.planning-token-home circle{fill:#c3131b}
+.planning-token-away circle{fill:#1668c7}
+.planning-token-ball circle{fill:#f3b52b}
+.planning-token-ball text{
+  fill:#111827;
+  font-size:17px;
+}
+
+.planning-board-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  align-items:center;
+  padding:3px 2px 0;
+  color:#6e7680;
+  font-size:9px;
+  font-weight:850;
+}
+.planning-board-legend span{
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.planning-board-legend i{
+  width:12px;
+  height:12px;
+  display:inline-block;
+  border-radius:50%;
+  border:2px solid #fff;
+  box-shadow:0 0 0 1px #d7dbe0;
+}
+.planning-board-legend i.home{background:#c3131b}
+.planning-board-legend i.away{background:#1668c7}
+.planning-board-legend i.ball{
+  width:auto;
+  height:auto;
+  border:0;
+  box-shadow:none;
+  background:transparent;
+  font-style:normal;
+}
+
+.planning-board-fullscreen-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:2100;
+  display:grid;
+  place-items:center;
+  padding:8px;
+  background:rgba(12,16,22,.82);
+  backdrop-filter:blur(5px);
+}
+.planning-board-fullscreen-card{
+  width:min(1240px,100%);
+  height:calc(100dvh - 16px);
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border-radius:20px;
+  background:#f4f6f8;
+  box-shadow:0 30px 100px rgba(0,0,0,.42);
+}
+.planning-board-fullscreen-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:11px 14px;
+  background:#b5121b;
+  color:#fff;
+}
+.planning-board-fullscreen-header span{
+  display:block;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  opacity:.82;
+}
+.planning-board-fullscreen-header h2{
+  margin:2px 0 1px;
+  color:#fff;
+  font-size:19px;
+  line-height:1.1;
+}
+.planning-board-fullscreen-header small{
+  display:block;
+  color:rgba(255,255,255,.8);
+  font-size:9px;
+  font-weight:750;
+}
+.planning-board-fullscreen-header>button{
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
+  padding:0;
+  border:1px solid rgba(255,255,255,.28);
+  border-radius:11px;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  font-size:24px;
+  line-height:1;
+}
+.planning-board-fullscreen-body{
+  min-height:0;
+  overflow:auto;
+  padding:10px;
+  display:grid;
+  align-items:center;
+}
+.planning-board-editor.fullscreen{
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto auto;
+  gap:8px;
+}
+.planning-board-editor.fullscreen .planning-board-tools{
+  position:sticky;
+  top:0;
+  z-index:3;
+  box-shadow:0 4px 14px rgba(25,30,36,.06);
+}
+.planning-board-editor.fullscreen .planning-court{
+  width:100%;
+  max-height:calc(100dvh - 210px);
+  min-height:0;
+  margin:auto;
+  background:#eef4f7;
+}
+.planning-board-fullscreen-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px 12px;
+  border-top:1px solid #e0e4e8;
+  background:#fff;
+}
+.planning-board-fullscreen-footer span{
+  color:#767e89;
+  font-size:9px;
+  font-weight:750;
+}
+.planning-board-fullscreen-footer button{
+  min-height:38px;
+  padding:7px 12px;
+  border:0;
+  border-radius:10px;
+  background:#b5121b;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+}
+
+/* Fullscreen horizontal: ideal para mostrar jugadas a un grupo */
+@media(orientation:landscape) and (max-height:700px){
+  .planning-board-fullscreen-card{
+    border-radius:14px;
+  }
+  .planning-board-fullscreen-header{
+    padding:7px 10px;
+  }
+  .planning-board-fullscreen-header h2{
+    font-size:15px;
+  }
+  .planning-board-fullscreen-header small{
+    display:none;
+  }
+  .planning-board-fullscreen-header>button{
+    width:34px;
+    height:34px;
+    flex-basis:34px;
+  }
+  .planning-board-fullscreen-body{
+    padding:6px;
+  }
+  .planning-board-editor.fullscreen{
+    grid-template-columns:minmax(180px,.34fr) minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr) auto;
+    align-items:start;
+  }
+  .planning-board-editor.fullscreen .planning-board-tools{
+    position:static;
+    align-content:flex-start;
+    max-height:calc(100dvh - 110px);
+    overflow:auto;
+  }
+  .planning-board-editor.fullscreen .planning-court{
+    max-height:calc(100dvh - 105px);
+    grid-column:2;
+    grid-row:1 / span 2;
+  }
+  .planning-board-editor.fullscreen .planning-board-legend,
+  .planning-board-editor.fullscreen>small{
+    grid-column:1;
+  }
+  .planning-board-fullscreen-footer{
+    display:none;
+  }
+}
+
+@media(max-width:520px){
+  .planning-board-callout-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .planning-board-callout-actions button{
+    width:100%;
+  }
+  .planning-board-tools{
+    gap:6px;
+  }
+  .planning-board-tools>span{
+    width:100%;
+    margin-top:2px;
+  }
+  .planning-board-action{
+    min-height:36px;
+    font-size:9px;
+  }
+  .planning-board-expand{
+    margin-left:0;
+  }
+  .planning-board-fullscreen-backdrop{
+    padding:0;
+  }
+  .planning-board-fullscreen-card{
+    width:100%;
+    height:100dvh;
+    border-radius:0;
+  }
+  .planning-board-fullscreen-header{
+    padding:9px 10px;
+  }
+  .planning-board-fullscreen-header h2{
+    font-size:16px;
+  }
+  .planning-board-fullscreen-body{
+    padding:7px;
+  }
+  .planning-board-editor.fullscreen .planning-court{
+    max-height:calc(100dvh - 280px);
+  }
+  .planning-board-fullscreen-footer{
+    padding:8px;
+  }
+  .planning-board-fullscreen-footer span{
+    display:none;
+  }
+  .planning-board-fullscreen-footer button{
+    width:100%;
+  }
+}
