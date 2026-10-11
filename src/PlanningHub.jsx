@@ -116,8 +116,7 @@ function TacticalBoardEditor({value,onChange}){
       onPointerMove={event=>{
         if(!drawing.current)return;
         const p=point(event);
-        const next=(value||[]).map((stroke,index)=>index===current.current?{...stroke,points:[...(stroke.points||[]),p]}:stroke);
-        onChange(next);
+        onChange(currentStrokes=>(currentStrokes||[]).map((stroke,index)=>index===current.current?{...stroke,points:[...(stroke.points||[]),p]}:stroke));
       }}
       onPointerUp={up}
     />
