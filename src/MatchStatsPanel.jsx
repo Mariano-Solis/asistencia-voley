@@ -309,6 +309,12 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
     return()=>window.removeEventListener("online",online);
   },[session?.id,canManage]);
 
+  useEffect(()=>{
+    if(!canManage)return;
+    const live=session?.current_lineup||[];
+    if(live.length&&(!selectedPlayer||!live.includes(selectedPlayer)))setSelectedPlayer(live[0]);
+  },[session?.current_lineup,canManage,selectedPlayer]);
+
   async function syncQueue(current=session,queue=pending){
     if(!current||!queue.length||syncing)return;
     setSyncing(true);
@@ -407,7 +413,10 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
       return false;
     }finally{setBusy(false);}
   }
-  async function changeMode(mode){await updateSession({input_mode:mode});}
+  async function changeMode(mode){
+    if(mode!=="complete"&&SKILLS.find(item=>item.key===selectedSkill)?.completeOnly)setSelectedSkill("attack");
+    await updateSession({input_mode:mode});
+  }
   async function saveLineup(){
     const target=Math.min(6,players.length);
     if(lineupDraft.length!==target){flash(`Elegí ${target} Jugador@${target===1?"":"s"}`);return;}
