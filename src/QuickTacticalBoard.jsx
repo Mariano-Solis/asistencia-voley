@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { TacticalBoardEditor, normalizeBoardData } from "./PlanningHub";
 import "./quick-board.css";
@@ -16,6 +16,7 @@ function readBoard(){
 
 export default function QuickTacticalBoard({open,onClose}){
   const [board,setBoard]=useState(readBoard);
+  const overlayRef=useRef(null);
 
   useEffect(()=>{
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(board))}catch{}
@@ -23,31 +24,41 @@ export default function QuickTacticalBoard({open,onClose}){
 
   useEffect(()=>{
     if(!open)return;
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
     const onKey=event=>{if(event.key==="Escape")onClose?.()};
     window.addEventListener("keydown",onKey);
-    return()=>window.removeEventListener("keydown",onKey);
+    const node=overlayRef.current;
+    if(node?.requestFullscreen&&!document.fullscreenElement){
+      Promise.resolve(node.requestFullscreen()).catch(()=>{});
+    }
+    return()=>{
+      window.removeEventListener("keydown",onKey);
+      document.body.style.overflow=previousOverflow;
+      if(document.fullscreenElement===node)Promise.resolve(document.exitFullscreen?.()).catch(()=>{});
+    };
   },[open,onClose]);
 
   if(!open)return null;
 
-  return createPortal(<div className="quick-board-overlay" role="dialog" aria-modal="true" aria-label="Pizarra Rápida">
+  return createPortal(<div ref={overlayRef} className="quick-board-overlay" role="dialog" aria-modal="true" aria-label="Pizarra Rápida">
     <section className="quick-board-shell">
       <header className="quick-board-header">
+        <button type="button" className="quick-board-back" onClick={onClose} aria-label="Volver">←</button>
         <div>
           <span>Uso En Partido</span>
           <h2>🖍️ Pizarra</h2>
-          <small>Dibujá, Mové Fichas y Volvé Sin Perder Lo Que Estabas Haciendo.</small>
         </div>
-        <button type="button" className="quick-board-close" onClick={onClose} aria-label="Cerrar Pizarra">×</button>
+        <button type="button" className="quick-board-reset" onClick={()=>setBoard(normalizeBoardData(null))}>↺ Todo</button>
       </header>
 
       <main className="quick-board-body">
-        <TacticalBoardEditor value={board} onChange={setBoard} fullscreen fastMode/>
+        <TacticalBoardEditor value={board} onChange={setBoard} fullscreen fastMode matchMode/>
       </main>
 
       <footer className="quick-board-footer">
-        <button type="button" onClick={()=>setBoard(normalizeBoardData(null))}>↺ Reiniciar Todo</button>
-        <button type="button" className="primary" onClick={onClose}>✓ Volver</button>
+        <span>Los Cambios Se Guardan Automáticamente</span>
+        <button type="button" className="primary" onClick={onClose}>✓ Volver Al Partido</button>
       </footer>
     </section>
   </div>,document.body);
