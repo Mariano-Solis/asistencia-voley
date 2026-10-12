@@ -756,3 +756,28 @@
     font-size:6px;
   }
 }
+
+
+/* =========================================================
+   MEDIA CANCHA · OCUPAR TODA EL ÁREA ÚTIL
+========================================================= */
+.quick-board-body .match-mode .planning-court.half-court{
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  aspect-ratio:auto!important;
+  margin:0!important;
+  align-self:stretch!important;
+}
+.quick-board-body .match-mode .planning-board-court-stage:has(.planning-court.half-court){
+  align-items:stretch!important;
+  justify-content:stretch!important;
+}
+@media(orientation:portrait){
+  .quick-board-body .match-mode .planning-court.half-court{
+    width:100%!important;
+    height:100%!important;
+    aspect-ratio:auto!important;
+  }
+}

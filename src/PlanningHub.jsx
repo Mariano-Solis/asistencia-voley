@@ -118,6 +118,7 @@ function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointe
   return <svg
     className={"planning-court "+(interactive?"interactive ":"")+(usePortrait?"portrait ":"")+(halfCourt?"half-court ":"")+("view-"+viewMode)}
     viewBox={viewBox}
+    preserveAspectRatio={halfCourt?"none":"xMidYMid meet"}
     role="img"
     aria-label={viewMode==="home"?"Media Cancha Propia":viewMode==="away"?"Media Cancha Rival":"Cancha de vóley"}
     onPointerDown={onPointerDown}
