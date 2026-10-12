@@ -61,7 +61,7 @@ function archiveMatch(session){
   };
 }
 
-export default function PartidosHub({allowedCategories=null,unrestricted=false,compact=false,canManageStats=false,canViewStats=false,currentPlayerId=null}){
+export default function PartidosHub({allowedCategories=null,unrestricted=false,compact=false,canManageStats=false,canViewStats=false,currentPlayerId=null,canOpenBoard=true}){
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [refreshing,setRefreshing]=useState(false);
@@ -299,6 +299,7 @@ export default function PartidosHub({allowedCategories=null,unrestricted=false,c
       canManage={canManageStats}
       canView={canViewStats}
       currentPlayerId={currentPlayerId}
+      canOpenBoard={canOpenBoard}
       onClose={closeStats}
     />}
   </section>;
