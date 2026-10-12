@@ -59,10 +59,13 @@ function boardHasChanges(value){
     return !original||token.x!==original.x||token.y!==original.y;
   });
 }
-function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointerMove,onPointerUp}){
+function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointerMove,onPointerUp,portrait=false}){
+  const mapPoint=point=>portrait?{x:300-point.y,y:point.x}:point;
+  const courtRect=portrait?{x:42,y:48,width:216,height:504}:{x:48,y:42,width:504,height:216};
+  const bgRect=portrait?{x:10,y:10,width:280,height:580}:{x:10,y:10,width:580,height:280};
   return <svg
-    className={"planning-court "+(interactive?"interactive":"")}
-    viewBox="0 0 600 300"
+    className={"planning-court "+(interactive?"interactive ":"")+(portrait?"portrait":"")}
+    viewBox={portrait?"0 0 300 600":"0 0 600 300"}
     role="img"
     aria-label="Cancha de vóley"
     onPointerDown={onPointerDown}
@@ -71,19 +74,29 @@ function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointe
     onPointerCancel={onPointerUp}
     onPointerLeave={interactive?onPointerUp:undefined}
   >
-    <rect x="10" y="10" width="580" height="280" rx="16" fill="#dce9ef"/>
-    <rect x="48" y="42" width="504" height="216" fill="#efb36f" stroke="#fff" strokeWidth="5"/>
-    <line x1="300" y1="42" x2="300" y2="258" stroke="#fff" strokeWidth="5"/>
-    <line x1="174" y1="42" x2="174" y2="258" stroke="#fff" strokeWidth="3"/>
-    <line x1="426" y1="42" x2="426" y2="258" stroke="#fff" strokeWidth="3"/>
-    <line x1="300" y1="26" x2="300" y2="274" stroke="#555" strokeWidth="4"/>
-    {tokens.map(token=><g key={token.id} className={"planning-token planning-token-"+token.type} transform={`translate(${token.x} ${token.y})`}>
-      <circle r={token.type==="ball"?17:18}/>
-      <text textAnchor="middle" dominantBaseline="middle" dy={token.type==="ball"?1:0}>{token.label}</text>
-    </g>)}
+    <rect {...bgRect} rx="16" fill="#dce9ef"/>
+    <rect {...courtRect} fill="#efb36f" stroke="#fff" strokeWidth="5"/>
+    {portrait?<>
+      <line x1="42" y1="300" x2="258" y2="300" stroke="#fff" strokeWidth="5"/>
+      <line x1="42" y1="174" x2="258" y2="174" stroke="#fff" strokeWidth="3"/>
+      <line x1="42" y1="426" x2="258" y2="426" stroke="#fff" strokeWidth="3"/>
+      <line x1="26" y1="300" x2="274" y2="300" stroke="#555" strokeWidth="4"/>
+    </>:<>
+      <line x1="300" y1="42" x2="300" y2="258" stroke="#fff" strokeWidth="5"/>
+      <line x1="174" y1="42" x2="174" y2="258" stroke="#fff" strokeWidth="3"/>
+      <line x1="426" y1="42" x2="426" y2="258" stroke="#fff" strokeWidth="3"/>
+      <line x1="300" y1="26" x2="300" y2="274" stroke="#555" strokeWidth="4"/>
+    </>}
+    {tokens.map(token=>{
+      const p=mapPoint(token);
+      return <g key={token.id} className={"planning-token planning-token-"+token.type} transform={`translate(${p.x} ${p.y})`}>
+        <circle r={token.type==="ball"?17:18}/>
+        <text textAnchor="middle" dominantBaseline="middle" dy={token.type==="ball"?1:0}>{token.label}</text>
+      </g>;
+    })}
     {strokes.map((stroke,index)=><polyline
       key={index}
-      points={(stroke.points||[]).map(p=>`${p.x},${p.y}`).join(" ")}
+      points={(stroke.points||[]).map(point=>mapPoint(point)).map(p=>`${p.x},${p.y}`).join(" ")}
       fill="none"
       stroke={stroke.color||"#c3131b"}
       strokeWidth={stroke.width||5}
@@ -94,7 +107,7 @@ function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointe
   </svg>;
 }
 
-function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fastMode=false,matchMode=false}){
+function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fastMode=false,matchMode=false,portraitMode=false}){
   const data=normalizeBoardData(value);
   const [color,setColor]=useState("#c3131b");
   const [tool,setTool]=useState("move");
@@ -105,6 +118,14 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
   function point(event){
     const svg=event.currentTarget;
     const rect=svg.getBoundingClientRect();
+    if(portraitMode){
+      const outerX=((event.clientX-rect.left)/rect.width)*300;
+      const outerY=((event.clientY-rect.top)/rect.height)*600;
+      return {
+        x:Math.max(30,Math.min(570,outerY)),
+        y:Math.max(24,Math.min(276,300-outerX)),
+      };
+    }
     return {
       x:Math.max(30,Math.min(570,((event.clientX-rect.left)/rect.width)*600)),
       y:Math.max(24,Math.min(276,((event.clientY-rect.top)/rect.height)*300)),
@@ -231,6 +252,7 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
+        portrait={portraitMode}
       />
     </div>
     {!matchMode&&<div className="planning-board-legend">
