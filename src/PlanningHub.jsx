@@ -89,15 +89,15 @@ function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointe
       strokeWidth={stroke.width||5}
       strokeLinecap="round"
       strokeLinejoin="round"
-      opacity=".95"
+      opacity={stroke.opacity??.95}
     />)}
   </svg>;
 }
 
-function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fastMode=false}){
+function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fastMode=false,matchMode=false}){
   const data=normalizeBoardData(value);
   const [color,setColor]=useState("#c3131b");
-  const [tool,setTool]=useState("draw");
+  const [tool,setTool]=useState("move");
   const drawing=useRef(false);
   const currentStroke=useRef(-1);
   const movingTokenId=useRef(null);
@@ -106,15 +106,38 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
     const svg=event.currentTarget;
     const rect=svg.getBoundingClientRect();
     return {
-      x:Math.max(48,Math.min(552,((event.clientX-rect.left)/rect.width)*600)),
-      y:Math.max(42,Math.min(258,((event.clientY-rect.top)/rect.height)*300)),
+      x:Math.max(30,Math.min(570,((event.clientX-rect.left)/rect.width)*600)),
+      y:Math.max(24,Math.min(276,((event.clientY-rect.top)/rect.height)*300)),
     };
   }
   function tokenAt(p){
     return data.tokens.find(token=>{
       const dx=token.x-p.x,dy=token.y-p.y;
-      return Math.sqrt(dx*dx+dy*dy)<=(token.type==="ball"?24:27);
+      return Math.sqrt(dx*dx+dy*dy)<=(token.type==="ball"?31:34);
     })||null;
+  }
+  function distanceToSegment(p,a,b){
+    const vx=b.x-a.x,vy=b.y-a.y,wx=p.x-a.x,wy=p.y-a.y;
+    const len=vx*vx+vy*vy;
+    const t=len?Math.max(0,Math.min(1,(wx*vx+wy*vy)/len)):0;
+    const dx=p.x-(a.x+t*vx),dy=p.y-(a.y+t*vy);
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+  function eraseStrokeAt(p){
+    let best=-1,bestDistance=Infinity;
+    data.strokes.forEach((stroke,index)=>{
+      const pts=stroke.points||[];
+      for(let i=1;i<pts.length;i++){
+        const d=distanceToSegment(p,pts[i-1],pts[i]);
+        if(d<bestDistance){bestDistance=d;best=index}
+      }
+    });
+    if(best>=0&&bestDistance<=24){
+      onChange(current=>{
+        const board=normalizeBoardData(current);
+        return {...board,strokes:board.strokes.filter((_,index)=>index!==best)};
+      });
+    }
   }
   function down(event){
     event.preventDefault();
@@ -132,7 +155,12 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
       }
       return;
     }
-    const nextStroke={color,width:5,points:[p]};
+    if(tool==="eraseDraw"){
+      eraseStrokeAt(p);
+      return;
+    }
+    const isMarker=tool==="marker";
+    const nextStroke={color,width:isMarker?28:5,opacity:isMarker?0.28:0.95,points:[p]};
     currentStroke.current=data.strokes.length;
     drawing.current=true;
     onChange(current=>{
@@ -149,7 +177,7 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
       });
       return;
     }
-    if(tool!=="draw"||!drawing.current)return;
+    if(!["draw","marker"].includes(tool)||!drawing.current)return;
     onChange(current=>{
       const board=normalizeBoardData(current);
       return {...board,strokes:board.strokes.map((stroke,index)=>index===currentStroke.current?{...stroke,points:[...(stroke.points||[]),p]}:stroke)};
@@ -178,33 +206,39 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
     }
   }
 
-  return <div className={"planning-board-editor "+(fullscreen?"fullscreen":"")}>
+  return <div className={"planning-board-editor "+(fullscreen?"fullscreen ":"")+(matchMode?"match-mode":"")}>
     <div className="planning-board-tools">
-      <span>Herramienta</span>
-      <button type="button" className={"planning-board-action "+(tool==="draw"?"active":"")} onClick={()=>setTool("draw")}>✏️ Dibujar</button>
-      <button type="button" className={"planning-board-action "+(tool==="move"?"active":"")} onClick={()=>setTool("move")}>🧩 Mover Fichas</button>
-      <button type="button" className={"planning-board-action "+(tool==="erase"?"active":"")} onClick={()=>setTool("erase")}>🗑 Quitar Ficha</button>
-      <span>Color</span>
-      {["#c3131b","#1668c7","#111827"].map(item=><button type="button" key={item} className={color===item?"active":""} style={{background:item}} onClick={()=>{setColor(item);setTool("draw")}} aria-label={"Color "+item}/>)}
-      <button type="button" className="planning-board-action" onClick={undo} disabled={!data.strokes.length}>↶ Deshacer</button>
-      <button type="button" className="planning-board-action" onClick={clearDrawing} disabled={!data.strokes.length}>{fastMode?"🧹 Borrar Dibujo":"Limpiar Dibujo"}</button>
-      <button type="button" className="planning-board-action" onClick={resetTokens}>Reiniciar Fichas</button>
+      {!matchMode&&<span>Herramienta</span>}
+      <button type="button" className={"planning-board-action "+(tool==="move"?"active":"")} onClick={()=>setTool("move")} title="Mover Fichas y Pelota">🖐️ <b>{matchMode?"Mover":"Mover Fichas"}</b></button>
+      <button type="button" className={"planning-board-action "+(tool==="draw"?"active":"")} onClick={()=>setTool("draw")} title="Dibujar">✏️ <b>Dibujar</b></button>
+      <button type="button" className={"planning-board-action "+(tool==="marker"?"active":"")} onClick={()=>setTool("marker")} title="Sombrear">🖍️ <b>Sombra</b></button>
+      <button type="button" className={"planning-board-action "+(tool==="eraseDraw"?"active":"")} onClick={()=>setTool("eraseDraw")} title="Borrar Un Trazo">⌫ <b>Borrador</b></button>
+      <button type="button" className={"planning-board-action "+(tool==="erase"?"active":"")} onClick={()=>setTool("erase")} title="Quitar Una Ficha">🗑️ <b>Ficha</b></button>
+      {!matchMode&&<span>Color</span>}
+      <div className="planning-board-colors" aria-label="Colores">
+        {["#c3131b","#1668c7","#111827","#ffffff","#f3b52b"].map(item=><button type="button" key={item} className={color===item?"active":""} style={{background:item}} onClick={()=>{setColor(item);if(!["draw","marker"].includes(tool))setTool("draw")}} aria-label={"Color "+item}/>)}
+      </div>
+      <button type="button" className="planning-board-action planning-board-utility" onClick={undo} disabled={!data.strokes.length} title="Deshacer Último Trazo">↶ <b>Deshacer</b></button>
+      <button type="button" className="planning-board-action planning-board-utility" onClick={clearDrawing} disabled={!data.strokes.length} title="Borrar Todo El Dibujo">🧹 <b>{matchMode?"Limpiar":"Borrar Dibujo"}</b></button>
+      <button type="button" className="planning-board-action planning-board-utility" onClick={resetTokens} title="Reiniciar Fichas">↺ <b>Fichas</b></button>
       {!fullscreen&&onExpand&&<button type="button" className="planning-board-action planning-board-expand" onClick={onExpand}>⛶ Expandir</button>}
     </div>
-    <BoardSvg
-      strokes={data.strokes}
-      tokens={data.tokens}
-      interactive
-      onPointerDown={down}
-      onPointerMove={move}
-      onPointerUp={up}
-    />
-    <div className="planning-board-legend">
+    <div className="planning-board-court-stage">
+      <BoardSvg
+        strokes={data.strokes}
+        tokens={data.tokens}
+        interactive
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+      />
+    </div>
+    {!matchMode&&<div className="planning-board-legend">
       <span><i className="home"/> Equipo Propio</span>
       <span><i className="away"/> Rival</span>
       <span><i className="ball"/> 🏐 Pelota</span>
-    </div>
-    <small>{tool==="move"?"Arrastrá Las Fichas y La Pelota Con El Dedo.":tool==="erase"?"Tocá Una Ficha Para Quitarla.":"Dibujá Con El Dedo O Mouse. Podés Cambiar De Color, Deshacer O Limpiar."}</small>
+    </div>}
+    {!matchMode&&<small>{tool==="move"?"Arrastrá Las Fichas y La Pelota Con El Dedo.":tool==="erase"?"Tocá Una Ficha Para Quitarla.":tool==="eraseDraw"?"Tocá Un Trazo Para Borrarlo.":tool==="marker"?"Marcá Zonas Con Una Sombra Semitransparente.":"Dibujá Con El Dedo O Mouse. Podés Cambiar De Color, Deshacer O Limpiar."}</small>}
   </div>;
 }
 
