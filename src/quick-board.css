@@ -418,3 +418,186 @@
   }
   .quick-board-footer{display:none!important}
 }
+
+
+/* =========================================================
+   ROTACIONES + BIBLIOTECA + ANCHO DE CANCHA
+========================================================= */
+.quick-board-body .match-mode .planning-board-rotation{
+  border-color:#d9e2ec!important;
+  background:#f7f9fb!important;
+}
+.quick-board-body .match-mode .planning-board-save{
+  border-color:#e8c3c7!important;
+  background:#fff4f5!important;
+  color:#a71019!important;
+}
+.quick-board-body .match-mode .planning-board-save:disabled,
+.quick-board-body .match-mode .planning-board-rotation:disabled{
+  opacity:.38!important;
+}
+@media(orientation:portrait){
+  .quick-board-body .match-mode .planning-court.portrait{
+    width:100%!important;
+    height:100%!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    aspect-ratio:3 / 5!important;
+    object-fit:contain!important;
+    margin:auto!important;
+  }
+}
+
+.quick-board-library-backdrop{
+  position:absolute;
+  inset:0;
+  z-index:20;
+  display:grid;
+  place-items:center;
+  padding:12px;
+  background:rgba(12,16,22,.66);
+  backdrop-filter:blur(3px);
+}
+.quick-board-library{
+  width:min(620px,100%);
+  max-height:min(76dvh,720px);
+  display:grid;
+  grid-template-rows:auto auto minmax(0,1fr);
+  overflow:hidden;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 24px 80px rgba(0,0,0,.34);
+}
+.quick-board-library>header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:11px 12px;
+  background:#b5121b;
+  color:#fff;
+}
+.quick-board-library>header span{
+  display:block;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  opacity:.8;
+}
+.quick-board-library>header h3{
+  margin:2px 0 0;
+  color:#fff;
+  font-size:17px;
+}
+.quick-board-library>header button{
+  width:36px;
+  height:36px;
+  padding:0;
+  border:1px solid rgba(255,255,255,.28);
+  border-radius:10px;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  font-size:22px;
+}
+.quick-board-save-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:7px;
+  padding:9px;
+  border-bottom:1px solid #eceff2;
+}
+.quick-board-save-row input{
+  min-width:0;
+  min-height:42px;
+  box-sizing:border-box;
+  border:1px solid #dfe3e7;
+  border-radius:10px;
+  padding:8px 10px;
+  font:inherit;
+  font-size:11px;
+}
+.quick-board-save-row button{
+  min-height:42px;
+  padding:0 12px;
+  border:0;
+  border-radius:10px;
+  background:#b5121b;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+}
+.quick-board-save-row button:disabled{opacity:.4}
+.quick-board-library-list{
+  min-height:0;
+  overflow:auto;
+  padding:8px;
+  display:grid;
+  align-content:start;
+  gap:6px;
+}
+.quick-board-library-list article{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto 40px;
+  align-items:center;
+  gap:7px;
+  padding:8px;
+  border:1px solid #e5e8eb;
+  border-radius:11px;
+  background:#fafbfc;
+}
+.quick-board-library-list article>div{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.quick-board-library-list article b{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#343a42;
+  font-size:11px;
+}
+.quick-board-library-list article small{
+  color:#858c95;
+  font-size:8px;
+}
+.quick-board-library-list article button{
+  min-height:36px;
+  border:1px solid #dfe3e7;
+  border-radius:9px;
+  background:#fff;
+  color:#444b54;
+  font-size:9px;
+  font-weight:900;
+}
+.quick-board-library-list article .load{
+  padding:0 10px;
+  color:#a71019;
+}
+.quick-board-library-list article .delete{
+  width:40px;
+  padding:0;
+  background:#fff5f5;
+}
+.quick-board-library-empty{
+  padding:22px 12px;
+  color:#7a828c;
+  text-align:center;
+  font-size:10px;
+  font-weight:750;
+}
+@media(max-width:520px){
+  .quick-board-library-backdrop{padding:7px}
+  .quick-board-library{
+    max-height:82dvh;
+    border-radius:14px;
+  }
+  .quick-board-save-row{
+    grid-template-columns:1fr;
+  }
+  .quick-board-save-row button{width:100%}
+  .quick-board-library-list article{
+    grid-template-columns:minmax(0,1fr) auto 38px;
+  }
+}
