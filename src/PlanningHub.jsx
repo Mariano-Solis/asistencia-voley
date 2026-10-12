@@ -160,7 +160,7 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
       return;
     }
     const isMarker=tool==="marker";
-    const nextStroke={color,width:isMarker?28:5,opacity:isMarker?.28:.95,points:[p]};
+    const nextStroke={color,width:isMarker?28:5,opacity:isMarker?0.28:0.95,points:[p]};
     currentStroke.current=data.strokes.length;
     drawing.current=true;
     onChange(current=>{
