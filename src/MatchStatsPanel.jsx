@@ -180,6 +180,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
   const [pending,setPending]=useState([]);
   const [captureView,setCaptureView]=useState(canManage?"live":"summary");
   const [lineupDraft,setLineupDraft]=useState([]);
+  const [jerseyDraft,setJerseyDraft]=useState({});
   const [editingLineup,setEditingLineup]=useState(false);
   const [realtimeStatus,setRealtimeStatus]=useState("connecting");
   const actorRef=useRef(null);
@@ -258,6 +259,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
       setPlayers(roster);
       const lineup=(current.current_lineup||[]).filter(id=>roster.some(player=>player.id===id));
       setLineupDraft(lineup);
+      setJerseyDraft(current.lineup_jersey_numbers&&typeof current.lineup_jersey_numbers==="object"?current.lineup_jersey_numbers:{});
       if(!selectedPlayer&&lineup.length)setSelectedPlayer(lineup[0]);
       const dbEvents=eventResult.data||[];
       const ids=new Set(dbEvents.map(item=>item.id));
@@ -417,13 +419,46 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
     if(mode!=="complete"&&SKILLS.find(item=>item.key===selectedSkill)?.completeOnly)setSelectedSkill("attack");
     await updateSession({input_mode:mode});
   }
+  function cleanJersey(value){
+    return String(value??"").replace(/\D/g,"").slice(0,2);
+  }
+  function setJerseyNumber(playerId,value){
+    setJerseyDraft(current=>({...current,[playerId]:cleanJersey(value)}));
+  }
+  function beginEditLineup(){
+    setLineupDraft(lineup);
+    setJerseyDraft(session?.lineup_jersey_numbers&&typeof session.lineup_jersey_numbers==="object"?session.lineup_jersey_numbers:{});
+    setEditingLineup(true);
+  }
+  function cancelEditLineup(){
+    setLineupDraft(lineup);
+    setJerseyDraft(session?.lineup_jersey_numbers&&typeof session.lineup_jersey_numbers==="object"?session.lineup_jersey_numbers:{});
+    setEditingLineup(false);
+  }
+  function assignZone(index,playerId){
+    setLineupDraft(current=>{
+      const next=[...current];
+      const existingIndex=next.indexOf(playerId);
+      if(existingIndex>=0&&existingIndex!==index){
+        const replaced=next[index];
+        next[index]=playerId;
+        next[existingIndex]=replaced;
+      }else next[index]=playerId;
+      return next;
+    });
+  }
   async function saveLineup(){
     const target=Math.min(6,players.length);
     if(lineupDraft.length!==target){flash(`Elegí ${target} Jugador@${target===1?"":"s"}`);return;}
-    if(await updateSession({current_lineup:lineupDraft})){
+    const jerseyPairs=lineupDraft.map(id=>[id,cleanJersey(jerseyDraft[id])]).filter(([,num])=>num);
+    const nums=jerseyPairs.map(([,num])=>num);
+    if(new Set(nums).size!==nums.length){flash("No Puede Haber Números De Camiseta Repetidos");return;}
+    const normalizedJerseys=Object.fromEntries(jerseyPairs);
+    if(await updateSession({current_lineup:lineupDraft,lineup_jersey_numbers:normalizedJerseys})){
+      setJerseyDraft(normalizedJerseys);
       setEditingLineup(false);
       if(!lineupDraft.includes(selectedPlayer))setSelectedPlayer(lineupDraft[0]||"");
-      flash("✓ Jugador@s En Cancha Actualizados");
+      flash("✓ Formación y Camisetas Actualizadas");
     }
   }
   function toggleLineup(id){
@@ -469,6 +504,8 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
   const selectedSkillConfig=SKILLS.find(item=>item.key===selectedSkill)||SKILLS[0];
   const recent=visibleEvents.slice(-6).reverse();
   const lineup=(session?.current_lineup||[]).filter(id=>playerById[id]);
+  const jerseyNumbers=session?.lineup_jersey_numbers&&typeof session.lineup_jersey_numbers==="object"?session.lineup_jersey_numbers:{};
+  const jerseyFor=id=>String(jerseyNumbers?.[id]||"").trim();
   const mode=session?.input_mode||"rally";
   const modeSkills=SKILLS.filter(skill=>mode==="complete"||!skill.completeOnly);
 
@@ -507,18 +544,30 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
           </div>
 
           {editingLineup||lineup.length!==Math.min(6,players.length)?<section className="match-lineup-editor">
-            <div className="match-live-section-head"><div><span>Antes De Empezar</span><h3>Elegí Quiénes Están En Cancha</h3></div><b>{lineupDraft.length}/{Math.min(6,players.length)}</b></div>
-            <div className="match-lineup-roster">{players.map(player=><button type="button" key={player.id} className={lineupDraft.includes(player.id)?"active":""} onClick={()=>toggleLineup(player.id)}><i>{initials(player)}</i><span>{shortName(player)}</span></button>)}</div>
-            <div className="match-lineup-editor-actions">{lineup.length>0&&<button type="button" onClick={()=>{setLineupDraft(lineup);setEditingLineup(false)}}>Cancelar</button>}<button type="button" className="primary" onClick={()=>void saveLineup()}>✓ Usar Esta Alineación</button></div>
+            <div className="match-live-section-head"><div><span>Antes De Empezar</span><h3>Elegí Jugadoras, Número y Posición Inicial</h3></div><b>{lineupDraft.length}/{Math.min(6,players.length)}</b></div>
+            <div className="match-lineup-roster">{players.map(player=><div className={"match-lineup-roster-card "+(lineupDraft.includes(player.id)?"active":"")} key={player.id}>
+              <button type="button" className={lineupDraft.includes(player.id)?"active":""} onClick={()=>toggleLineup(player.id)}>
+                <i>{jerseyDraft[player.id]||initials(player)}</i><span>{shortName(player)}</span>
+              </button>
+              <label>N°<input inputMode="numeric" pattern="[0-9]*" maxLength={2} value={jerseyDraft[player.id]||""} onChange={event=>setJerseyNumber(player.id,event.target.value)} placeholder="—" aria-label={"Número De Camiseta De "+playerName(player)}/></label>
+            </div>)}</div>
+            {lineupDraft.length===Math.min(6,players.length)&&<div className="match-lineup-zones">
+              <div className="match-lineup-zones-head"><span>Formación Inicial</span><b>Acomodá Quién Empieza En Cada Zona</b></div>
+              <div className="match-lineup-zone-grid">{COURT_ZONES.map((zone,index)=><label key={zone}><span>{zone}</span><select value={lineupDraft[index]||""} onChange={event=>assignZone(index,event.target.value)}>
+                {lineupDraft.map(id=><option key={id} value={id}>{jerseyDraft[id]?"#"+jerseyDraft[id]+" · ":""}{shortName(playerById[id])}</option>)}
+              </select></label>)}</div>
+            </div>}
+            <div className="match-lineup-editor-actions">{lineup.length>0&&<button type="button" onClick={cancelEditLineup}>Cancelar</button>}<button type="button" className="primary" onClick={()=>void saveLineup()}>✓ Usar Esta Formación</button></div>
           </section>:<>
             <section className="match-live-court-card">
-              <div className="match-live-section-head"><div><span>Jugador@s En Cancha</span><h3>Tocá A Quien Intervino</h3></div><div className="match-court-tools"><button type="button" onClick={()=>{setLineupDraft(lineup);setEditingLineup(true)}}>Cambiar</button><button type="button" onClick={()=>void rotate()}>↻ Rotar</button></div></div>
+              <div className="match-live-section-head"><div><span>Jugador@s En Cancha</span><h3>Tocá A Quien Intervino</h3></div><div className="match-court-tools"><button type="button" onClick={beginEditLineup}>Cambiar</button><button type="button" onClick={()=>void rotate()}>↻ Rotar</button></div></div>
               <div className="match-live-court">
                 <div className="match-court-net">RED</div>
                 {lineup.map((id,index)=>{
                   const player=playerById[id];
+                  const jersey=jerseyFor(id);
                   return <button type="button" key={id} className={"match-court-player "+(selectedPlayer===id?"active":"")} onClick={()=>setSelectedPlayer(id)}>
-                    <small>{COURT_ZONES[index]}</small><i>{initials(player)}</i><b>{shortName(player)}</b>
+                    <small>{COURT_ZONES[index]}</small><i className={jersey?"jersey-number":""}>{jersey||initials(player)}</i><b>{shortName(player)}</b>
                   </button>;
                 })}
               </div>
@@ -526,7 +575,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
 
             <section className="match-live-action-card">
               <div className="match-live-section-head">
-                <div><span>Acción Rápida</span><h3>{selectedPlayer?shortName(playerById[selectedPlayer]):"Elegí Un Jugador@"}</h3></div>
+                <div><span>Acción Rápida</span><h3>{selectedPlayer?shortName(playerById[selectedPlayer])+(jerseyFor(selectedPlayer)?" (#"+jerseyFor(selectedPlayer)+")":""):"Elegí Un Jugador@"}</h3></div>
                 {selectedPlayer&&<button type="button" className="match-clear-player" onClick={()=>setSelectedPlayer("")}>Cambiar</button>}
               </div>
 
@@ -544,7 +593,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
 
             {recent.length>0&&<section className="match-live-recent">
               <div className="match-live-section-head"><div><span>Últimas Acciones</span><h3>Lo Recién Registrado</h3></div></div>
-              {recent.map(item=><div key={item.id}><span>Set {item.set_number}</span><i>{item.player_id?initials(playerById[item.player_id]):"•"}</i><b>{item.player_id?shortName(playerById[item.player_id])+" · ":""}{actionLabel(item)}</b>{item.local_pending&&<small>Local</small>}<button type="button" onClick={()=>void removeEvent(item,{confirm:true})}>×</button></div>)}
+              {recent.map(item=><div key={item.id}><span>Set {item.set_number}</span><i>{item.player_id?(jerseyFor(item.player_id)||initials(playerById[item.player_id])):"•"}</i><b>{item.player_id?shortName(playerById[item.player_id])+" · ":""}{actionLabel(item)}</b>{item.local_pending&&<small>Local</small>}<button type="button" onClick={()=>void removeEvent(item,{confirm:true})}>×</button></div>)}
             </section>}
           </>}
 
