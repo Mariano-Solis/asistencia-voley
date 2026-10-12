@@ -297,3 +297,124 @@
   }
   .quick-board-footer{display:none!important}
 }
+
+
+/* =========================================================
+   OPTIMIZACIÓN DE ESPACIO · CANCHA PROTAGONISTA
+========================================================= */
+.quick-board-header{
+  gap:6px!important;
+  padding:max(4px,env(safe-area-inset-top)) 8px 4px!important;
+}
+.quick-board-header h2{font-size:15px!important}
+.quick-board-header span{font-size:7px!important}
+.quick-board-back{
+  width:36px!important;
+  min-height:36px!important;
+  font-size:20px!important;
+}
+.quick-board-reset{
+  min-height:36px!important;
+  padding:0 10px!important;
+  font-size:9px!important;
+}
+.quick-board-body{padding:2px!important}
+.quick-board-body .planning-board-editor.fullscreen.match-mode{
+  gap:3px!important;
+}
+.quick-board-body .match-mode .planning-board-tools{
+  gap:4px!important;
+  padding:4px!important;
+  border-radius:10px!important;
+}
+.quick-board-body .match-mode .planning-board-action{
+  min-width:48px!important;
+  min-height:38px!important;
+  padding:3px 5px!important;
+  font-size:13px!important;
+}
+.quick-board-body .match-mode .planning-board-action b{font-size:7px!important}
+.quick-board-body .match-mode .planning-board-colors{
+  gap:4px!important;
+  padding:0 1px!important;
+}
+.quick-board-body .match-mode .planning-board-colors button{
+  width:24px!important;
+  height:24px!important;
+  min-width:24px!important;
+}
+.quick-board-body .match-mode .planning-board-court-stage{
+  padding:0!important;
+  border-radius:10px!important;
+}
+.quick-board-body .match-mode .planning-court{
+  border-radius:10px!important;
+}
+.quick-board-footer{
+  padding:4px 8px max(4px,env(safe-area-inset-bottom))!important;
+}
+.quick-board-footer .primary{
+  min-height:36px!important;
+  padding:0 12px!important;
+  font-size:9px!important;
+  border-radius:9px!important;
+}
+
+@media(max-width:520px){
+  .quick-board-header{
+    grid-template-columns:36px minmax(0,1fr) auto!important;
+  }
+  .quick-board-header span{display:none!important}
+  .quick-board-header h2{font-size:15px!important}
+  .quick-board-body{padding:1px!important}
+  .quick-board-body .planning-board-editor.fullscreen.match-mode{gap:2px!important}
+  .quick-board-body .match-mode .planning-board-tools{
+    padding:3px!important;
+    gap:3px!important;
+  }
+  .quick-board-body .match-mode .planning-board-action{
+    min-width:46px!important;
+    min-height:36px!important;
+    padding:2px 4px!important;
+    font-size:12px!important;
+  }
+  .quick-board-body .match-mode .planning-board-action b{font-size:6.5px!important}
+  .quick-board-body .match-mode .planning-board-colors button{
+    width:22px!important;
+    height:22px!important;
+    min-width:22px!important;
+  }
+  .quick-board-footer .primary{min-height:34px!important}
+}
+
+/* En vertical, la cancha cambia a orientación retrato y ocupa el alto útil. */
+@media(orientation:portrait){
+  .quick-board-body .match-mode .planning-board-court-stage{
+    align-items:stretch!important;
+    justify-content:center!important;
+  }
+  .quick-board-body .match-mode .planning-court.portrait{
+    width:auto!important;
+    height:100%!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    aspect-ratio:1 / 2!important;
+    object-fit:contain!important;
+    margin:auto!important;
+  }
+}
+
+/* En horizontal se prioriza la cancha y se elimina el footer. */
+@media(orientation:landscape) and (max-height:700px){
+  .quick-board-header{
+    padding:3px 6px!important;
+  }
+  .quick-board-body{padding:2px!important}
+  .quick-board-body .planning-board-editor.fullscreen.match-mode{
+    grid-template-columns:68px minmax(0,1fr)!important;
+  }
+  .quick-board-body .match-mode .planning-board-tools{
+    padding:3px!important;
+  }
+  .quick-board-footer{display:none!important}
+}
