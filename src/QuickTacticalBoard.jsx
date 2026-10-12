@@ -16,11 +16,23 @@ function readBoard(){
 
 export default function QuickTacticalBoard({open,onClose}){
   const [board,setBoard]=useState(readBoard);
+  const [portraitMode,setPortraitMode]=useState(()=>window.matchMedia?.("(orientation: portrait)")?.matches??true);
   const overlayRef=useRef(null);
 
   useEffect(()=>{
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(board))}catch{}
   },[board]);
+
+  useEffect(()=>{
+    const media=window.matchMedia?.("(orientation: portrait)");
+    if(!media)return;
+    const update=()=>setPortraitMode(media.matches);
+    update();
+    media.addEventListener?.("change",update);
+    return()=>media.removeEventListener?.("change",update);
+  },[]);
+
+
 
   useEffect(()=>{
     if(!open)return;
@@ -53,7 +65,7 @@ export default function QuickTacticalBoard({open,onClose}){
       </header>
 
       <main className="quick-board-body">
-        <TacticalBoardEditor value={board} onChange={setBoard} fullscreen fastMode matchMode/>
+        <TacticalBoardEditor value={board} onChange={setBoard} fullscreen fastMode matchMode portraitMode={portraitMode}/>
       </main>
 
       <footer className="quick-board-footer">
