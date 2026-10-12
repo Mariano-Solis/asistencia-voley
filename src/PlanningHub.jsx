@@ -178,25 +178,37 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
 
   function point(event){
     const svg=event.currentTarget;
-    const rect=svg.getBoundingClientRect();
+    let rawX,rawY;
+    try{
+      const pt=svg.createSVGPoint();
+      pt.x=event.clientX;
+      pt.y=event.clientY;
+      const matrix=svg.getScreenCTM();
+      const mapped=matrix?pt.matrixTransform(matrix.inverse()):null;
+      rawX=mapped?.x;
+      rawY=mapped?.y;
+    }catch{}
+    if(!Number.isFinite(rawX)||!Number.isFinite(rawY)){
+      const rect=svg.getBoundingClientRect();
+      rawX=((event.clientX-rect.left)/rect.width)*(settings.view==="full"?(effectivePortrait?PORTRAIT_VIEW_WIDTH:600):330)+(settings.view==="away"?270:0);
+      rawY=((event.clientY-rect.top)/rect.height)*(effectivePortrait?600:300);
+    }
     if(settings.view==="home"||settings.view==="away"){
       const minX=settings.view==="home"?0:270;
       return {
-        x:Math.max(minX,Math.min(minX+330,minX+((event.clientX-rect.left)/rect.width)*330)),
-        y:Math.max(0,Math.min(300,((event.clientY-rect.top)/rect.height)*300)),
+        x:Math.max(minX,Math.min(minX+330,rawX)),
+        y:Math.max(0,Math.min(300,rawY)),
       };
     }
     if(effectivePortrait){
-      const outerX=((event.clientX-rect.left)/rect.width)*PORTRAIT_VIEW_WIDTH;
-      const outerY=((event.clientY-rect.top)/rect.height)*600;
       return {
-        x:Math.max(24,Math.min(576,outerY)),
-        y:Math.max(18,Math.min(282,150-(outerX-(PORTRAIT_VIEW_WIDTH/2))/PORTRAIT_X_SCALE)),
+        x:Math.max(24,Math.min(576,rawY)),
+        y:Math.max(18,Math.min(282,150-(rawX-(PORTRAIT_VIEW_WIDTH/2))/PORTRAIT_X_SCALE)),
       };
     }
     return {
-      x:Math.max(30,Math.min(570,((event.clientX-rect.left)/rect.width)*600)),
-      y:Math.max(24,Math.min(276,((event.clientY-rect.top)/rect.height)*300)),
+      x:Math.max(30,Math.min(570,rawX)),
+      y:Math.max(24,Math.min(276,rawY)),
     };
   }
   function tokenAt(p){
