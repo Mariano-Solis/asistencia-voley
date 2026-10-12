@@ -601,3 +601,158 @@
     grid-template-columns:minmax(0,1fr) auto 38px;
   }
 }
+
+
+/* =========================================================
+   VISTAS / FICHAS / ROTACIÓN CONFIGURABLES
+========================================================= */
+.quick-board-body .planning-board-editor.fullscreen.match-mode{
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+}
+.planning-board-config{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:3px 4px;
+  border:1px solid #dde2e7;
+  border-radius:9px;
+  background:#fff;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.planning-board-config::-webkit-scrollbar{display:none}
+.planning-board-config-group{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding-right:4px;
+  border-right:1px solid #eceff2;
+}
+.planning-board-config-group:last-child{
+  padding-right:0;
+  border-right:0;
+}
+.planning-board-config-group>span{
+  margin-right:1px;
+  color:#747c86;
+  font-size:6.5px;
+  font-weight:950;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+}
+.planning-board-config-group button{
+  min-height:29px;
+  padding:3px 7px;
+  border:1px solid #dfe3e7;
+  border-radius:8px;
+  background:#f8f9fa;
+  color:#4b535d;
+  font-size:7.5px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.planning-board-config-group button.active{
+  border-color:#b5121b;
+  background:#b5121b;
+  color:#fff;
+}
+.planning-board-config-group button.active.home{
+  border-color:#c3131b;
+  background:#c3131b;
+}
+.planning-board-config-group button.active.away{
+  border-color:#1668c7;
+  background:#1668c7;
+}
+.planning-board-config-group button.active.ball{
+  border-color:#d89d10;
+  background:#f3b52b;
+  color:#20242a;
+}
+
+/* La media cancha se muestra a lo ancho, sin deformarse. */
+.quick-board-body .match-mode .planning-court.half-court{
+  width:100%!important;
+  height:auto!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  aspect-ratio:11 / 10!important;
+  margin:auto!important;
+  align-self:center!important;
+}
+.quick-board-body .match-mode .planning-board-court.half-court.view-home,
+.quick-board-body .match-mode .planning-board-court.half-court.view-away{
+  border-radius:10px!important;
+}
+
+/* En portrait, la media cancha prioriza el ancho del teléfono. */
+@media(orientation:portrait){
+  .quick-board-body .match-mode .planning-board-court.half-court{
+    width:100%!important;
+    height:auto!important;
+    aspect-ratio:11 / 10!important;
+  }
+}
+
+/* Landscape: toolbar, configuración y cancha en columnas compactas. */
+@media(orientation:landscape) and (max-height:700px){
+  .quick-board-body .planning-board-editor.fullscreen.match-mode{
+    grid-template-columns:68px 148px minmax(0,1fr)!important;
+    grid-template-rows:minmax(0,1fr)!important;
+    gap:3px!important;
+  }
+  .quick-board-body .match-mode .planning-board-tools{
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+  .quick-board-body .match-mode .planning-board-config{
+    grid-column:2!important;
+    grid-row:1!important;
+    height:100%!important;
+    box-sizing:border-box!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+  }
+  .quick-board-body .match-mode .planning-board-config-group{
+    width:100%!important;
+    box-sizing:border-box!important;
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    border-right:0!important;
+    border-bottom:1px solid #eceff2!important;
+    padding:0 0 4px!important;
+  }
+  .quick-board-body .match-mode .planning-board-config-group>span{
+    grid-column:1/-1!important;
+  }
+  .quick-board-body .match-mode .planning-board-court-stage{
+    grid-column:3!important;
+    grid-row:1!important;
+  }
+}
+
+@media(max-width:520px){
+  .planning-board-config{
+    gap:4px;
+    padding:2px 3px;
+    border-radius:8px;
+  }
+  .planning-board-config-group{
+    gap:2px;
+    padding-right:3px;
+  }
+  .planning-board-config-group button{
+    min-height:27px;
+    padding:2px 6px;
+    font-size:7px;
+  }
+  .planning-board-config-group>span{
+    font-size:6px;
+  }
+}
