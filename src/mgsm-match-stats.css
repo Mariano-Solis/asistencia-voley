@@ -1285,3 +1285,135 @@
     font-size:21px;
   }
 }
+
+
+/* =========================================================
+   CAMISETAS + FORMACIÓN INICIAL ULTRA LIVE
+========================================================= */
+.match-lineup-roster-card{
+  min-width:0;
+  display:grid;
+  grid-template-rows:auto auto;
+  gap:4px;
+  padding:5px;
+  border:1px solid #e2e5e9;
+  border-radius:12px;
+  background:#fafafa;
+}
+.match-lineup-roster-card.active{
+  border-color:#c51f28;
+  background:#fff7f7;
+}
+.match-lineup-roster-card>button{
+  min-height:52px;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  padding:4px!important;
+}
+.match-lineup-roster-card label{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:4px;
+  color:#777f89;
+  font-size:7px;
+  font-weight:950;
+}
+.match-lineup-roster-card input{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  min-height:29px;
+  padding:3px 5px;
+  border:1px solid #dfe3e7;
+  border-radius:8px;
+  background:#fff;
+  color:#b5121b;
+  text-align:center;
+  font-size:14px;
+  font-weight:950;
+}
+.match-lineup-roster-card.active input{
+  border-color:#e2a2a7;
+  background:#fff;
+}
+.match-lineup-zones{
+  margin-top:10px;
+  padding:9px;
+  border:1px solid #e2e5e9;
+  border-radius:12px;
+  background:#fafbfc;
+}
+.match-lineup-zones-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:7px;
+}
+.match-lineup-zones-head span{
+  color:#b5121b;
+  font-size:8px;
+  font-weight:950;
+  text-transform:uppercase;
+}
+.match-lineup-zones-head b{
+  color:#5f6670;
+  font-size:8px;
+}
+.match-lineup-zone-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+}
+.match-lineup-zone-grid label{
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:5px;
+  padding:6px;
+  border:1px solid #e2e5e9;
+  border-radius:9px;
+  background:#fff;
+}
+.match-lineup-zone-grid label>span{
+  color:#a81019;
+  font-size:8px;
+  font-weight:950;
+}
+.match-lineup-zone-grid select{
+  min-width:0;
+  width:100%;
+  border:0;
+  background:transparent;
+  color:#333941;
+  font-size:8px;
+  font-weight:900;
+}
+.match-court-player i.jersey-number{
+  width:44px;
+  height:44px;
+  font-size:22px;
+  letter-spacing:-.03em;
+}
+.match-live-recent i{
+  font-weight:950;
+}
+@media(max-width:520px){
+  .match-lineup-roster{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .match-lineup-zone-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .match-lineup-roster-card input{
+    font-size:13px;
+  }
+  .match-court-player i.jersey-number{
+    width:42px;
+    height:42px;
+    font-size:21px;
+  }
+}
