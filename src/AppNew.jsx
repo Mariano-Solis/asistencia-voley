@@ -2074,6 +2074,8 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
   const authorizedTabs=previewProfile?.preview_self||!Array.isArray(previewProfile?.professor_allowed_tabs)?PROFESSOR_TAB_OPTIONS:previewProfile.professor_allowed_tabs;
   const allowedNav=nav.filter(([,label])=>!disabledTabs.includes(label)&&authorizedTabs.includes(label)&&!previewHiddenTabs.includes(label));
   const visibleNav=mergeNavigationOrder(allowedNav,previewOrder);
+  const previewRenderableNav=visibleNav.filter(([key])=>key!=="quickBoard");
+  const displayTab=previewRenderableNav.some(([key])=>key===tab)?tab:(previewRenderableNav[0]?.[0]||"");
 
   return <><main className="app professor-preview-app">
     <header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{previewProfile.full_name||"Profe"}</span><button className="topbar-exit" onClick={onLogout}>Salir</button></div></header>
@@ -2082,27 +2084,27 @@ function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategorie
       <span>👨‍🏫 Vista Profe · {previewProfile.full_name}</span>
       <button type="button" className="professor-preview-change" onClick={()=>{setSelectedId("");setTab("home");}}>Cambiar Profe</button>
     </div>
-    <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={key==="quickBoard"?(previewBoardOpen?"active":""):(!previewBoardOpen&&tab===key?"active":"")} onClick={()=>key==="quickBoard"?setPreviewBoardOpen(true):setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
-    <div className="content"><div className="watermark"/><div className="content-inner">
+    <nav>{visibleNav.map(([key,label])=><button key={key} data-feature-tab={label} className={key==="quickBoard"?(previewBoardOpen?"active":""):(!previewBoardOpen&&displayTab===key?"active":"")} onClick={()=>key==="quickBoard"?setPreviewBoardOpen(true):setTab(key)}>{key==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{label}{key==="requests"&&pendingCount>0?" ("+pendingCount+")":""}</button>)}</nav>
+    <div className="content"><div className="watermark"/><div className="content-inner">{!displayTab&&<div className="professor-preview-no-permissions">Este Profe No Tiene Herramientas Habilitadas.</div>}
       {previewProfile.preview_self&&professorCategoryIds.length===0&&<div className="professor-preview-no-permissions">Tu Perfil Profe Todavía No Tiene Categorías Asignadas. Volvé A Administración → Permisos y Configurá Las Categorías Que Querés Tener Como Profe.</div>}
-      {!["training","settings","requests","matches"].includes(tab)&&<div className="tab-refresh-row">
+      {!["training","settings","requests","matches"].includes(displayTab)&&<div className="tab-refresh-row">
         <button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPreview}>
           <span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>
           {refreshing?"Actualizando...":"Actualizar"}
         </button>
       </div>}
-      {tab==="home"&&<Attendance key={"preview-home:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={attendanceCategories} permissions={previewPermissions} refresh={refreshPreview} restrictCategoryIds={restrictCategoryIds}/>}
-      {tab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
-      {tab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
-      {tab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
-      {tab==="programming"&&<ProgramacionHub key={"preview-programming:"+version+":"+previewProfile.id} compact simpleMode allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
-      {tab==="matches"&&<PartidosHub key={"preview-matches:"+version+":"+previewProfile.id} compact unrestricted allowedCategories={professorStandingsCategories} canManageStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true} canViewStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true} canOpenBoard={previewProfile.preview_self===true||!Array.isArray(previewProfile.professor_allowed_tabs)||previewProfile.professor_allowed_tabs.includes("Pizarra")}/>} 
-      {tab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact staffMode allowComparison={previewProfile.can_view_standings_comparison===true||previewProfile.preview_self===true} allowGeneralPositions={previewProfile.can_view_general_standings===true||previewProfile.preview_self===true} allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
-      {tab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
-      {tab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
-      {tab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
-      {tab==="planning"&&<PlanningHub key={"preview-planning:"+version+":"+previewProfile.id} profile={previewProfile} categories={visibleCategories} permissions={previewPermissions} simulationMode/>}
-      {tab==="settings"&&<SolapasSettings profile={previewProfile} disabledTabs={disabledTabs} onSavedVisibility={()=>{}} navigationItems={allowedNav} navigationOrder={previewOrder} onSavedOrder={setPreviewOrder} personalHiddenTabs={previewHiddenTabs} onSavedPersonalVisibility={setPreviewHiddenTabs} readOnly/>}
+      {displayTab==="home"&&<Attendance key={"preview-home:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={attendanceCategories} permissions={previewPermissions} refresh={refreshPreview} restrictCategoryIds={restrictCategoryIds}/>}
+      {displayTab==="players"&&<Players key={"preview-players:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
+      {displayTab==="history"&&<History key={"preview-history:"+version+":"+previewProfile.id} profile={previewProfile} players={allPlayers} categories={visibleCategories} permissions={previewPermissions} refresh={refreshPreview}/>}
+      {displayTab==="schedule"&&<TrainingSchedule key={"preview-schedule:"+version}/>}
+      {displayTab==="programming"&&<ProgramacionHub key={"preview-programming:"+version+":"+previewProfile.id} compact simpleMode allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
+      {displayTab==="matches"&&<PartidosHub key={"preview-matches:"+version+":"+previewProfile.id} compact unrestricted allowedCategories={professorStandingsCategories} canManageStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true} canViewStats={previewProfile.can_manage_match_stats===true||previewProfile.preview_self===true} canOpenBoard={previewProfile.preview_self===true||!Array.isArray(previewProfile.professor_allowed_tabs)||previewProfile.professor_allowed_tabs.includes("Pizarra")}/>} 
+      {displayTab==="standings"&&<StandingsHub key={"preview-standings:"+version+":"+previewProfile.id} compact staffMode allowComparison={previewProfile.can_view_standings_comparison===true||previewProfile.preview_self===true} allowGeneralPositions={previewProfile.can_view_general_standings===true||previewProfile.preview_self===true} allowedCategories={professorStandingsCategories} unrestricted={false}/>} 
+      {displayTab==="payments"&&<AdminPaymentPanel key={"preview-payments:"+version+":"+previewProfile.id} role="admin" userId={previewProfile.id} canApprovePayments={previewProfile.can_approve_payments===true} embedded/>}
+      {displayTab==="requests"&&<RequestsPage profile={previewProfile} allowedCategoryIds={editableCategoryIds}/>}
+      {displayTab==="training"&&<ProfessorTrainingHub profile={previewProfile} simulationMode/>}
+      {displayTab==="planning"&&<PlanningHub key={"preview-planning:"+version+":"+previewProfile.id} profile={previewProfile} categories={visibleCategories} permissions={previewPermissions} simulationMode/>}
+      {displayTab==="settings"&&<SolapasSettings profile={previewProfile} disabledTabs={disabledTabs} onSavedVisibility={()=>{}} navigationItems={allowedNav} navigationOrder={previewOrder} onSavedOrder={setPreviewOrder} personalHiddenTabs={previewHiddenTabs} onSavedPersonalVisibility={setPreviewHiddenTabs} readOnly/>}
     </div></div>
     <footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer>
   </main><QuickTacticalBoard open={previewBoardOpen} onClose={()=>setPreviewBoardOpen(false)}/></>;
@@ -2327,9 +2329,12 @@ function App() {
       payments:"Pagos",requests:"Solicitudes",settings:"Solapas"
     };
     const currentLabel=byKey[tab];
-    if(currentLabel&&(!allowed.includes(currentLabel)||disabledTabs.includes(currentLabel)))setTab("home");
+    const fallback=Object.entries(byKey).find(([,label])=>allowed.includes(label)&&!disabledTabs.includes(label)&&!personalHiddenTabs.includes(label))?.[0]||"";
+    if(currentLabel&&(!allowed.includes(currentLabel)||disabledTabs.includes(currentLabel)||personalHiddenTabs.includes(currentLabel))){
+      if(fallback&&fallback!==tab)setTab(fallback);
+    }
     if(quickBoardOpen&&(!allowed.includes("Pizarra")||disabledTabs.includes("Pizarra")))setQuickBoardOpen(false);
-  },[profile?.role,profile?.professor_allowed_tabs,tab,quickBoardOpen,disabledTabs.join("|")]);
+  },[profile?.role,profile?.professor_allowed_tabs,tab,quickBoardOpen,disabledTabs.join("|"),personalHiddenTabs.join("|")]);
 
   if (professorPreviewMode&&profile?.role==="super_admin"&&isAuthSession(session)) return <ProfessorPreviewDashboard superAdminProfile={profile} allPlayers={players} allCategories={categories} disabledTabs={disabledTabs} onLogout={logout} onBackAdmin={()=>setProfessorPreviewMode(false)}/>;
   if (dualPlayerMode&&isAuthSession(session)) return <PlayerDashboard session={session} onLogout={logout} onBackAdmin={()=>setDualPlayerMode(false)}/>;
@@ -2352,28 +2357,31 @@ function App() {
     : nav.filter(([,label])=>!disabledTabs.includes(label)&&(!authorizedTabs||authorizedTabs.includes(label)));
   const allowedNav = globallyAllowedNav.filter(([,label])=>!personalHiddenTabs.includes(label));
   const visibleNav = mergeNavigationOrder(allowedNav,navigationOrder);
-  return <><main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":k==="quickBoard"?(quickBoardOpen?"active":""):(!quickBoardOpen&&tab===k?"active":"")} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):k==="quickBoard"?setQuickBoardOpen(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
-    {!["training","settings","requests","matches"].includes(tab)&&<div className="tab-refresh-row">
+  const renderableVisibleNav = visibleNav.filter(([key])=>!["playerProfile","professorPreview","quickBoard"].includes(key));
+  const displayTab = renderableVisibleNav.some(([key])=>key===tab)?tab:(renderableVisibleNav[0]?.[0]||"");
+  return <><main className="app"><header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">{profile.full_name||"Profe"}</span><button className="topbar-exit" onClick={logout}>Salir</button></div></header><nav>{visibleNav.map(([k,l])=><button key={k} data-feature-tab={l} className={k==="playerProfile"?"player-profile-nav":k==="professorPreview"?"professor-preview-nav":k==="quickBoard"?(quickBoardOpen?"active":""):(!quickBoardOpen&&displayTab===k?"active":"")} onClick={()=>k==="playerProfile"?setDualPlayerMode(true):k==="professorPreview"?setProfessorPreviewMode(true):k==="quickBoard"?setQuickBoardOpen(true):setTab(k)}>{k==="training"&&<span className="nav-training-explicit-icon" aria-hidden="true">📚</span>}{l}{k==="requests"&&pendingRequestCount>0?` (${pendingRequestCount})`:""}</button>)}</nav><div className="content"><div className="watermark"/><div className="content-inner">
+    {!displayTab&&<div className="professor-preview-no-permissions">No Tenés Herramientas Habilitadas. Pedile Al Super Administrador Que Autorice Al Menos Una Solapa.</div>}
+    {displayTab&&!["training","settings","requests","matches"].includes(displayTab)&&<div className="tab-refresh-row">
       <button type="button" className="tab-refresh-button" disabled={tabRefreshing} onClick={refreshCurrentTab} aria-live="polite">
         <span aria-hidden="true" className={tabRefreshing?"spinning":""}>↻</span>
         {tabRefreshing?"Actualizando...":"Actualizar"}
       </button>
     </div>}
-    {tab==='home'&&<Attendance key={`home:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
-    {tab==='players'&&<Players key={`players:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
-    {tab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
-    {tab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
-    {tab==='programming'&&<ProgramacionHub key={`programming:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} simpleMode={profile.role!=="super_admin"}/>} 
-    {tab==='matches'&&<PartidosHub key={`matches:${tabRefreshVersion}:${profile.id}`} unrestricted allowedCategories={categories} canManageStats={profile.role==="super_admin"||profile.can_manage_match_stats===true} canViewStats={profile.role==="super_admin"||profile.can_manage_match_stats===true} canOpenBoard={profile.role==="super_admin"||!Array.isArray(profile.professor_allowed_tabs)||profile.professor_allowed_tabs.includes("Pizarra")}/>} 
-    {tab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} staffMode={profile.role!=="super_admin"} allowComparison={profile.can_view_standings_comparison===true} allowGeneralPositions={profile.role==="super_admin"||profile.can_view_general_standings===true}/>} 
-    {tab==='training'&&<ProfessorTrainingHub profile={profile}/>}
-    {tab==='planning'&&<PlanningHub key={`planning:${tabRefreshVersion}:${profile.id}`} profile={profile} categories={categories} permissions={permissions}/>}
-    {tab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} userId={profile.id} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
-    {tab==='requests'&&<RequestsPage profile={profile}/>}
-    {tab==='admins'&&<AdminUsers key={`admins:${tabRefreshVersion}`} profile={profile}/>}
-    {tab==='categories'&&<Categories key={`categories:${tabRefreshVersion}`} profile={profile} categories={categories} refresh={refresh}/>}
-    {tab==='permissions'&&<Permissions key={`permissions:${tabRefreshVersion}`} profile={profile} categories={categories}/>}
-    {tab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={globallyAllowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder} personalHiddenTabs={personalHiddenTabs} onSavedPersonalVisibility={setPersonalHiddenTabs}/>}
+    {displayTab==='home'&&<Attendance key={`home:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
+    {displayTab==='players'&&<Players key={`players:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
+    {displayTab==='history'&&<History key={`history:${tabRefreshVersion}`} profile={profile} players={players} categories={categories} permissions={permissions} refresh={refresh}/>}
+    {displayTab==='schedule'&&<TrainingSchedule key={`schedule:${tabRefreshVersion}`}/>}
+    {displayTab==='programming'&&<ProgramacionHub key={`programming:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} simpleMode={profile.role!=="super_admin"}/>} 
+    {displayTab==='matches'&&<PartidosHub key={`matches:${tabRefreshVersion}:${profile.id}`} unrestricted allowedCategories={categories} canManageStats={profile.role==="super_admin"||profile.can_manage_match_stats===true} canViewStats={profile.role==="super_admin"||profile.can_manage_match_stats===true} canOpenBoard={profile.role==="super_admin"||!Array.isArray(profile.professor_allowed_tabs)||profile.professor_allowed_tabs.includes("Pizarra")}/>} 
+    {displayTab==='standings'&&<StandingsHub key={`standings:${tabRefreshVersion}:${profile.id}`} allowedCategories={categories} unrestricted={profile.role==="super_admin"} staffMode={profile.role!=="super_admin"} allowComparison={profile.can_view_standings_comparison===true} allowGeneralPositions={profile.role==="super_admin"||profile.can_view_general_standings===true}/>} 
+    {displayTab==='training'&&<ProfessorTrainingHub profile={profile}/>}
+    {displayTab==='planning'&&<PlanningHub key={`planning:${tabRefreshVersion}:${profile.id}`} profile={profile} categories={categories} permissions={permissions}/>}
+    {displayTab==='payments'&&<AdminPaymentPanel key={`payments:${tabRefreshVersion}`} role={profile.role} userId={profile.id} canApprovePayments={profile.role==="super_admin"||profile.can_approve_payments===true} embedded/>}
+    {displayTab==='requests'&&<RequestsPage profile={profile}/>}
+    {displayTab==='admins'&&<AdminUsers key={`admins:${tabRefreshVersion}`} profile={profile}/>}
+    {displayTab==='categories'&&<Categories key={`categories:${tabRefreshVersion}`} profile={profile} categories={categories} refresh={refresh}/>}
+    {displayTab==='permissions'&&<Permissions key={`permissions:${tabRefreshVersion}`} profile={profile} categories={categories}/>}
+    {displayTab==='settings'&&<SolapasSettings profile={profile} disabledTabs={disabledTabs} onSavedVisibility={setDisabledTabs} navigationItems={globallyAllowedNav} navigationOrder={navigationOrder} onSavedOrder={setNavigationOrder} personalHiddenTabs={personalHiddenTabs} onSavedPersonalVisibility={setPersonalHiddenTabs}/>}
   </div></div><footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer></main><QuickTacticalBoard open={quickBoardOpen} onClose={()=>setQuickBoardOpen(false)}/></>;
 }
 export default App;
