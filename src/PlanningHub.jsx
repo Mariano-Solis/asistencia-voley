@@ -53,8 +53,25 @@ function defaultBoardTokens(){
   const away=[1,2,3,4,5,6].map(slot=>applySlotPosition({id:`away-${slot}`,type:"away",label:String(slot),slot}));
   return [...home,...away,{id:"ball-1",type:"ball",label:"🏐",x:300,y:150}];
 }
+const DEFAULT_BOARD_SETTINGS={
+  view:"full",
+  showHome:true,
+  showAway:true,
+  showBall:true,
+  rotateTarget:"both",
+};
+function normalizeBoardSettings(value){
+  const raw=value&&typeof value==="object"?value:{};
+  return {
+    view:["full","home","away"].includes(raw.view)?raw.view:"full",
+    showHome:raw.showHome!==false,
+    showAway:raw.showAway!==false,
+    showBall:raw.showBall!==false,
+    rotateTarget:["both","home","away"].includes(raw.rotateTarget)?raw.rotateTarget:"both",
+  };
+}
 function normalizeBoardData(value){
-  if(Array.isArray(value))return {strokes:value,tokens:defaultBoardTokens()};
+  if(Array.isArray(value))return {strokes:value,tokens:defaultBoardTokens(),settings:{...DEFAULT_BOARD_SETTINGS}};
   const rawTokens=Array.isArray(value?.tokens)&&value.tokens.length?value.tokens:null;
   const tokens=rawTokens
     ? rawTokens.map(token=>{
@@ -66,37 +83,43 @@ function normalizeBoardData(value){
   return {
     strokes:Array.isArray(value?.strokes)?value.strokes:[],
     tokens,
+    settings:normalizeBoardSettings(value?.settings),
   };
 }
 function boardHasChanges(value){
   const data=normalizeBoardData(value);
-  return data.strokes.length>0||data.tokens.some((token,index)=>{
+  const settingsChanged=Object.entries(DEFAULT_BOARD_SETTINGS).some(([key,val])=>data.settings?.[key]!==val);
+  return settingsChanged||data.strokes.length>0||data.tokens.some((token,index)=>{
     const original=defaultBoardTokens()[index];
     return !original||token.x!==original.x||token.y!==original.y;
   });
 }
-function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointerMove,onPointerUp,portrait=false}){
-  const mapPoint=point=>portrait
+function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointerMove,onPointerUp,portrait=false,viewMode="full"}){
+  const halfCourt=viewMode==="home"||viewMode==="away";
+  const usePortrait=portrait&&!halfCourt;
+  const mapPoint=point=>usePortrait
     ? {x:(PORTRAIT_VIEW_WIDTH/2)+(150-point.y)*PORTRAIT_X_SCALE,y:point.x}
     : point;
   const mapLine=(a,b)=>{
     const p1=mapPoint(a),p2=mapPoint(b);
     return {x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y};
   };
-  const viewBox=portrait?`0 0 ${PORTRAIT_VIEW_WIDTH} 600`:"0 0 600 300";
+  const viewBox=halfCourt
+    ? (viewMode==="home"?"0 0 330 300":"270 0 330 300")
+    : (usePortrait?`0 0 ${PORTRAIT_VIEW_WIDTH} 600`:"0 0 600 300");
   const courtTopLeft=mapPoint({x:24,y:18});
   const courtBottomRight=mapPoint({x:576,y:282});
-  const courtX=portrait?Math.min(courtTopLeft.x,courtBottomRight.x):24;
-  const courtY=portrait?24:18;
-  const courtWidth=portrait?Math.abs(courtBottomRight.x-courtTopLeft.x):552;
-  const courtHeight=portrait?552:264;
-  const bgRect=portrait?{x:3,y:6,width:354,height:588}:{x:6,y:6,width:588,height:288};
+  const courtX=usePortrait?Math.min(courtTopLeft.x,courtBottomRight.x):24;
+  const courtY=usePortrait?24:18;
+  const courtWidth=usePortrait?Math.abs(courtBottomRight.x-courtTopLeft.x):552;
+  const courtHeight=usePortrait?552:264;
+  const bgRect=usePortrait?{x:3,y:6,width:354,height:588}:{x:6,y:6,width:588,height:288};
 
   return <svg
-    className={"planning-court "+(interactive?"interactive ":"")+(portrait?"portrait":"")}
+    className={"planning-court "+(interactive?"interactive ":"")+(usePortrait?"portrait ":"")+(halfCourt?"half-court ":"")+("view-"+viewMode)}
     viewBox={viewBox}
     role="img"
-    aria-label="Cancha de vóley"
+    aria-label={viewMode==="home"?"Media Cancha Propia":viewMode==="away"?"Media Cancha Rival":"Cancha de vóley"}
     onPointerDown={onPointerDown}
     onPointerMove={onPointerMove}
     onPointerUp={onPointerUp}
@@ -137,11 +160,33 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
   const currentStroke=useRef(-1);
   const movingTokenId=useRef(null);
   const [rotationHistory,setRotationHistory]=useState([]);
+  const settings=data.settings||DEFAULT_BOARD_SETTINGS;
+  const visibleTokens=data.tokens.filter(token=>
+    token.type==="home"?settings.showHome:
+    token.type==="away"?settings.showAway:
+    token.type==="ball"?settings.showBall:true
+  );
+  const halfCourt=settings.view==="home"||settings.view==="away";
+  const effectivePortrait=portraitMode&&!halfCourt;
+
+  function updateSettings(patch){
+    onChange(current=>{
+      const board=normalizeBoardData(current);
+      return {...board,settings:{...board.settings,...patch}};
+    });
+  }
 
   function point(event){
     const svg=event.currentTarget;
     const rect=svg.getBoundingClientRect();
-    if(portraitMode){
+    if(settings.view==="home"||settings.view==="away"){
+      const minX=settings.view==="home"?0:270;
+      return {
+        x:Math.max(minX,Math.min(minX+330,minX+((event.clientX-rect.left)/rect.width)*330)),
+        y:Math.max(0,Math.min(300,((event.clientY-rect.top)/rect.height)*300)),
+      };
+    }
+    if(effectivePortrait){
       const outerX=((event.clientX-rect.left)/rect.width)*PORTRAIT_VIEW_WIDTH;
       const outerY=((event.clientY-rect.top)/rect.height)*600;
       return {
@@ -155,7 +200,7 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
     };
   }
   function tokenAt(p){
-    return data.tokens.find(token=>{
+    return visibleTokens.find(token=>{
       const dx=token.x-p.x,dy=token.y-p.y;
       return Math.sqrt(dx*dx+dy*dy)<=(token.type==="ball"?31:34);
     })||null;
@@ -247,10 +292,12 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
   function rotate(){
     const snapshot=data.tokens.map(token=>({...token}));
     setRotationHistory(history=>[...history,snapshot].slice(-12));
+    const target=settings.rotateTarget||"both";
     onChange(current=>{
       const board=normalizeBoardData(current);
       return {...board,tokens:board.tokens.map(token=>{
         if(!["home","away"].includes(token.type))return token;
+        if(target!=="both"&&token.type!==target)return token;
         const slot=Number(token.slot||token.label);
         return applySlotPosition({...token,slot:ROTATION_NEXT[slot]||slot});
       })};
@@ -290,15 +337,36 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
       {matchMode&&onOpenSavedBoards&&<button type="button" className="planning-board-action planning-board-save" onClick={onOpenSavedBoards} disabled={!canLoadSavedBoards} title="Abrir Pizarras Guardadas">📂 <b>Cargar</b></button>}
       {!fullscreen&&onExpand&&<button type="button" className="planning-board-action planning-board-expand" onClick={onExpand}>⛶ Expandir</button>}
     </div>
+    {matchMode&&<div className="planning-board-config" aria-label="Configuración De Pizarra">
+      <div className="planning-board-config-group">
+        <span>Vista</span>
+        <button type="button" className={settings.view==="full"?"active":""} onClick={()=>updateSettings({view:"full"})}>Completa</button>
+        <button type="button" className={settings.view==="home"?"active":""} onClick={()=>updateSettings({view:"home"})}>Mi Lado</button>
+        <button type="button" className={settings.view==="away"?"active":""} onClick={()=>updateSettings({view:"away"})}>Rival</button>
+      </div>
+      <div className="planning-board-config-group">
+        <span>Fichas</span>
+        <button type="button" className={settings.showHome?"active home":""} onClick={()=>updateSettings({showHome:!settings.showHome})}>🔴 Propio</button>
+        <button type="button" className={settings.showAway?"active away":""} onClick={()=>updateSettings({showAway:!settings.showAway})}>🔵 Rival</button>
+        <button type="button" className={settings.showBall?"active ball":""} onClick={()=>updateSettings({showBall:!settings.showBall})}>🏐 Pelota</button>
+      </div>
+      <div className="planning-board-config-group">
+        <span>Rotar</span>
+        <button type="button" className={settings.rotateTarget==="both"?"active":""} onClick={()=>updateSettings({rotateTarget:"both"})}>Ambos</button>
+        <button type="button" className={settings.rotateTarget==="home"?"active":""} onClick={()=>updateSettings({rotateTarget:"home"})}>Propio</button>
+        <button type="button" className={settings.rotateTarget==="away"?"active":""} onClick={()=>updateSettings({rotateTarget:"away"})}>Rival</button>
+      </div>
+    </div>}
     <div className="planning-board-court-stage">
       <BoardSvg
         strokes={data.strokes}
-        tokens={data.tokens}
+        tokens={visibleTokens}
         interactive
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
-        portrait={portraitMode}
+        portrait={effectivePortrait}
+        viewMode={settings.view}
       />
     </div>
     {!matchMode&&<div className="planning-board-legend">
