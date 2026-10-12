@@ -28,28 +28,44 @@ function planningPath(categoryId,file){
   const id=globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now();
   return `${categoryId}/${id}-${safeName(file?.name)}`;
 }
+const BOARD_SLOT_COORDS={
+  home:{
+    1:{x:115,y:228},2:{x:255,y:228},3:{x:255,y:150},
+    4:{x:255,y:72},5:{x:115,y:72},6:{x:115,y:150},
+  },
+  away:{
+    1:{x:485,y:72},2:{x:345,y:72},3:{x:345,y:150},
+    4:{x:345,y:228},5:{x:485,y:228},6:{x:485,y:150},
+  },
+};
+const ROTATION_NEXT={1:6,6:5,5:4,4:3,3:2,2:1};
+const PORTRAIT_VIEW_WIDTH=360;
+const PORTRAIT_X_SCALE=1.28;
+
+function applySlotPosition(token){
+  if(!["home","away"].includes(token?.type))return token;
+  const slot=Number(token.slot||token.label);
+  const p=BOARD_SLOT_COORDS[token.type]?.[slot];
+  return p?{...token,slot,x:p.x,y:p.y}:token;
+}
 function defaultBoardTokens(){
-  return [
-    {id:"home-1",type:"home",label:"1",x:105,y:72},
-    {id:"home-2",type:"home",label:"2",x:105,y:150},
-    {id:"home-3",type:"home",label:"3",x:105,y:228},
-    {id:"home-4",type:"home",label:"4",x:220,y:72},
-    {id:"home-5",type:"home",label:"5",x:220,y:150},
-    {id:"home-6",type:"home",label:"6",x:220,y:228},
-    {id:"away-1",type:"away",label:"1",x:380,y:72},
-    {id:"away-2",type:"away",label:"2",x:380,y:150},
-    {id:"away-3",type:"away",label:"3",x:380,y:228},
-    {id:"away-4",type:"away",label:"4",x:495,y:72},
-    {id:"away-5",type:"away",label:"5",x:495,y:150},
-    {id:"away-6",type:"away",label:"6",x:495,y:228},
-    {id:"ball-1",type:"ball",label:"🏐",x:270,y:150},
-  ];
+  const home=[1,2,3,4,5,6].map(slot=>applySlotPosition({id:`home-${slot}`,type:"home",label:String(slot),slot}));
+  const away=[1,2,3,4,5,6].map(slot=>applySlotPosition({id:`away-${slot}`,type:"away",label:String(slot),slot}));
+  return [...home,...away,{id:"ball-1",type:"ball",label:"🏐",x:300,y:150}];
 }
 function normalizeBoardData(value){
   if(Array.isArray(value))return {strokes:value,tokens:defaultBoardTokens()};
+  const rawTokens=Array.isArray(value?.tokens)&&value.tokens.length?value.tokens:null;
+  const tokens=rawTokens
+    ? rawTokens.map(token=>{
+        if(!["home","away"].includes(token?.type))return token;
+        if(Number.isFinite(Number(token.slot)))return {...token,slot:Number(token.slot)};
+        return applySlotPosition({...token,slot:Number(token.label)});
+      })
+    : defaultBoardTokens();
   return {
     strokes:Array.isArray(value?.strokes)?value.strokes:[],
-    tokens:Array.isArray(value?.tokens)&&value.tokens.length?value.tokens:defaultBoardTokens(),
+    tokens,
   };
 }
 function boardHasChanges(value){
@@ -60,12 +76,25 @@ function boardHasChanges(value){
   });
 }
 function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointerMove,onPointerUp,portrait=false}){
-  const mapPoint=point=>portrait?{x:300-point.y,y:point.x}:point;
-  const courtRect=portrait?{x:42,y:48,width:216,height:504}:{x:48,y:42,width:504,height:216};
-  const bgRect=portrait?{x:10,y:10,width:280,height:580}:{x:10,y:10,width:580,height:280};
+  const mapPoint=point=>portrait
+    ? {x:(PORTRAIT_VIEW_WIDTH/2)+(150-point.y)*PORTRAIT_X_SCALE,y:point.x}
+    : point;
+  const mapLine=(a,b)=>{
+    const p1=mapPoint(a),p2=mapPoint(b);
+    return {x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y};
+  };
+  const viewBox=portrait?`0 0 ${PORTRAIT_VIEW_WIDTH} 600`:"0 0 600 300";
+  const courtTopLeft=mapPoint({x:24,y:18});
+  const courtBottomRight=mapPoint({x:576,y:282});
+  const courtX=portrait?Math.min(courtTopLeft.x,courtBottomRight.x):24;
+  const courtY=portrait?24:18;
+  const courtWidth=portrait?Math.abs(courtBottomRight.x-courtTopLeft.x):552;
+  const courtHeight=portrait?552:264;
+  const bgRect=portrait?{x:3,y:6,width:354,height:588}:{x:6,y:6,width:588,height:288};
+
   return <svg
     className={"planning-court "+(interactive?"interactive ":"")+(portrait?"portrait":"")}
-    viewBox={portrait?"0 0 300 600":"0 0 600 300"}
+    viewBox={viewBox}
     role="img"
     aria-label="Cancha de vóley"
     onPointerDown={onPointerDown}
@@ -75,18 +104,11 @@ function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointe
     onPointerLeave={interactive?onPointerUp:undefined}
   >
     <rect {...bgRect} rx="16" fill="#dce9ef"/>
-    <rect {...courtRect} fill="#efb36f" stroke="#fff" strokeWidth="5"/>
-    {portrait?<>
-      <line x1="42" y1="300" x2="258" y2="300" stroke="#fff" strokeWidth="5"/>
-      <line x1="42" y1="174" x2="258" y2="174" stroke="#fff" strokeWidth="3"/>
-      <line x1="42" y1="426" x2="258" y2="426" stroke="#fff" strokeWidth="3"/>
-      <line x1="26" y1="300" x2="274" y2="300" stroke="#555" strokeWidth="4"/>
-    </>:<>
-      <line x1="300" y1="42" x2="300" y2="258" stroke="#fff" strokeWidth="5"/>
-      <line x1="174" y1="42" x2="174" y2="258" stroke="#fff" strokeWidth="3"/>
-      <line x1="426" y1="42" x2="426" y2="258" stroke="#fff" strokeWidth="3"/>
-      <line x1="300" y1="26" x2="300" y2="274" stroke="#555" strokeWidth="4"/>
-    </>}
+    <rect x={courtX} y={courtY} width={courtWidth} height={courtHeight} fill="#efb36f" stroke="#fff" strokeWidth="5"/>
+    <line {...mapLine({x:300,y:18},{x:300,y:282})} stroke="#fff" strokeWidth="5"/>
+    <line {...mapLine({x:208,y:18},{x:208,y:282})} stroke="#fff" strokeWidth="3"/>
+    <line {...mapLine({x:392,y:18},{x:392,y:282})} stroke="#fff" strokeWidth="3"/>
+    <line {...mapLine({x:300,y:6},{x:300,y:294})} stroke="#555" strokeWidth="4"/>
     {tokens.map(token=>{
       const p=mapPoint(token);
       return <g key={token.id} className={"planning-token planning-token-"+token.type} transform={`translate(${p.x} ${p.y})`}>
@@ -107,23 +129,24 @@ function BoardSvg({strokes=[],tokens=[],interactive=false,onPointerDown,onPointe
   </svg>;
 }
 
-function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fastMode=false,matchMode=false,portraitMode=false}){
+function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fastMode=false,matchMode=false,portraitMode=false,onSaveBoard=null,onOpenSavedBoards=null,canLoadSavedBoards=false}){
   const data=normalizeBoardData(value);
   const [color,setColor]=useState("#c3131b");
   const [tool,setTool]=useState("move");
   const drawing=useRef(false);
   const currentStroke=useRef(-1);
   const movingTokenId=useRef(null);
+  const [rotationHistory,setRotationHistory]=useState([]);
 
   function point(event){
     const svg=event.currentTarget;
     const rect=svg.getBoundingClientRect();
     if(portraitMode){
-      const outerX=((event.clientX-rect.left)/rect.width)*300;
+      const outerX=((event.clientX-rect.left)/rect.width)*PORTRAIT_VIEW_WIDTH;
       const outerY=((event.clientY-rect.top)/rect.height)*600;
       return {
-        x:Math.max(30,Math.min(570,outerY)),
-        y:Math.max(24,Math.min(276,300-outerX)),
+        x:Math.max(24,Math.min(576,outerY)),
+        y:Math.max(18,Math.min(282,150-(outerX-(PORTRAIT_VIEW_WIDTH/2))/PORTRAIT_X_SCALE)),
       };
     }
     return {
@@ -221,9 +244,28 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
       onChange(current=>({...normalizeBoardData(current),strokes:[]}));
     }
   }
+  function rotate(){
+    const snapshot=data.tokens.map(token=>({...token}));
+    setRotationHistory(history=>[...history,snapshot].slice(-12));
+    onChange(current=>{
+      const board=normalizeBoardData(current);
+      return {...board,tokens:board.tokens.map(token=>{
+        if(!["home","away"].includes(token.type))return token;
+        const slot=Number(token.slot||token.label);
+        return applySlotPosition({...token,slot:ROTATION_NEXT[slot]||slot});
+      })};
+    });
+  }
+  function rotateBack(){
+    const previous=rotationHistory[rotationHistory.length-1];
+    if(!previous)return;
+    onChange(current=>({...normalizeBoardData(current),tokens:previous.map(token=>({...token}))}));
+    setRotationHistory(history=>history.slice(0,-1));
+  }
   function resetTokens(){
     if(fastMode||window.confirm("¿Reiniciar Todas Las Fichas y La Pelota A Su Posición Inicial?")){
       onChange(current=>({...normalizeBoardData(current),tokens:defaultBoardTokens()}));
+      setRotationHistory([]);
     }
   }
 
@@ -242,6 +284,10 @@ function TacticalBoardEditor({value,onChange,fullscreen=false,onExpand=null,fast
       <button type="button" className="planning-board-action planning-board-utility" onClick={undo} disabled={!data.strokes.length} title="Deshacer Último Trazo">↶ <b>Deshacer</b></button>
       <button type="button" className="planning-board-action planning-board-utility" onClick={clearDrawing} disabled={!data.strokes.length} title="Borrar Todo El Dibujo">🧹 <b>{matchMode?"Limpiar":"Borrar Dibujo"}</b></button>
       <button type="button" className="planning-board-action planning-board-utility" onClick={resetTokens} title="Reiniciar Fichas">↺ <b>Fichas</b></button>
+      {matchMode&&<button type="button" className="planning-board-action planning-board-rotation" onClick={rotate} title="Rotar Una Posición Reglamentaria">🔄 <b>Rotar</b></button>}
+      {matchMode&&<button type="button" className="planning-board-action planning-board-rotation" onClick={rotateBack} disabled={!rotationHistory.length} title="Volver A La Rotación Anterior">⏪ <b>Atrás</b></button>}
+      {matchMode&&onSaveBoard&&<button type="button" className="planning-board-action planning-board-save" onClick={onSaveBoard} title="Guardar Esta Pizarra">💾 <b>Guardar</b></button>}
+      {matchMode&&onOpenSavedBoards&&<button type="button" className="planning-board-action planning-board-save" onClick={onOpenSavedBoards} disabled={!canLoadSavedBoards} title="Abrir Pizarras Guardadas">📂 <b>Cargar</b></button>}
       {!fullscreen&&onExpand&&<button type="button" className="planning-board-action planning-board-expand" onClick={onExpand}>⛶ Expandir</button>}
     </div>
     <div className="planning-board-court-stage">
