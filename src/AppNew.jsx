@@ -1839,7 +1839,7 @@ function SolapasSettings({ profile, disabledTabs, onSavedVisibility, navigationI
   </section>;
 }
 
-function PlayerDashboard({session,onLogout,onBackAdmin}) {
+function PlayerDashboard({session,onLogout,onBackAdmin,backLabel="← Administración",simulationMode=false,simulationCategory=null}) {
   const [player,setPlayer]=useState(null),[playerCategory,setPlayerCategory]=useState(null),[rows,setRows]=useState([]),[editing,setEditing]=useState(false),[changingPassword,setChangingPassword]=useState(false),[msg,setMsg]=useState(""),[view,setView]=useState("profile"),[playerHiddenTabs,setPlayerHiddenTabs]=useState([]),[refreshing,setRefreshing]=useState(false),[scheduleVersion,setScheduleVersion]=useState(0),[playerCanViewGeneralStandings,setPlayerCanViewGeneralStandings]=useState(false),[playerCanViewMatchStats,setPlayerCanViewMatchStats]=useState(false);
   async function loadPlayerData(){
     if(!isAuthSession(session)&&!isLegacySession(session))return;
@@ -1847,6 +1847,25 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
     setPlayerHiddenTabs(Array.isArray(ui.data?.disabled_tabs)?ui.data.disabled_tabs:[]);
     setPlayerCanViewGeneralStandings(ui.data?.player_can_view_general_standings===true);
     setPlayerCanViewMatchStats(ui.data?.player_can_view_match_stats===true);
+    if(simulationMode&&simulationCategory?.id){
+      const simulatedPlayer={
+        id:`preview-${simulationCategory.id}`,
+        full_name:"Vista Jugador",
+        first_name:"Vista",
+        last_name:"Jugador",
+        category_id:simulationCategory.id,
+        category_name:`${genderText(simulationCategory.gender)} · ${simulationCategory.name}`,
+        team:null,
+        access_code:null,
+        active:true,
+        approval_status:"approved",
+        simulation:true,
+      };
+      setPlayer(simulatedPlayer);
+      setPlayerCategory(simulationCategory);
+      setRows([]);
+      return;
+    }
     if(session?.legacy){
       setPlayer(session);
       const [attendanceResult,categoryResult]=await Promise.all([
@@ -1871,7 +1890,7 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
     setRows((attendanceResult.data||[]).map(x=>({session_date:x.training_sessions?.session_date,activity_type:x.training_sessions?.activity_type,status:x.status,session_id:x.session_id})));
     setPlayerCategory(categoryResult.data||null);
   }
-  useEffect(()=>{void loadPlayerData()},[session]);
+  useEffect(()=>{void loadPlayerData()},[session,simulationMode,simulationCategory?.id]);
   async function refreshPlayerView(){if(refreshing)return;setRefreshing(true);try{await loadPlayerData();setScheduleVersion(v=>v+1);}finally{setRefreshing(false);}}
   useEffect(()=>{
     if(playerHiddenTabs.includes("Horarios")&&view==="schedule")setView("profile");
@@ -1883,7 +1902,7 @@ function PlayerDashboard({session,onLogout,onBackAdmin}) {
   if(!player)return <main className="loading-screen"><Brand/>Cargando Tu Perfil...</main>;
   const counts={present:rows.filter(r=>r.status==="present").length,late:rows.filter(r=>r.status==="late").length,absent:rows.filter(r=>r.status==="absent").length};
   const playerSessionCount=new Set(rows.map(row=>row.session_id).filter(Boolean)).size;
-  return <main className="player-app"><header className="topbar"><Brand compact/><button onClick={onLogout}>Salir</button></header><div className="player-wrap"><div className="player-section-nav">{onBackAdmin&&<button type="button" className="player-back-admin" onClick={onBackAdmin}>← Administración</button>}<button type="button" className={view==="profile"?"active":""} onClick={()=>setView("profile")}>👤 Mi Perfil</button>{!playerHiddenTabs.includes("Horarios")&&<button type="button" className={view==="schedule"?"active":""} onClick={()=>setView("schedule")}>🕐 Horarios</button>}{!playerHiddenTabs.includes("Programación")&&<button type="button" className={view==="programming"?"active":""} onClick={()=>setView("programming")}>📅 Programación</button>}{!playerHiddenTabs.includes("Partidos")&&<button type="button" className={view==="matches"?"active":""} onClick={()=>setView("matches")}>🏐 Partidos</button>}{!playerHiddenTabs.includes("Posiciones")&&<button type="button" className={view==="standings"?"active":""} onClick={()=>setView("standings")}>📊 Posiciones</button>}{!playerHiddenTabs.includes("Planificación")&&<button type="button" className={view==="planning"?"active":""} onClick={()=>setView("planning")}>☑️ Planificación</button>}<button type="button" className={view==="payments"?"active":""} onClick={()=>setView("payments")}>💳 Pagos</button></div>{view!=="matches"&&<div className="tab-refresh-row player-tab-refresh-row"><button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPlayerView}><span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando...":"Actualizar"}</button></div>}{view==="schedule"?<div className="player-schedule-wrap"><TrainingSchedule key={`player-schedule:${scheduleVersion}`} playerMode/></div>:view==="programming"?<div className="player-programming-wrap"><ProgramacionHub key={`player-programming:${scheduleVersion}:${player.category_id||"none"}`} compact simpleMode allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="matches"?<div className="player-programming-wrap"><PartidosHub key={`player-matches:${scheduleVersion}:${player.category_id||"none"}`} compact unrestricted allowedCategories={playerCategory?[playerCategory]:[]} canViewStats={playerCanViewMatchStats&&!session.legacy} currentPlayerId={player.id}/></div>:view==="standings"?<div className="player-standings-wrap"><StandingsHub key={`player-standings:${scheduleVersion}:${player.category_id||"none"}`} compact playerMode allowGeneralPositions={playerCanViewGeneralStandings} allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="planning"?<PlanningHub key={`player-planning:${scheduleVersion}:${player.category_id||"none"}`} player={player} playerCategory={playerCategory} categories={playerCategory?[playerCategory]:[]} legacy={!!session.legacy}/>:view==="payments"?<PlayerPaymentPanel key={`player-payments:${scheduleVersion}`} player={player} embedded/>:<><section className="hero-profile card"><Avatar player={player}/><div className="grow"><span className="eyebrow">Mi Perfil</span><h1>{player.full_name || player.name}</h1><p>{player.category_name || "Categoría Pendiente"} · {player.team ? `Equipo ${player.team}` : "Sin Asignar"}</p></div><div className="form-actions"><button className="profile-edit-btn" onClick={()=>setEditing(true)}>✏️ Editar Mis Datos</button>{!session.legacy&&<button className="profile-edit-btn" onClick={()=>setChangingPassword(true)}>🔐 Cambiar Contraseña</button>}</div></section><div className="stats"><div className="card"><b>{counts.present}</b><span>Presentes</span></div><div className="card"><b>{counts.late}</b><span>Tardanzas</span></div><div className="card"><b>{counts.absent}</b><span>Ausencias</span></div></div><AttendanceAnalytics title="Mi Resumen De Asistencia" subtitle="Tu Asistencia, Tardanzas e Inasistencias Acumuladas." rows={rows} sessionsCount={playerSessionCount} compact/><div className="card access-box"><span>Tu Código Personal</span><strong>{player.access_code || session.code || "—"}</strong><button onClick={()=>copyText(player.access_code||session.code).then(()=>setMsg("✓ Código Copiado."))}>📋 Copiar Código</button></div><div className="card"><div className="card-head"><h2>Mi Asistencia</h2></div><div className="simple-list">{rows.map((r,i)=><div className="history-row" key={r.session_id||i}><div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type]?.[1]}</span></div><span className={`badge ${r.status}`}>{STATUS[r.status]?.[1]}</span></div>)}</div></div>{msg&&<div className="message">{msg}</div>}</>}</div>{editing&&!session.legacy&&<PlayerSelfEdit player={player} onClose={()=>setEditing(false)} onSaved={updated=>{setPlayer(updated);setEditing(false);setMsg("✓ Perfil Actualizado Correctamente.")}}/>}{changingPassword&&!session.legacy&&<PlayerPasswordChange onClose={()=>setChangingPassword(false)} onChanged={()=>{setChangingPassword(false);setMsg("✓ Contraseña Actualizada Correctamente.")}}/>}</main>;
+  return <main className="player-app"><header className="topbar"><Brand compact/><button onClick={onLogout}>Salir</button></header><div className="player-wrap"><div className="player-section-nav">{onBackAdmin&&<button type="button" className="player-back-admin" onClick={onBackAdmin}>{backLabel}</button>}<button type="button" className={view==="profile"?"active":""} onClick={()=>setView("profile")}>👤 Mi Perfil</button>{!playerHiddenTabs.includes("Horarios")&&<button type="button" className={view==="schedule"?"active":""} onClick={()=>setView("schedule")}>🕐 Horarios</button>}{!playerHiddenTabs.includes("Programación")&&<button type="button" className={view==="programming"?"active":""} onClick={()=>setView("programming")}>📅 Programación</button>}{!playerHiddenTabs.includes("Partidos")&&<button type="button" className={view==="matches"?"active":""} onClick={()=>setView("matches")}>🏐 Partidos</button>}{!playerHiddenTabs.includes("Posiciones")&&<button type="button" className={view==="standings"?"active":""} onClick={()=>setView("standings")}>📊 Posiciones</button>}{!playerHiddenTabs.includes("Planificación")&&<button type="button" className={view==="planning"?"active":""} onClick={()=>setView("planning")}>☑️ Planificación</button>}<button type="button" className={view==="payments"?"active":""} onClick={()=>setView("payments")}>💳 Pagos</button></div>{view!=="matches"&&<div className="tab-refresh-row player-tab-refresh-row"><button type="button" className="tab-refresh-button" disabled={refreshing} onClick={refreshPlayerView}><span aria-hidden="true" className={refreshing?"spinning":""}>↻</span>{refreshing?"Actualizando...":"Actualizar"}</button></div>}{view==="schedule"?<div className="player-schedule-wrap"><TrainingSchedule key={`player-schedule:${scheduleVersion}`} playerMode/></div>:view==="programming"?<div className="player-programming-wrap"><ProgramacionHub key={`player-programming:${scheduleVersion}:${player.category_id||"none"}`} compact simpleMode allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="matches"?<div className="player-programming-wrap"><PartidosHub key={`player-matches:${scheduleVersion}:${player.category_id||"none"}`} compact unrestricted allowedCategories={playerCategory?[playerCategory]:[]} canViewStats={playerCanViewMatchStats&&!session.legacy} currentPlayerId={simulationMode?null:player.id}/></div>:view==="standings"?<div className="player-standings-wrap"><StandingsHub key={`player-standings:${scheduleVersion}:${player.category_id||"none"}`} compact playerMode allowGeneralPositions={playerCanViewGeneralStandings} allowedCategories={playerCategory?[playerCategory]:[]} unrestricted={false}/></div>:view==="planning"?<PlanningHub key={`player-planning:${scheduleVersion}:${player.category_id||"none"}`} player={player} playerCategory={playerCategory} categories={playerCategory?[playerCategory]:[]} legacy={!!session.legacy} simulationMode={simulationMode}/>:view==="payments"?(simulationMode?<section className="card"><div className="card-head"><h2>💳 Pagos</h2></div><p>Los Pagos Son Personales. En La Vista Simulada Por Categoría No Se Muestran Ni Se Modifican Datos De Ningún Jugador.</p></section>:<PlayerPaymentPanel key={`player-payments:${scheduleVersion}`} player={player} embedded/>):<><section className="hero-profile card"><Avatar player={player}/><div className="grow"><span className="eyebrow">{simulationMode?"Vista Simulada De Jugador":"Mi Perfil"}</span><h1>{simulationMode?(player.category_name||"Categoría"):player.full_name || player.name}</h1><p>{simulationMode?"Sólo Lectura · Así Ve La Aplicación Un Jugador De Esta Categoría":(player.category_name || "Categoría Pendiente")+" · "+(player.team ? `Equipo ${player.team}` : "Sin Asignar")}</p></div>{!simulationMode&&<div className="form-actions"><button className="profile-edit-btn" onClick={()=>setEditing(true)}>✏️ Editar Mis Datos</button>{!session.legacy&&<button className="profile-edit-btn" onClick={()=>setChangingPassword(true)}>🔐 Cambiar Contraseña</button>}</div>}</section><div className="stats"><div className="card"><b>{counts.present}</b><span>Presentes</span></div><div className="card"><b>{counts.late}</b><span>Tardanzas</span></div><div className="card"><b>{counts.absent}</b><span>Ausencias</span></div></div><AttendanceAnalytics title="Mi Resumen De Asistencia" subtitle="Tu Asistencia, Tardanzas e Inasistencias Acumuladas." rows={rows} sessionsCount={playerSessionCount} compact/>{!simulationMode&&<div className="card access-box"><span>Tu Código Personal</span><strong>{player.access_code || session.code || "—"}</strong><button onClick={()=>copyText(player.access_code||session.code).then(()=>setMsg("✓ Código Copiado."))}>📋 Copiar Código</button></div>}<div className="card"><div className="card-head"><h2>Mi Asistencia</h2></div><div className="simple-list">{rows.map((r,i)=><div className="history-row" key={r.session_id||i}><div className="grow"><b>{dateText(r.session_date)}</b><span>{TYPES[r.activity_type]?.[1]}</span></div><span className={`badge ${r.status}`}>{STATUS[r.status]?.[1]}</span></div>)}</div></div>{msg&&<div className="message">{msg}</div>}</>}</div>{editing&&!simulationMode&&!session.legacy&&<PlayerSelfEdit player={player} onClose={()=>setEditing(false)} onSaved={updated=>{setPlayer(updated);setEditing(false);setMsg("✓ Perfil Actualizado Correctamente.")}}/>}{changingPassword&&!simulationMode&&!session.legacy&&<PlayerPasswordChange onClose={()=>setChangingPassword(false)} onChanged={()=>{setChangingPassword(false);setMsg("✓ Contraseña Actualizada Correctamente.")}}/>}</main>;
 }
 function PlayerPasswordChange({onClose,onChanged}) {
   const [password,setPassword]=useState("");
@@ -1926,6 +1945,46 @@ function PlayerPasswordChange({onClose,onChanged}) {
 
 function PlayerSelfEdit({player,onClose,onSaved}) { const [data,setData]=useState({first:player.first_name||"",last:player.last_name||"",dni:player.dni||"",birth:player.birth_date||"",sex:player.sex||"female",file:null}); const [saving,setSaving]=useState(false); const fileRef=useRef(null); async function save(e){e.preventDefault();setSaving(true);try{const r=await supabase.from("players").update({first_name:data.first,last_name:data.last,full_name:`${data.last.toUpperCase()} ${data.first}`,dni:data.dni,birth_date:data.birth,sex:data.sex}).eq("id",player.id).select().single();if(r.error)throw r.error;let updated=r.data;if(data.file){const auth=await supabase.auth.getUser();if(auth.error)throw auth.error;const authUserId=auth.data?.user?.id;if(!authUserId)throw new Error("No Se Pudo Verificar La Cuenta Del Jugador.");const safeName=data.file.name.replace(/[^a-zA-Z0-9._-]/g,"_");const path=`${authUserId}/${Date.now()}-${safeName}`;const up=await supabase.storage.from("player-selfies").upload(path,data.file,{upsert:false,contentType:data.file.type||"image/jpeg"});if(up.error)throw up.error;const ur=await supabase.from("players").update({selfie_path:path}).eq("id",player.id).select().single();if(ur.error)throw ur.error;updated=ur.data;}onSaved(updated);}catch(e){alert(errorText(e));}finally{setSaving(false)}} return <div className="modal"><div className="modal-card"><div className="modal-head"><h2>Mi Perfil</h2><button type="button" onClick={onClose}>×</button></div><form onSubmit={save}><div className="two"><input value={data.first} onChange={e=>setData(d=>({...d,first:e.target.value}))}/><input value={data.last} onChange={e=>setData(d=>({...d,last:e.target.value}))}/></div><div className="two"><select value={data.sex} onChange={e=>setData(d=>({...d,sex:e.target.value}))}><option value="female">Femenino</option><option value="male">Masculino</option></select><input value={data.dni} placeholder="DNI" onChange={e=>setData(d=>({...d,dni:e.target.value}))}/></div><input type="date" value={data.birth} onChange={e=>setData(d=>({...d,birth:e.target.value}))}/><label className="selfie-field"><span>Selfie</span><span className="file-button" onClick={() => fileRef.current?.click()}>📷 {data.file?"Cambiar Selfie":"Subir Selfie"}</span><input ref={fileRef} className="hidden-file" type="file" accept="image/*" capture="user" onChange={e=>setData(d=>({...d,file:e.target.files?.[0]||null}))}/>{data.file&&<span className="file-name">✓ {data.file.name}</span>}</label><div className="form-actions"><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>{saving?"Guardando...":"Guardar Cambios"}</button></div></form></div></div>; }
 
+
+function SuperAdminPlayerGateway({session,categories,ownPlayerAvailable,onBackAdmin,onLogout}){
+  const [selection,setSelection]=useState("");
+  const selectedCategory=categories.find(category=>category.id===selection)||null;
+
+  if(selection==="own"&&ownPlayerAvailable){
+    return <PlayerDashboard session={session} onLogout={onLogout} onBackAdmin={()=>setSelection("")} backLabel="← Cambiar Vista"/>;
+  }
+  if(selectedCategory){
+    return <PlayerDashboard
+      session={session}
+      onLogout={onLogout}
+      onBackAdmin={()=>setSelection("")}
+      backLabel="← Cambiar Categoría"
+      simulationMode
+      simulationCategory={selectedCategory}
+    />;
+  }
+
+  return <main className="app professor-preview-app">
+    <header className="topbar"><Brand compact/><div className="top-user"><span className="top-user-name">Vista Jugador</span><button className="topbar-exit" onClick={onLogout}>Salir</button></div></header>
+    <div className="professor-preview-admin-bar"><button type="button" onClick={onBackAdmin}>← Administración</button><span>👤 Vista Como Jugador</span></div>
+    <div className="content"><div className="watermark"/><div className="content-inner">
+      <section className="professor-preview-picker">
+        <PageTitle title="Vista Como Jugador" text="Elegí Tu Apartado Personal O Una Categoría Para Ver Exactamente La Interfaz De Jugador."/>
+        <div className="card professor-preview-picker-card">
+          <label>Entrar Como
+            <select value={selection} onChange={event=>setSelection(event.target.value)}>
+              <option value="">Seleccioná Una Vista</option>
+              {ownPlayerAvailable&&<option value="own">Mi Apartado De Jugador</option>}
+              {categories.map(category=><option key={category.id} value={category.id}>{genderText(category.gender)} · {category.name}</option>)}
+            </select>
+          </label>
+          <p>Exclusivo Del Super Administrador. La Vista Por Categoría Es Una Simulación De Sólo Lectura: No Cambia Tu Cuenta, No Impersona A Ningún Jugador y No Modifica Datos Personales.</p>
+        </div>
+      </section>
+    </div></div>
+    <footer><img src={LOGO} alt=""/><span>{APP_NAME} · {TAGLINE}</span></footer>
+  </main>;
+}
 
 function ProfessorPreviewDashboard({ superAdminProfile, allPlayers, allCategories, disabledTabs, onBackAdmin, onLogout }) {
   const [professors,setProfessors]=useState([]);
@@ -2337,6 +2396,7 @@ function App() {
   },[profile?.role,profile?.professor_allowed_tabs,tab,quickBoardOpen,disabledTabs.join("|"),personalHiddenTabs.join("|")]);
 
   if (professorPreviewMode&&profile?.role==="super_admin"&&isAuthSession(session)) return <ProfessorPreviewDashboard superAdminProfile={profile} allPlayers={players} allCategories={categories} disabledTabs={disabledTabs} onLogout={logout} onBackAdmin={()=>setProfessorPreviewMode(false)}/>;
+  if (dualPlayerMode&&profile?.role==="super_admin"&&isAuthSession(session)) return <SuperAdminPlayerGateway session={session} categories={categories} ownPlayerAvailable={dualPlayerAvailable} onLogout={logout} onBackAdmin={()=>setDualPlayerMode(false)}/>;
   if (dualPlayerMode&&isAuthSession(session)) return <PlayerDashboard session={session} onLogout={logout} onBackAdmin={()=>setDualPlayerMode(false)}/>;
   if ((isAuthSession(playerSession)||isLegacySession(playerSession))&&!session) return <PlayerDashboard session={playerSession} onLogout={logout}/>;
   if(!isAuthSession(session)||!['admin','super_admin'].includes(profile?.role)) return <Login
@@ -2345,9 +2405,10 @@ function App() {
     onAdmin={acceptAdmin}
     onPlayer={acceptPlayer}/>;
   const nav=[['home','Asistencia'],['players','Jugador@s'],['history','Historial'],['schedule','Horarios'],['programming','Programación'],['matches','Partidos'],['standings','Posiciones'],['quickBoard','Pizarra'],['training','Entrenamiento'],['planning','Planificación'],['payments','Pagos'],['requests','Solicitudes']];
-  if(dualPlayerAvailable)nav.splice(2,0,['playerProfile','Jugador']);
+  const showPlayerPortal=dualPlayerAvailable||profile.role==="super_admin";
+  if(showPlayerPortal)nav.splice(2,0,['playerProfile','Jugador']);
   if(profile.role==='super_admin'){
-    nav.splice(dualPlayerAvailable?3:2,0,['professorPreview','Profe']);
+    nav.splice(showPlayerPortal?3:2,0,['professorPreview','Profe']);
     nav.push(['admins','Profes'],['categories','Categorías'],['permissions','Permisos']);
   }
   nav.push(['settings','Solapas']);

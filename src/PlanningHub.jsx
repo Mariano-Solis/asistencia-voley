@@ -448,9 +448,11 @@ export default function PlanningHub({
     if(!selectedCategory?.id){setLoading(false);setItems([]);setImageUrls({});return;}
     setLoading(true);setMsg("");
     try{
-      const result=await supabase.from("planning_items")
+      let query=supabase.from("planning_items")
         .select("id,category_id,created_by,item_type,title,body,storage_path,mime_type,file_size,board_data,target_date,visible_to_players,created_at,updated_at")
-        .eq("category_id",selectedCategory.id)
+        .eq("category_id",selectedCategory.id);
+      if(isPlayer)query=query.eq("visible_to_players",true);
+      const result=await query
         .order("target_date",{ascending:true,nullsFirst:false})
         .order("created_at",{ascending:false});
       if(result.error)throw result.error;
