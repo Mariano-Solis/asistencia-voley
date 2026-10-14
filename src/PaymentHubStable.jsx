@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
+import { exportInstitutionalPaymentsWorkbook } from "./xlsxCategoryExport";
 
 const BUCKET = "payment-receipts";
 const PAYMENT_START_PERIOD = "2026-10-01";
@@ -677,7 +678,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
 
       const [p, pay, cat, perm] = await Promise.all([
         supabase.from("players").select("id,full_name,monthly_fee,category_id,team,active").eq("active", true).order("full_name"),
-        supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,validation_status,validation_reason,detected_payment_date,detected_provider,destination_verified,detected_recipient_cvu").eq("period_month", period),
+        supabase.from("monthly_payments").select("id,player_id,period_month,amount_due,receipt_path,uploaded_at,validation_status,validation_reason,detected_payment_date,detected_provider,destination_verified,detected_recipient_cvu").eq("period_month", period),
         supabase.from("categories").select("id,name,gender,active").eq("active", true).order("name"),
         permissionRequest,
       ]);
@@ -819,6 +820,27 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
   }
 
   const analytics = useMemo(() => buildPaymentStats(analyticsPlayers, paymentByPlayer), [analyticsPlayers, paymentByPlayer]);
+  function downloadPaymentsReport() {
+    if (loading || !categories.length) return;
+    const selected = effectiveAnalyticsCategoryIds.length ? selectedAnalyticsCategoryIdSet : new Set(availableAnalyticsCategories.map(c => c.id));
+    const categoryReports = availableAnalyticsCategories.filter(c => selected.has(c.id)).map(category => ({
+      label: paymentCategoryLabel(category),
+      players: analyticsPlayers.filter(p => p.category_id === category.id).map(player => {
+        const payment = paymentByPlayer[player.id];
+        const state = payment?.validation_status;
+        return {
+          name: player.full_name,
+          fee: Number(player.monthly_fee || 0),
+          paidAmount: state === "validated" ? Number(payment.amount_due || 0) : 0,
+          status: state === "validated" ? "Pagado" : ["manual_review", "pending_validation"].includes(state) ? "En Revisión" : state === "rejected" ? "Rechazado" : "Pendiente",
+          paymentDate: payment?.detected_payment_date || "",
+          uploadDate: payment?.uploaded_at ? new Date(payment.uploaded_at).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }) : "",
+        };
+      }),
+    }));
+    exportInstitutionalPaymentsWorkbook({ period: periodLabel(period), categoryReports, filename: "pagos-voley-" + period.slice(0, 7) + ".xlsx" });
+  }
+
   const receiptsCount = payments.filter((p) => !!p.receipt_path).length;
   const unvalidatedReceiptsCount = payments.filter((p) => !!p.receipt_path && ["pending_validation", "manual_review"].includes(p.validation_status)).length;
 
@@ -970,6 +992,7 @@ export function AdminPaymentPanel({ role, userId, canApprovePayments = role === 
             </small>
           </div>
         </div>
+        <button type="button" className="stable-pay-export-button" onClick={downloadPaymentsReport} disabled={loading || !categories.length} style={{ margin: "12px 0", padding: "14px 18px", borderRadius: 12, background: "#17794b", color: "white", border: 0, fontWeight: 700, width: "100%" }}>📊 Exportar Excel · {analyticsScopeLabel}</button>
         <PaymentAnalytics
           stats={analytics}
           period={period}
