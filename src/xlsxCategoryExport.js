@@ -982,24 +982,30 @@ export function exportProgrammingWorkbook({
 
 
 function buildPaymentReportSheet({ title, period, headings, entries, totals }) {
-  const rows = [];
   const columns = headings.length;
-  const row = (number, values, style = 4) => rows.push(rowXml(number, values.map((value, index) => cell(colName(index) + number, value, style, typeof value === "number" ? "number" : "text")), 23));
-  row(1, ["Municipalidad De San Martín - VOLEY"], 1);
-  row(2, [title], 2);
-  row(3, ["Período", period], 3);
-  row(5, headings, 8);
-  entries.forEach((entry, index) => row(index + 6, entry));
-  if (totals) row(entries.length + 6, totals, 3);
+  const endCol = colName(columns - 1);
+  const rows = [];
+  const put = (n, values, style) => rows.push(rowXml(n, values.map((value, i) =>
+    cell(colName(i) + n, value, style, typeof value === "number" ? "number" : "text")), 25));
+  put(1, ["Municipalidad De San Martín - VOLEY"], 1);
+  put(2, [title], 2);
+  put(3, ["Período", period], 3);
+  put(5, headings, 8);
+  entries.forEach((entry, index) => put(index + 6, entry, index % 2 ? 9 : 10));
+  if (totals) put(entries.length + 6, totals, 3);
   const last = entries.length + (totals ? 6 : 5);
+  const merges = ['A1:' + endCol + '1', 'A2:' + endCol + '2'];
+  const widths = columns === 4 ? [40, 17, 17, 19] : [42, 21, 37];
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<dimension ref="A1:' + colName(columns - 1) + last + '"/>' +
+    '<dimension ref="A1:' + endCol + last + '"/>' +
     '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
-    '<sheetFormatPr defaultRowHeight="20"/>' +
-    '<cols><col min="1" max="1" width="32" customWidth="1"/><col min="2" max="' + columns + '" width="22" customWidth="1"/></cols>' +
-    '<sheetData>' + rows.join("") + '</sheetData>' +
-    '<autoFilter ref="A5:' + colName(columns - 1) + Math.max(5, entries.length + 5) + '"/>' +
+    '<sheetFormatPr defaultRowHeight="23"/>' +
+    '<cols>' + widths.map((width, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + width + '" customWidth="1"/>').join('') + '</cols>' +
+    '<sheetData>' + rows.join('') + '</sheetData>' +
+    '<mergeCells count="' + merges.length + '">' + merges.map(ref => '<mergeCell ref="' + ref + '"/>').join('') + '</mergeCells>' +
+    '<autoFilter ref="A5:' + endCol + Math.max(5, entries.length + 5) + '"/>' +
+    '<printOptions horizontalCentered="1"/>' +
     '<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>' +
     '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
     '</worksheet>';
@@ -1007,7 +1013,7 @@ function buildPaymentReportSheet({ title, period, headings, entries, totals }) {
 
 export function exportInstitutionalPaymentsWorkbook({ period, categoryReports, filename }) {
   resetSharedStrings();
-  const columns = ["Categoría", "Jugadores", "Pagados", "En Revisión", "Pendientes", "Rechazados", "Esperado", "Validado", "Recaudado %"];
+  const columns = ["Categoría", "Jugadores", "Pagados", "Pendientes"];
   const reports = categoryReports.map(({ label, players }) => {
     const totals = { total: players.length, paid: 0, review: 0, pending: 0, rejected: 0, expected: 0, received: 0 };
     for (const player of players) {
@@ -1018,7 +1024,7 @@ export function exportInstitutionalPaymentsWorkbook({ period, categoryReports, f
     }
     return { label, players, totals };
   });
-  const summary = (t) => [t.total, t.paid, t.review, t.pending, t.rejected, t.expected, t.received, t.expected ? Math.round(t.received / t.expected * 1000) / 10 : 0];
+  const summary = (t) => [t.total, t.paid, t.total - t.paid];
   const grand = reports.reduce((acc, report) => { for (const key of Object.keys(acc)) acc[key] += report.totals[key]; return acc; }, { total: 0, paid: 0, review: 0, pending: 0, rejected: 0, expected: 0, received: 0 });
   const sheets = [{
     name: "Resumen General",
@@ -1026,9 +1032,9 @@ export function exportInstitutionalPaymentsWorkbook({ period, categoryReports, f
   }];
   const names = uniqueSheetNames(reports.map(r => r.label));
   reports.forEach((report, i) => {
-    const headings = ["Apellido Y Nombre", "Estado", "Cuota", "Importe Validado", "Fecha De Pago", "Fecha De Comprobante"];
-    const entries = report.players.map(p => [p.name, p.status, Number(p.fee || 0), p.status === "Pagado" ? Number(p.paidAmount || 0) : 0, p.paymentDate || "—", p.uploadDate || "—"]);
-    sheets.push({ name: names[i], xml: buildPaymentReportSheet({ title: report.label, period, headings, entries, totals: ["TOTAL", report.totals.total, report.totals.expected, report.totals.received, "", ""] }) });
+    const headings = ["Apellido Y Nombre", "Estado", "Fecha De Carga Del Comprobante"];
+    const entries = report.players.map(p => [p.name, p.status === "Pagado" ? "Pagado" : "Pendiente", p.uploadDate || "—"]);
+    sheets.push({ name: names[i], xml: buildPaymentReportSheet({ title: report.label, period, headings, entries, totals: ["TOTAL: " + report.totals.total + " · Pagados: " + report.totals.paid + " · Pendientes: " + (report.totals.total - report.totals.paid), "", ""] }) });
   });
   const sheetOverrides = sheets.map((_, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("");
   const workbookSheets = sheets.map((s, i) => '<sheet name="' + xmlEscape(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join("");
