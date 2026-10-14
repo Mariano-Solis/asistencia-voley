@@ -414,6 +414,7 @@ export default function PlanningHub({
   const [body,setBody]=useState("");
   const [targetDate,setTargetDate]=useState("");
   const [visible,setVisible]=useState(true);
+  const [targetCategoryIds,setTargetCategoryIds]=useState(()=>[player?.category_id||categories?.[0]?.id||""].filter(Boolean));
   const [file,setFile]=useState(null);
   const [imageFiles,setImageFiles]=useState([]);
   const [imageUrls,setImageUrls]=useState({});
@@ -430,6 +431,10 @@ export default function PlanningHub({
   const canEditSelected=!isPlayer&&!simulationMode&&!!selectedCategory&&(
     profile?.role==="super_admin"||permissions?.[selectedCategory.id]?.can_edit===true
   );
+  const editableCategories=useMemo(()=>isPlayer?[]:categories.filter(category=>
+    profile?.role==="super_admin"||permissions?.[category.id]?.can_edit===true
+  ),[isPlayer,categories,profile?.role,permissions]);
+  const targetCategories=useMemo(()=>editableCategories.filter(category=>targetCategoryIds.includes(category.id)),[editableCategories,targetCategoryIds]);
 
   useEffect(()=>{
     if(isPlayer&&player?.category_id)setSelectedCategoryId(player.category_id);
@@ -503,9 +508,22 @@ export default function PlanningHub({
   }
   useEffect(()=>{void load()},[selectedCategory?.id,legacy]);
 
-  function resetComposer(){
-    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setFile(null);setImageFiles([]);setBoardData(normalizeBoardData(null));setBoardExpanded(false);
+  function resetComposer(primaryCategoryId=null){
+    const primary=typeof primaryCategoryId==="string"?primaryCategoryId:selectedCategoryId;
+    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setTargetCategoryIds(primary?[primary]:[]);setFile(null);setImageFiles([]);setBoardData(normalizeBoardData(null));setBoardExpanded(false);
     if(fileRef.current)fileRef.current.value="";
+  }
+
+  function toggleTargetCategory(categoryId){
+    setTargetCategoryIds(current=>current.includes(categoryId)?current.filter(id=>id!==categoryId):[...current,categoryId]);
+  }
+  function selectAllTargetCategories(){
+    setTargetCategoryIds(editableCategories.map(category=>category.id));
+  }
+  function targetCategorySummary(){
+    if(!targetCategories.length)return "Ninguna Categoría";
+    if(targetCategories.length===1)return categoryTitle(targetCategories[0]);
+    return targetCategories.length+" Categorías";
   }
 
   function removeSelectedImage(index){
@@ -513,45 +531,51 @@ export default function PlanningHub({
   }
 
   async function saveTextItem(type){
-    if(!canEditSelected||!selectedCategory?.id)return;
+    if(!canEditSelected)return;
+    if(!targetCategories.length)throw new Error("Elegí Al Menos Una Categoría.");
     if(!title.trim())throw new Error("Escribí Un Título.");
     if(!body.trim())throw new Error("Escribí La Actividad O Nota.");
     const user=await supabase.auth.getUser();
     const uid=user.data?.user?.id;
     if(!uid)throw new Error("No Hay Una Sesión Activa.");
-    const inserted=await supabase.from("planning_items").insert({
-      category_id:selectedCategory.id,
+    const rows=targetCategories.map(category=>({
+      category_id:category.id,
       created_by:uid,
       item_type:type,
       title:title.trim(),
       body:body.trim(),
       target_date:targetDate||null,
       visible_to_players:visible,
-    });
+    }));
+    const inserted=await supabase.from("planning_items").insert(rows);
     if(inserted.error)throw inserted.error;
   }
 
   async function saveBoard(){
-    if(!canEditSelected||!selectedCategory?.id)return;
+    if(!canEditSelected)return;
+    if(!targetCategories.length)throw new Error("Elegí Al Menos Una Categoría.");
     if(!title.trim())throw new Error("Escribí Un Título Para La Pizarra.");
     const user=await supabase.auth.getUser();
     const uid=user.data?.user?.id;
     if(!uid)throw new Error("No Hay Una Sesión Activa.");
-    const inserted=await supabase.from("planning_items").insert({
-      category_id:selectedCategory.id,
+    const normalized=normalizeBoardData(boardData);
+    const rows=targetCategories.map(category=>({
+      category_id:category.id,
       created_by:uid,
       item_type:"board",
       title:title.trim(),
       body:body.trim()||null,
-      board_data:normalizeBoardData(boardData),
+      board_data:JSON.parse(JSON.stringify(normalized)),
       target_date:targetDate||null,
       visible_to_players:visible,
-    });
+    }));
+    const inserted=await supabase.from("planning_items").insert(rows);
     if(inserted.error)throw inserted.error;
   }
 
   async function saveFile(type){
-    if(!canEditSelected||!selectedCategory?.id)return;
+    if(!canEditSelected)return;
+    if(!targetCategories.length)throw new Error("Elegí Al Menos Una Categoría.");
     const selected=type==="image"?imageFiles:(file?[file]:[]);
     if(!selected.length)throw new Error(type==="image"?"Seleccioná Una O Más Imágenes.":"Seleccioná Un Archivo.");
     if(type==="image"&&selected.length>20)throw new Error("Podés Subir Hasta 20 Imágenes En Un Mismo Material.");
@@ -570,53 +594,58 @@ export default function PlanningHub({
     const uid=user.data?.user?.id;
     if(!uid)throw new Error("No Hay Una Sesión Activa.");
 
-    const uploaded=[];
-    let insertedItemId=null;
+    const uploadedPaths=[];
+    const insertedItemIds=[];
     try{
-      for(const prepared of preparedFiles){
-        const path=planningPath(selectedCategory.id,prepared);
-        const upload=await supabase.storage.from("planning-materials").upload(path,prepared,{
-          contentType:prepared.type,
-          cacheControl:"3600",
-          upsert:false,
-        });
-        if(upload.error)throw upload.error;
-        uploaded.push({path,prepared});
-      }
+      for(const category of targetCategories){
+        const uploaded=[];
+        for(const prepared of preparedFiles){
+          const path=planningPath(category.id,prepared);
+          const upload=await supabase.storage.from("planning-materials").upload(path,prepared,{
+            contentType:prepared.type,
+            cacheControl:"3600",
+            upsert:false,
+          });
+          if(upload.error)throw upload.error;
+          uploaded.push({path,prepared});
+          uploadedPaths.push(path);
+        }
 
-      const first=uploaded[0];
-      const inserted=await supabase.from("planning_items").insert({
-        category_id:selectedCategory.id,
-        created_by:uid,
-        item_type:type,
-        title:title.trim()||first.prepared.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," "),
-        body:body.trim()||null,
-        storage_path:first.path,
-        mime_type:first.prepared.type,
-        file_size:type==="image"?uploaded.reduce((sum,item)=>sum+Number(item.prepared.size||0),0):first.prepared.size,
-        target_date:targetDate||null,
-        visible_to_players:visible,
-      }).select("id").single();
-      if(inserted.error)throw inserted.error;
-      insertedItemId=inserted.data?.id;
+        const first=uploaded[0];
+        const inserted=await supabase.from("planning_items").insert({
+          category_id:category.id,
+          created_by:uid,
+          item_type:type,
+          title:title.trim()||first.prepared.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," "),
+          body:body.trim()||null,
+          storage_path:first.path,
+          mime_type:first.prepared.type,
+          file_size:type==="image"?uploaded.reduce((sum,item)=>sum+Number(item.prepared.size||0),0):first.prepared.size,
+          target_date:targetDate||null,
+          visible_to_players:visible,
+        }).select("id").single();
+        if(inserted.error)throw inserted.error;
+        const insertedItemId=inserted.data?.id;
+        insertedItemIds.push(insertedItemId);
 
-      if(type==="image"&&insertedItemId){
-        const attachments=uploaded.map((item,index)=>({
-          planning_item_id:insertedItemId,
-          storage_path:item.path,
-          mime_type:item.prepared.type,
-          file_size:item.prepared.size,
-          position:index,
-        }));
-        const childInsert=await supabase.from("planning_item_files").insert(attachments);
-        if(childInsert.error)throw childInsert.error;
+        if(type==="image"&&insertedItemId){
+          const attachments=uploaded.map((item,index)=>({
+            planning_item_id:insertedItemId,
+            storage_path:item.path,
+            mime_type:item.prepared.type,
+            file_size:item.prepared.size,
+            position:index,
+          }));
+          const childInsert=await supabase.from("planning_item_files").insert(attachments);
+          if(childInsert.error)throw childInsert.error;
+        }
       }
     }catch(error){
-      if(insertedItemId){
-        try{await supabase.from("planning_items").delete().eq("id",insertedItemId)}catch{}
+      if(insertedItemIds.length){
+        try{await supabase.from("planning_items").delete().in("id",insertedItemIds)}catch{}
       }
-      if(uploaded.length){
-        try{await supabase.storage.from("planning-materials").remove(uploaded.map(item=>item.path))}catch{}
+      if(uploadedPaths.length){
+        try{await supabase.storage.from("planning-materials").remove(uploadedPaths)}catch{}
       }
       throw error;
     }
@@ -629,8 +658,9 @@ export default function PlanningHub({
       if(composer==="routine"||composer==="note")await saveTextItem(composer);
       else if(composer==="board")await saveBoard();
       else if(composer==="image"||composer==="pdf")await saveFile(composer);
-      setMsg("✓ Planificación Guardada Para "+categoryTitle(selectedCategory)+".");
-      resetComposer();
+      const savedSummary=targetCategories.length===1?categoryTitle(targetCategories[0]):targetCategories.length+" Categorías";
+      setMsg("✓ Planificación Guardada Para "+savedSummary+".");
+      resetComposer(selectedCategoryId);
       await load();
     }catch(error){setMsg(error?.message||"No Se Pudo Guardar La Planificación.")}
     finally{setBusy(false);}
@@ -702,7 +732,7 @@ export default function PlanningHub({
 
     {!isPlayer&&<div className="card planning-category-card">
       <label>Categoría
-        <select value={selectedCategoryId} onChange={e=>{setSelectedCategoryId(e.target.value);resetComposer();}}>
+        <select value={selectedCategoryId} onChange={e=>{const next=e.target.value;setSelectedCategoryId(next);resetComposer(next);}}>
           {categories.map(category=><option key={category.id} value={category.id}>{categoryTitle(category)}</option>)}
         </select>
       </label>
@@ -714,7 +744,7 @@ export default function PlanningHub({
     </div>}
 
     {canEditSelected&&<section className="card planning-create-card">
-      <div className="planning-section-head"><div><span>Crear Nuevo Material</span><h2>¿Qué Querés Compartir?</h2><p>Todo Lo Que Guardes Queda Asociado Sólo A {categoryTitle(selectedCategory)}.</p></div></div>
+      <div className="planning-section-head"><div><span>Crear Nuevo Material</span><h2>¿Qué Querés Compartir?</h2><p>Elegí Una O Varias Categorías Para Compartir El Mismo Material En Una Sola Carga.</p></div></div>
       <div className="planning-create-actions">
         <button type="button" className={composer==="routine"?"active":""} onClick={()=>setComposer(composer==="routine"?"":"routine")}><b>➕</b><span>Crear</span><small>Plan / Rutina</small></button>
         <button type="button" className={composer==="image"?"active":""} onClick={()=>setComposer(composer==="image"?"":"image")}><b>🖼️</b><span>Subir Imagen</span><small>Ejercicio / Pizarra</small></button>
@@ -734,6 +764,19 @@ export default function PlanningHub({
         <div className="planning-composer-grid">
           <label>Título<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={140} placeholder={composer==="routine"?"Ej: Rutina De Golpe Abajo Contra La Pared":"Título Del Material"}/></label>
           <label>Fecha Objetivo (Opcional)<input type="date" value={targetDate} onChange={e=>setTargetDate(e.target.value)}/></label>
+        </div>
+        <div className="planning-target-categories">
+          <div className="planning-target-categories-head">
+            <div><span>Compartir Con</span><b>{targetCategorySummary()}</b></div>
+            <div><button type="button" onClick={selectAllTargetCategories}>Todas</button><button type="button" onClick={()=>setTargetCategoryIds(selectedCategoryId?[selectedCategoryId]:[])}>Sólo Activa</button></div>
+          </div>
+          <div className="planning-target-category-grid">
+            {editableCategories.map(category=><label key={category.id} className={targetCategoryIds.includes(category.id)?"active":""}>
+              <input type="checkbox" checked={targetCategoryIds.includes(category.id)} onChange={()=>toggleTargetCategory(category.id)}/>
+              <span><b>{category.name}</b><small>{String(category.gender||"").toLowerCase()==="female"?"Femenino":"Masculino"}</small></span>
+            </label>)}
+          </div>
+          {!targetCategoryIds.length&&<small className="planning-target-warning">Elegí Al Menos Una Categoría Para Poder Guardar.</small>}
         </div>
         {(composer==="routine"||composer==="note"||composer==="board")&&<label>Indicaciones
           <textarea value={body} onChange={e=>setBody(e.target.value)} maxLength={6000} rows={composer==="routine"?7:4} placeholder={composer==="routine"?"Ej:\n1. 3 series de 10 repeticiones.\n2. Mantener la postura baja y la plataforma firme.\n3. Descanso: 30 segundos.":"Escribí La Nota O Explicación..."}/>
@@ -765,7 +808,7 @@ export default function PlanningHub({
         </>}
         {composer==="board"&&<TacticalBoardEditor value={boardData} onChange={setBoardData} onExpand={()=>setBoardExpanded(true)}/>}
         <label className="planning-visible-toggle"><input type="checkbox" checked={visible} onChange={e=>setVisible(e.target.checked)}/><span><b>Visible Para Jugador@s</b><small>Si Lo Desmarcás, Queda Como Borrador Sólo Para Profes.</small></span></label>
-        <div className="planning-composer-actions"><button type="button" onClick={resetComposer}>Cancelar</button><button className="primary" disabled={busy}>{busy?"Guardando...":"Guardar En "+(selectedCategory?.name||"Categoría")}</button></div>
+        <div className="planning-composer-actions"><button type="button" onClick={resetComposer}>Cancelar</button><button className="primary" disabled={busy||!targetCategories.length}>{busy?"Guardando...":targetCategories.length>1?"Guardar En "+targetCategories.length+" Categorías":"Guardar En "+(targetCategories[0]?.name||"Categoría")}</button></div>
       </form>}
     </section>}
 
