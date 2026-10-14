@@ -995,7 +995,7 @@ function buildPaymentReportSheet({ title, period, headings, entries, totals }) {
   entries.forEach((entry, index) => put(index + 6, entry, index % 2 ? 9 : 10));
   if (totals) put(entries.length + 6, totals, 3);
   const last = entries.length + (totals ? 6 : 5);
-  const merges = ['A1:' + endCol + '1', 'A2:' + endCol + '2'];
+  const merges = ['A1:' + endCol + '1', 'A2:' + endCol + '2', 'B3:' + endCol + '3'];
   const widths = columns === 4 ? [40, 17, 17, 19] : [42, 21, 37];
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
