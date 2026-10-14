@@ -985,8 +985,9 @@ function buildPaymentReportSheet({ title, period, headings, entries, totals }) {
   const columns = headings.length;
   const endCol = colName(columns - 1);
   const rows = [];
+  // Estilos existentes: 9/11 texto a izquierda, 10/12 números centrados.
   const put = (n, values, style) => rows.push(rowXml(n, values.map((value, i) =>
-    cell(colName(i) + n, value, style, typeof value === "number" ? "number" : "text")), 25));
+    cell(colName(i) + n, value, (n >= 6 && (!totals || n < entries.length + 6)) ? (i === 0 ? (n % 2 ? 11 : 9) : (n % 2 ? 12 : 10)) : (n === 5 ? 8 : n === 3 ? (i === 0 ? 3 : 8) : n === 1 ? 1 : n === 2 ? 2 : totals && n === entries.length + 6 ? (i === 0 ? 3 : 8) : style), typeof value === "number" ? "number" : "text")), 25));
   put(1, ["Municipalidad De San Martín - VOLEY"], 1);
   put(2, [title], 2);
   put(3, ["Período", period], 3);
