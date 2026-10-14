@@ -1,6 +1,6 @@
 const MAX_LIBRARY_FILE_BYTES = 12 * 1024 * 1024;
 const MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024;
-const TARGET_IMAGE_BYTES = 450 * 1024;
+const TARGET_IMAGE_BYTES = 280 * 1024;
 
 const MIME_BY_EXTENSION = {
   pdf:"application/pdf",
@@ -27,13 +27,13 @@ function loadImage(file){
   });
 }
 
-function canvasBlob(canvas,quality){
+function canvasBlob(canvas,quality,type="image/webp"){
   return new Promise((resolve,reject)=>{
-    canvas.toBlob(blob=>blob?resolve(blob):reject(new Error("No Se Pudo Optimizar La Imagen.")),"image/jpeg",quality);
+    canvas.toBlob(blob=>blob?resolve(blob):reject(new Error("No Se Pudo Optimizar La Imagen.")),type,quality);
   });
 }
 
-async function renderImage(file,maxSide,quality){
+async function renderImage(file,maxSide,quality,type="image/webp"){
   const image=await loadImage(file);
   const width=image.naturalWidth||image.width;
   const height=image.naturalHeight||image.height;
@@ -45,8 +45,10 @@ async function renderImage(file,maxSide,quality){
   if(!ctx)throw new Error("No Se Pudo Optimizar La Imagen.");
   ctx.fillStyle="#fff";
   ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality="high";
   ctx.drawImage(image,0,0,canvas.width,canvas.height);
-  return canvasBlob(canvas,quality);
+  return canvasBlob(canvas,quality,type);
 }
 
 export async function prepareTrainingLibraryFile(file){
@@ -54,14 +56,38 @@ export async function prepareTrainingLibraryFile(file){
 
   if(String(file.type||"").startsWith("image/")){
     if(file.size>MAX_SOURCE_IMAGE_BYTES)throw new Error("La Imagen Es Demasiado Grande. Elegí Una De Menos De 20 MB.");
-    const passes=[[1600,.82],[1400,.76],[1200,.70],[1000,.64],[900,.58],[800,.52]];
+    const webpPasses=[[1600,.82],[1500,.78],[1400,.74],[1300,.70],[1200,.66],[1100,.62],[1000,.58]];
+    const jpegPasses=[[1500,.78],[1400,.72],[1300,.68],[1200,.64],[1100,.60],[1000,.56]];
     let blob=null;
-    for(const [side,quality] of passes){
-      blob=await renderImage(file,side,quality);
-      if(blob.size<=TARGET_IMAGE_BYTES)break;
+    let outputType="image/webp";
+
+    try{
+      for(const [side,quality] of webpPasses){
+        const candidate=await renderImage(file,side,quality,"image/webp");
+        if(candidate.type!=="image/webp")throw new Error("WEBP_UNSUPPORTED");
+        blob=candidate;
+        if(blob.size<=TARGET_IMAGE_BYTES)break;
+      }
+    }catch{
+      blob=null;
+      outputType="image/jpeg";
     }
+
+    if(!blob||blob.size>TARGET_IMAGE_BYTES){
+      if(outputType!=="image/jpeg"&&blob){
+        // WebP Es Válido Aunque No Haya Alcanzado El Objetivo Exacto.
+      }else{
+        outputType="image/jpeg";
+        for(const [side,quality] of jpegPasses){
+          blob=await renderImage(file,side,quality,"image/jpeg");
+          if(blob.size<=TARGET_IMAGE_BYTES)break;
+        }
+      }
+    }
+
     if(!blob)throw new Error("No Se Pudo Optimizar La Imagen.");
-    return new File([blob],`${safeBase(file.name)}.jpg`,{type:"image/jpeg",lastModified:Date.now()});
+    const extension=outputType==="image/webp"?"webp":"jpg";
+    return new File([blob],`${safeBase(file.name)}.${extension}`,{type:outputType,lastModified:Date.now()});
   }
 
   if(file.size>MAX_LIBRARY_FILE_BYTES)throw new Error("El Archivo Supera El Máximo De 12 MB.");
