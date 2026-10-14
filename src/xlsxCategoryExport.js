@@ -979,3 +979,73 @@ export function exportProgrammingWorkbook({
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
+
+
+function buildPaymentReportSheet({ title, period, headings, entries, totals }) {
+  const rows = [];
+  const columns = headings.length;
+  const row = (number, values, style = 4) => rows.push(rowXml(number, values.map((value, index) => cell(colName(index) + number, value, style, typeof value === "number" ? "number" : "text")), 23));
+  row(1, ["Municipalidad De San Martín - VOLEY"], 1);
+  row(2, [title], 2);
+  row(3, ["Período", period], 3);
+  row(5, headings, 8);
+  entries.forEach((entry, index) => row(index + 6, entry));
+  if (totals) row(entries.length + 6, totals, 3);
+  const last = entries.length + (totals ? 6 : 5);
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<dimension ref="A1:' + colName(columns - 1) + last + '"/>' +
+    '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<sheetFormatPr defaultRowHeight="20"/>' +
+    '<cols><col min="1" max="1" width="32" customWidth="1"/><col min="2" max="' + columns + '" width="22" customWidth="1"/></cols>' +
+    '<sheetData>' + rows.join("") + '</sheetData>' +
+    '<autoFilter ref="A5:' + colName(columns - 1) + Math.max(5, entries.length + 5) + '"/>' +
+    '<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>' +
+    '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+    '</worksheet>';
+}
+
+export function exportInstitutionalPaymentsWorkbook({ period, categoryReports, filename }) {
+  resetSharedStrings();
+  const columns = ["Categoría", "Jugadores", "Pagados", "En Revisión", "Pendientes", "Rechazados", "Esperado", "Validado", "Recaudado %"];
+  const reports = categoryReports.map(({ label, players }) => {
+    const totals = { total: players.length, paid: 0, review: 0, pending: 0, rejected: 0, expected: 0, received: 0 };
+    for (const player of players) {
+      totals.expected += Number(player.fee || 0);
+      if (player.status === "Pagado") { totals.paid++; totals.received += Number(player.paidAmount || 0); }
+      else if (player.status === "En Revisión") totals.review++;
+      else { totals.pending++; if (player.status === "Rechazado") totals.rejected++; }
+    }
+    return { label, players, totals };
+  });
+  const summary = (t) => [t.total, t.paid, t.review, t.pending, t.rejected, t.expected, t.received, t.expected ? Math.round(t.received / t.expected * 1000) / 10 : 0];
+  const grand = reports.reduce((acc, report) => { for (const key of Object.keys(acc)) acc[key] += report.totals[key]; return acc; }, { total: 0, paid: 0, review: 0, pending: 0, rejected: 0, expected: 0, received: 0 });
+  const sheets = [{
+    name: "Resumen General",
+    xml: buildPaymentReportSheet({ title: "Resumen Institucional De Pagos", period, headings: columns, entries: reports.map(r => [r.label, ...summary(r.totals)]), totals: ["TOTAL INSTITUCIONAL", ...summary(grand)] }),
+  }];
+  const names = uniqueSheetNames(reports.map(r => r.label));
+  reports.forEach((report, i) => {
+    const headings = ["Apellido Y Nombre", "Estado", "Cuota", "Importe Validado", "Fecha De Pago", "Fecha De Comprobante"];
+    const entries = report.players.map(p => [p.name, p.status, Number(p.fee || 0), p.status === "Pagado" ? Number(p.paidAmount || 0) : 0, p.paymentDate || "—", p.uploadDate || "—"]);
+    sheets.push({ name: names[i], xml: buildPaymentReportSheet({ title: report.label, period, headings, entries, totals: ["TOTAL", report.totals.total, report.totals.expected, report.totals.received, "", ""] }) });
+  });
+  const sheetOverrides = sheets.map((_, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("");
+  const workbookSheets = sheets.map((s, i) => '<sheet name="' + xmlEscape(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join("");
+  const relationships = sheets.map((_, i) => '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join("");
+  const files = [
+    { name: "[Content_Types].xml", data: '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' + sheetOverrides + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>' },
+    { name: "_rels/.rels", data: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+    { name: "xl/workbook.xml", data: '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + workbookSheets + '</sheets></workbook>' },
+    { name: "xl/_rels/workbook.xml.rels", data: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + relationships + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId' + (sheets.length + 2) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>' },
+    { name: "xl/styles.xml", data: stylesXml() },
+    { name: "xl/sharedStrings.xml", data: sharedStringsXml() },
+    ...sheets.map((s, i) => ({ name: "xl/worksheets/sheet" + (i + 1) + ".xml", data: s.xml })),
+  ];
+  const blob = new Blob([zipStore(files)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = filename || "pagos-institucional.xlsx";
+  document.body.appendChild(link); link.click(); link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
