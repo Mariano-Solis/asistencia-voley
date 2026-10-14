@@ -508,8 +508,9 @@ export default function PlanningHub({
   }
   useEffect(()=>{void load()},[selectedCategory?.id,legacy]);
 
-  function resetComposer(primaryCategoryId=selectedCategoryId){
-    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setTargetCategoryIds(primaryCategoryId?[primaryCategoryId]:[]);setFile(null);setImageFiles([]);setBoardData(normalizeBoardData(null));setBoardExpanded(false);
+  function resetComposer(primaryCategoryId=null){
+    const primary=typeof primaryCategoryId==="string"?primaryCategoryId:selectedCategoryId;
+    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setTargetCategoryIds(primary?[primary]:[]);setFile(null);setImageFiles([]);setBoardData(normalizeBoardData(null));setBoardExpanded(false);
     if(fileRef.current)fileRef.current.value="";
   }
 
@@ -807,7 +808,7 @@ export default function PlanningHub({
         </>}
         {composer==="board"&&<TacticalBoardEditor value={boardData} onChange={setBoardData} onExpand={()=>setBoardExpanded(true)}/>}
         <label className="planning-visible-toggle"><input type="checkbox" checked={visible} onChange={e=>setVisible(e.target.checked)}/><span><b>Visible Para Jugador@s</b><small>Si Lo Desmarcás, Queda Como Borrador Sólo Para Profes.</small></span></label>
-        <div className="planning-composer-actions"><button type="button" onClick={resetComposer}>Cancelar</button><button className="primary" disabled={busy||!targetCategoryIds.length}>{busy?"Guardando...":targetCategoryIds.length>1?"Guardar En "+targetCategoryIds.length+" Categorías":"Guardar En "+(targetCategories[0]?.name||"Categoría")}</button></div>
+        <div className="planning-composer-actions"><button type="button" onClick={resetComposer}>Cancelar</button><button className="primary" disabled={busy||!targetCategories.length}>{busy?"Guardando...":targetCategories.length>1?"Guardar En "+targetCategories.length+" Categorías":"Guardar En "+(targetCategories[0]?.name||"Categoría")}</button></div>
       </form>}
     </section>}
 
