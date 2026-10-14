@@ -421,6 +421,8 @@ export default function PlanningHub({
   const [boardData,setBoardData]=useState(()=>normalizeBoardData(null));
   const [boardExpanded,setBoardExpanded]=useState(false);
   const [preview,setPreview]=useState(null);
+  const [previewIndex,setPreviewIndex]=useState(0);
+  const previewGalleryRef=useRef(null);
   const fileRef=useRef(null);
 
   const selectedCategory=useMemo(()=>{
@@ -700,10 +702,25 @@ export default function PlanningHub({
     finally{setBusy(false);}
   }
 
+  function showPreviewImage(index){
+    const images=preview?.images||[];
+    if(!images.length)return;
+    const next=Math.max(0,Math.min(images.length-1,index));
+    setPreviewIndex(next);
+    const el=previewGalleryRef.current;
+    if(el)el.scrollTo({left:el.clientWidth*next,behavior:"smooth"});
+  }
+  function onPreviewGalleryScroll(event){
+    const el=event.currentTarget;
+    if(!el.clientWidth)return;
+    const next=Math.round(el.scrollLeft/el.clientWidth);
+    if(next!==previewIndex)setPreviewIndex(next);
+  }
+
   function openItem(item){
     if(item.item_type==="image"){
       const gallery=imageUrls[item.id]||[];
-      if(gallery.length)setPreview({kind:"image",item,images:gallery});
+      if(gallery.length){setPreviewIndex(0);setPreview({kind:"image",item,images:gallery});}
       else setMsg("Actualizá Para Volver A Generar El Acceso A Las Imágenes.");
       return;
     }
@@ -862,11 +879,18 @@ export default function PlanningHub({
     {preview&&createPortal(<div className="planning-preview-backdrop" role="dialog" aria-modal="true" onClick={()=>setPreview(null)}>
       <div className="planning-preview-card" onClick={e=>e.stopPropagation()}>
         <header><div><span>{TYPES[preview.item.item_type]?.label}</span><h2>{preview.item.title}</h2></div><button type="button" onClick={()=>setPreview(null)}>×</button></header>
-        {preview.kind==="image"&&<div className="planning-preview-gallery">
-          {(preview.images||[]).map((attachment,index)=><figure key={attachment.id||attachment.storage_path||index}>
-            <img src={attachment.url} alt={preview.item.title+" · Imagen "+(index+1)}/>
-            {(preview.images||[]).length>1&&<figcaption>{index+1} / {(preview.images||[]).length}</figcaption>}
-          </figure>)}
+        {preview.kind==="image"&&<div className="planning-preview-carousel-wrap">
+          <div className="planning-preview-carousel" ref={previewGalleryRef} onScroll={onPreviewGalleryScroll}>
+            {(preview.images||[]).map((attachment,index)=><figure key={attachment.id||attachment.storage_path||index}>
+              <img src={attachment.url} alt={preview.item.title+" · Imagen "+(index+1)}/>
+            </figure>)}
+          </div>
+          {(preview.images||[]).length>1&&<>
+            <button type="button" className="planning-preview-nav previous" onClick={()=>showPreviewImage(previewIndex-1)} disabled={previewIndex<=0} aria-label="Imagen Anterior">‹</button>
+            <button type="button" className="planning-preview-nav next" onClick={()=>showPreviewImage(previewIndex+1)} disabled={previewIndex>=(preview.images||[]).length-1} aria-label="Imagen Siguiente">›</button>
+            <div className="planning-preview-counter">{previewIndex+1} / {(preview.images||[]).length}</div>
+            <div className="planning-preview-dots" aria-hidden="true">{(preview.images||[]).map((_,index)=><i key={index} className={index===previewIndex?"active":""}/>)}</div>
+          </>}
         </div>}
         {preview.kind==="board"&&<BoardSvg strokes={preview.item.board_data?.strokes||[]} tokens={preview.item.board_data?.tokens||[]}/>}
         {preview.item.body&&<p>{preview.item.body}</p>}
