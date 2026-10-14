@@ -450,3 +450,117 @@
     grid-column:2;
   }
 }
+
+
+/* =========================================================
+   PLANIFICACIÓN · COMPARTIR CON VARIAS CATEGORÍAS
+========================================================= */
+.planning-target-categories{
+  display:grid;
+  gap:8px;
+  padding:10px;
+  border:1px solid #ead9dc;
+  border-radius:13px;
+  background:#fffafa;
+}
+.planning-target-categories-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.planning-target-categories-head>div:first-child{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.planning-target-categories-head span{
+  color:#a81019;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.planning-target-categories-head b{
+  color:#343a42;
+  font-size:11px;
+}
+.planning-target-categories-head>div:last-child{
+  display:flex;
+  gap:5px;
+  flex:0 0 auto;
+}
+.planning-target-categories-head button{
+  min-height:30px;
+  padding:4px 8px;
+  border:1px solid #e2e5e9;
+  border-radius:8px;
+  background:#fff;
+  color:#4a515b;
+  font-size:7.5px;
+  font-weight:900;
+}
+.planning-target-category-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+}
+.planning-target-category-grid label{
+  min-width:0;
+  display:flex!important;
+  align-items:center;
+  gap:7px;
+  padding:8px;
+  border:1px solid #e3e6e9;
+  border-radius:10px;
+  background:#fff;
+  cursor:pointer;
+}
+.planning-target-category-grid label.active{
+  border-color:#d65a61;
+  background:#fff1f2;
+  box-shadow:0 0 0 1px rgba(181,18,27,.06);
+}
+.planning-target-category-grid input{
+  width:17px!important;
+  height:17px!important;
+  flex:0 0 auto;
+  accent-color:#b5121b;
+}
+.planning-target-category-grid span{
+  min-width:0;
+  display:grid;
+  gap:1px;
+}
+.planning-target-category-grid b{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#343a42;
+  font-size:9px;
+}
+.planning-target-category-grid small{
+  color:#89909a;
+  font-size:7px;
+  font-weight:750;
+}
+.planning-target-warning{
+  color:#a81019;
+  font-size:8px;
+  font-weight:850;
+}
+@media(max-width:520px){
+  .planning-target-categories-head{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .planning-target-categories-head>div:last-child{
+    width:100%;
+  }
+  .planning-target-categories-head button{
+    flex:1;
+  }
+  .planning-target-category-grid{
+    grid-template-columns:1fr;
+  }
+}
