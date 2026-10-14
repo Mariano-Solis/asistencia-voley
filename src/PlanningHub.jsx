@@ -415,6 +415,8 @@ export default function PlanningHub({
   const [targetDate,setTargetDate]=useState("");
   const [visible,setVisible]=useState(true);
   const [file,setFile]=useState(null);
+  const [imageFiles,setImageFiles]=useState([]);
+  const [imageUrls,setImageUrls]=useState({});
   const [boardData,setBoardData]=useState(()=>normalizeBoardData(null));
   const [boardExpanded,setBoardExpanded]=useState(false);
   const [preview,setPreview]=useState(null);
@@ -435,8 +437,8 @@ export default function PlanningHub({
   },[isPlayer,player?.category_id,categories,selectedCategoryId]);
 
   async function load(){
-    if(legacy){setLoading(false);setItems([]);return;}
-    if(!selectedCategory?.id){setLoading(false);setItems([]);return;}
+    if(legacy){setLoading(false);setItems([]);setImageUrls({});return;}
+    if(!selectedCategory?.id){setLoading(false);setItems([]);setImageUrls({});return;}
     setLoading(true);setMsg("");
     try{
       const result=await supabase.from("planning_items")
@@ -447,23 +449,67 @@ export default function PlanningHub({
       if(result.error)throw result.error;
       const rows=result.data||[];
       setItems(rows);
-      const fileRows=rows.filter(item=>item.storage_path);
-      const pairs=await Promise.all(fileRows.map(async item=>{
+
+      const legacyFileRows=rows.filter(item=>item.storage_path&&item.item_type!=="image");
+      const legacyPairs=await Promise.all(legacyFileRows.map(async item=>{
         const signed=await supabase.storage.from("planning-materials").createSignedUrl(item.storage_path,3600);
         return [item.id,signed.data?.signedUrl||""];
       }));
-      setSignedUrls(Object.fromEntries(pairs));
+      setSignedUrls(Object.fromEntries(legacyPairs));
+
+      const imageItems=rows.filter(item=>item.item_type==="image");
+      if(!imageItems.length){
+        setImageUrls({});
+      }else{
+        const childResult=await supabase.from("planning_item_files")
+          .select("id,planning_item_id,storage_path,mime_type,file_size,position")
+          .in("planning_item_id",imageItems.map(item=>item.id))
+          .order("position",{ascending:true});
+        if(childResult.error)throw childResult.error;
+
+        const childrenByItem={};
+        for(const child of childResult.data||[]){
+          if(!childrenByItem[child.planning_item_id])childrenByItem[child.planning_item_id]=[];
+          childrenByItem[child.planning_item_id].push(child);
+        }
+
+        const galleries={};
+        await Promise.all(imageItems.map(async item=>{
+          let files=childrenByItem[item.id]||[];
+          if(!files.length&&item.storage_path){
+            files=[{
+              id:"legacy-"+item.id,
+              planning_item_id:item.id,
+              storage_path:item.storage_path,
+              mime_type:item.mime_type,
+              file_size:item.file_size,
+              position:0,
+            }];
+          }
+          const signedFiles=await Promise.all(files.map(async attachment=>{
+            const signed=await supabase.storage.from("planning-materials").createSignedUrl(attachment.storage_path,3600);
+            return {...attachment,url:signed.data?.signedUrl||""};
+          }));
+          galleries[item.id]=signedFiles.filter(attachment=>attachment.url);
+        }));
+        setImageUrls(galleries);
+      }
     }catch(error){
       setItems([]);
+      setSignedUrls({});
+      setImageUrls({});
       setMsg(error?.message||"No Se Pudo Cargar La Planificación.");
     }finally{setLoading(false);}
   }
-
   useEffect(()=>{void load()},[selectedCategory?.id,legacy]);
 
   function resetComposer(){
-    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setFile(null);setBoardData(normalizeBoardData(null));setBoardExpanded(false);
+    setComposer("");setTitle("");setBody("");setTargetDate("");setVisible(true);setFile(null);setImageFiles([]);setBoardData(normalizeBoardData(null));setBoardExpanded(false);
     if(fileRef.current)fileRef.current.value="";
+  }
+
+  function removeSelectedImage(index){
+    setImageFiles(current=>current.filter((_,itemIndex)=>itemIndex!==index));
   }
 
   async function saveTextItem(type){
@@ -506,40 +552,75 @@ export default function PlanningHub({
 
   async function saveFile(type){
     if(!canEditSelected||!selectedCategory?.id)return;
-    if(!file)throw new Error("Seleccioná Un Archivo.");
-    if(type==="pdf"&&file.type!=="application/pdf"&&!String(file.name).toLowerCase().endsWith(".pdf"))throw new Error("Seleccioná Un Archivo PDF.");
-    if(type==="image"&&!String(file.type||"").startsWith("image/"))throw new Error("Seleccioná Una Imagen.");
-    const prepared=await prepareTrainingLibraryFile(file);
-    if(type==="pdf"&&prepared.type!=="application/pdf")throw new Error("El Archivo Debe Ser PDF.");
-    if(type==="image"&&!prepared.type.startsWith("image/"))throw new Error("El Archivo Debe Ser Una Imagen.");
+    const selected=type==="image"?imageFiles:(file?[file]:[]);
+    if(!selected.length)throw new Error(type==="image"?"Seleccioná Una O Más Imágenes.":"Seleccioná Un Archivo.");
+    if(type==="image"&&selected.length>20)throw new Error("Podés Subir Hasta 20 Imágenes En Un Mismo Material.");
+    if(type==="pdf"&&(selected[0].type!=="application/pdf"&&!String(selected[0].name).toLowerCase().endsWith(".pdf")))throw new Error("Seleccioná Un Archivo PDF.");
+    if(type==="image"&&selected.some(item=>!String(item.type||"").startsWith("image/")))throw new Error("Todos Los Archivos Deben Ser Imágenes.");
+
+    const preparedFiles=[];
+    for(const selectedFile of selected){
+      const prepared=await prepareTrainingLibraryFile(selectedFile);
+      if(type==="pdf"&&prepared.type!=="application/pdf")throw new Error("El Archivo Debe Ser PDF.");
+      if(type==="image"&&!prepared.type.startsWith("image/"))throw new Error("Todos Los Archivos Deben Ser Imágenes.");
+      preparedFiles.push(prepared);
+    }
+
     const user=await supabase.auth.getUser();
     const uid=user.data?.user?.id;
     if(!uid)throw new Error("No Hay Una Sesión Activa.");
-    const path=planningPath(selectedCategory.id,prepared);
-    const upload=await supabase.storage.from("planning-materials").upload(path,prepared,{
-      contentType:prepared.type,
-      cacheControl:"3600",
-      upsert:false,
-    });
-    if(upload.error)throw upload.error;
-    const inserted=await supabase.from("planning_items").insert({
-      category_id:selectedCategory.id,
-      created_by:uid,
-      item_type:type,
-      title:title.trim()||prepared.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," "),
-      body:body.trim()||null,
-      storage_path:path,
-      mime_type:prepared.type,
-      file_size:prepared.size,
-      target_date:targetDate||null,
-      visible_to_players:visible,
-    });
-    if(inserted.error){
-      try{await supabase.storage.from("planning-materials").remove([path])}catch{}
-      throw inserted.error;
+
+    const uploaded=[];
+    let insertedItemId=null;
+    try{
+      for(const prepared of preparedFiles){
+        const path=planningPath(selectedCategory.id,prepared);
+        const upload=await supabase.storage.from("planning-materials").upload(path,prepared,{
+          contentType:prepared.type,
+          cacheControl:"3600",
+          upsert:false,
+        });
+        if(upload.error)throw upload.error;
+        uploaded.push({path,prepared});
+      }
+
+      const first=uploaded[0];
+      const inserted=await supabase.from("planning_items").insert({
+        category_id:selectedCategory.id,
+        created_by:uid,
+        item_type:type,
+        title:title.trim()||first.prepared.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," "),
+        body:body.trim()||null,
+        storage_path:first.path,
+        mime_type:first.prepared.type,
+        file_size:type==="image"?uploaded.reduce((sum,item)=>sum+Number(item.prepared.size||0),0):first.prepared.size,
+        target_date:targetDate||null,
+        visible_to_players:visible,
+      }).select("id").single();
+      if(inserted.error)throw inserted.error;
+      insertedItemId=inserted.data?.id;
+
+      if(type==="image"&&insertedItemId){
+        const attachments=uploaded.map((item,index)=>({
+          planning_item_id:insertedItemId,
+          storage_path:item.path,
+          mime_type:item.prepared.type,
+          file_size:item.prepared.size,
+          position:index,
+        }));
+        const childInsert=await supabase.from("planning_item_files").insert(attachments);
+        if(childInsert.error)throw childInsert.error;
+      }
+    }catch(error){
+      if(insertedItemId){
+        try{await supabase.from("planning_items").delete().eq("id",insertedItemId)}catch{}
+      }
+      if(uploaded.length){
+        try{await supabase.storage.from("planning-materials").remove(uploaded.map(item=>item.path))}catch{}
+      }
+      throw error;
     }
   }
-
   async function save(event){
     event.preventDefault();
     if(!composer||busy)return;
@@ -563,8 +644,11 @@ export default function PlanningHub({
       const removed=await supabase.from("planning_items").delete().eq("id",item.id).select("id").maybeSingle();
       if(removed.error)throw removed.error;
       if(!removed.data?.id)throw new Error("No Tenés Permiso Para Eliminar Este Material.");
-      if(item.storage_path){
-        const storageDelete=await supabase.storage.from("planning-materials").remove([item.storage_path]);
+      const attachmentPaths=(imageUrls[item.id]||[]).map(attachment=>attachment.storage_path).filter(Boolean);
+      if(item.storage_path)attachmentPaths.push(item.storage_path);
+      const uniquePaths=[...new Set(attachmentPaths)];
+      if(uniquePaths.length){
+        const storageDelete=await supabase.storage.from("planning-materials").remove(uniquePaths);
         if(storageDelete.error)console.warn(storageDelete.error);
       }
       setMsg("✓ Material Eliminado.");
@@ -588,9 +672,9 @@ export default function PlanningHub({
 
   function openItem(item){
     if(item.item_type==="image"){
-      const url=signedUrls[item.id];
-      if(url)setPreview({kind:"image",item,url});
-      else setMsg("Actualizá Para Volver A Generar El Acceso A La Imagen.");
+      const gallery=imageUrls[item.id]||[];
+      if(gallery.length)setPreview({kind:"image",item,images:gallery});
+      else setMsg("Actualizá Para Volver A Generar El Acceso A Las Imágenes.");
       return;
     }
     if(item.item_type==="pdf"){
@@ -656,10 +740,27 @@ export default function PlanningHub({
         </label>}
         {(composer==="image"||composer==="pdf")&&<>
           <label className="planning-file-picker">
-            <input ref={fileRef} type="file" accept={composer==="image"?"image/*":"application/pdf,.pdf"} onChange={e=>setFile(e.target.files?.[0]||null)}/>
-            <span>{file?"✓ "+file.name:(composer==="image"?"🖼️ Elegir Imagen":"📄 Elegir PDF")}</span>
-            <small>{composer==="image"?"La Imagen Se Optimiza Automáticamente.":"Máximo 12 MB."}</small>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={composer==="image"?"image/*":"application/pdf,.pdf"}
+              multiple={composer==="image"}
+              onChange={e=>{
+                if(composer==="image")setImageFiles(Array.from(e.target.files||[]));
+                else setFile(e.target.files?.[0]||null);
+              }}
+            />
+            <span>{composer==="image"
+              ?(imageFiles.length?("✓ "+imageFiles.length+" Imagen"+(imageFiles.length===1?"":"es")+" Seleccionada"+(imageFiles.length===1?"":"s")):"🖼️ Elegir Una O Varias Imágenes")
+              :(file?"✓ "+file.name:"📄 Elegir PDF")}</span>
+            <small>{composer==="image"?"Podés Elegir Varias A La Vez. Se Optimizan Automáticamente. Máximo 20.":"Máximo 12 MB."}</small>
           </label>
+          {composer==="image"&&imageFiles.length>0&&<div className="planning-selected-images">
+            {imageFiles.map((selectedFile,index)=><div key={selectedFile.name+"-"+selectedFile.lastModified+"-"+index}>
+              <span>🖼️</span><b>{selectedFile.name}</b><small>{compactBytes(selectedFile.size)}</small>
+              <button type="button" onClick={()=>removeSelectedImage(index)} aria-label={"Quitar "+selectedFile.name}>×</button>
+            </div>)}
+          </div>}
           <label>Descripción (Opcional)<textarea value={body} onChange={e=>setBody(e.target.value)} maxLength={3000} rows={3} placeholder="Indicaciones Para L@s Jugador@s..."/></label>
         </>}
         {composer==="board"&&<TacticalBoardEditor value={boardData} onChange={setBoardData} onExpand={()=>setBoardExpanded(true)}/>}
@@ -679,14 +780,17 @@ export default function PlanningHub({
       {loading?<div className="planning-empty">Cargando Planificación...</div>:items.length?<div className="planning-list">{items.map(item=>{
         const meta=TYPES[item.item_type]||{icon:"📎",label:"Material"};
         const url=signedUrls[item.id];
+        const gallery=imageUrls[item.id]||[];
+        const cover=gallery[0]?.url||"";
+        const gallerySize=gallery.reduce((sum,attachment)=>sum+Number(attachment.file_size||0),0);
         return <article className={"planning-item "+(!item.visible_to_players?"draft":"")} key={item.id}>
-          {item.item_type==="image"&&url?<button type="button" className="planning-item-image" onClick={()=>openItem(item)}><img src={url} alt=""/></button>:<div className="planning-item-icon">{meta.icon}</div>}
+          {item.item_type==="image"&&cover?<button type="button" className="planning-item-image planning-item-image-gallery" onClick={()=>openItem(item)}><img src={cover} alt=""/>{gallery.length>1&&<span>{gallery.length}</span>}</button>:<div className="planning-item-icon">{meta.icon}</div>}
           <div className="planning-item-main">
             <div className="planning-item-title-row"><div><span>{meta.label}{item.target_date?" · "+localDate(item.target_date):""}</span><h3>{item.title}</h3></div>{!isPlayer&&<em className={item.visible_to_players?"published":"draft"}>{item.visible_to_players?"👁 Visible Para Jugador@s":"🔒 Borrador"}</em>}</div>
             {item.body&&<p className={item.item_type==="routine"?"planning-routine-text":""}>{item.body}</p>}
             {item.item_type==="board"&&<button type="button" className="planning-board-preview-button" onClick={()=>openItem(item)}><BoardSvg strokes={item.board_data?.strokes||[]} tokens={item.board_data?.tokens||[]}/><span>Abrir Pizarra</span></button>}
             {item.item_type==="pdf"&&<button type="button" className="planning-open-file" onClick={()=>openItem(item)}>📄 Abrir PDF {item.file_size?"· "+compactBytes(item.file_size):""}</button>}
-            {item.item_type==="image"&&url&&<button type="button" className="planning-open-file" onClick={()=>openItem(item)}>🖼️ Ver Imagen {item.file_size?"· "+compactBytes(item.file_size):""}</button>}
+            {item.item_type==="image"&&gallery.length>0&&<button type="button" className="planning-open-file" onClick={()=>openItem(item)}>🖼️ Ver {gallery.length>1?gallery.length+" Imágenes":"Imagen"} {(gallerySize||item.file_size)?"· "+compactBytes(gallerySize||item.file_size):""}</button>}
           </div>
           {canEditSelected&&<div className="planning-item-actions">
             <button type="button" onClick={()=>void toggleVisibility(item)} title={item.visible_to_players?"Ocultar A Jugador@s":"Publicar Para Jugador@s"}>{item.visible_to_players?"🙈":"👁"}</button>
@@ -715,7 +819,12 @@ export default function PlanningHub({
     {preview&&createPortal(<div className="planning-preview-backdrop" role="dialog" aria-modal="true" onClick={()=>setPreview(null)}>
       <div className="planning-preview-card" onClick={e=>e.stopPropagation()}>
         <header><div><span>{TYPES[preview.item.item_type]?.label}</span><h2>{preview.item.title}</h2></div><button type="button" onClick={()=>setPreview(null)}>×</button></header>
-        {preview.kind==="image"&&<img src={preview.url} alt={preview.item.title}/>}
+        {preview.kind==="image"&&<div className="planning-preview-gallery">
+          {(preview.images||[]).map((attachment,index)=><figure key={attachment.id||attachment.storage_path||index}>
+            <img src={attachment.url} alt={preview.item.title+" · Imagen "+(index+1)}/>
+            {(preview.images||[]).length>1&&<figcaption>{index+1} / {(preview.images||[]).length}</figcaption>}
+          </figure>)}
+        </div>}
         {preview.kind==="board"&&<BoardSvg strokes={preview.item.board_data?.strokes||[]} tokens={preview.item.board_data?.tokens||[]}/>}
         {preview.item.body&&<p>{preview.item.body}</p>}
       </div>
