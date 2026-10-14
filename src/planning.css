@@ -336,3 +336,117 @@
     width:100%;
   }
 }
+
+
+/* =========================================================
+   PLANIFICACIÓN · MÚLTIPLES IMÁGENES POR MATERIAL
+========================================================= */
+.planning-selected-images{
+  display:grid;
+  gap:6px;
+  padding:8px;
+  border:1px solid #eceff2;
+  border-radius:12px;
+  background:#fafbfc;
+}
+.planning-selected-images>div{
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto 32px;
+  align-items:center;
+  gap:7px;
+  padding:6px 7px;
+  border:1px solid #e5e8eb;
+  border-radius:9px;
+  background:#fff;
+}
+.planning-selected-images>div>span{font-size:17px}
+.planning-selected-images>div>b{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#394049;
+  font-size:9px;
+}
+.planning-selected-images>div>small{
+  color:#858c95;
+  font-size:7.5px;
+  font-weight:750;
+}
+.planning-selected-images>div>button{
+  width:32px;
+  height:32px;
+  padding:0;
+  border:1px solid #f0d5d8;
+  border-radius:8px;
+  background:#fff4f5;
+  color:#a81019;
+  font-size:17px;
+  font-weight:900;
+}
+.planning-item-image-gallery{
+  position:relative;
+}
+.planning-item-image-gallery>span{
+  position:absolute;
+  right:4px;
+  bottom:4px;
+  min-width:20px;
+  height:20px;
+  display:grid;
+  place-items:center;
+  padding:0 5px;
+  border:2px solid #fff;
+  border-radius:999px;
+  background:#b5121b;
+  color:#fff;
+  font-size:8px;
+  font-weight:950;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+.planning-preview-gallery{
+  display:grid;
+  gap:10px;
+  padding:10px;
+  background:#f3f5f7;
+}
+.planning-preview-gallery figure{
+  position:relative;
+  margin:0;
+  overflow:hidden;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(20,25,30,.08);
+}
+.planning-preview-gallery img{
+  display:block;
+  width:100%;
+  max-height:78dvh;
+  object-fit:contain;
+  background:#fff;
+}
+.planning-preview-gallery figcaption{
+  position:absolute;
+  right:8px;
+  bottom:8px;
+  padding:4px 7px;
+  border-radius:999px;
+  background:rgba(20,24,29,.78);
+  color:#fff;
+  font-size:8px;
+  font-weight:900;
+}
+@media(min-width:760px){
+  .planning-preview-gallery{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:520px){
+  .planning-selected-images>div{
+    grid-template-columns:auto minmax(0,1fr) 30px;
+  }
+  .planning-selected-images>div>small{
+    grid-column:2;
+  }
+}
