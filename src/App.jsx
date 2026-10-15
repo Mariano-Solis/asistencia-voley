@@ -47,24 +47,19 @@ function AuthRecovery() {
 
   useEffect(() => {
     const installControls = () => {
-      const emailInputs = Array.from(document.querySelectorAll('input[type="email"]'));
       const passwordInputs = Array.from(document.querySelectorAll('input[type="password"]'));
-      if (!emailInputs.length || !passwordInputs.length) return;
-
-      const emailInput = emailInputs.find((input) => {
-        const root = input.closest("form, section, div") || document.body;
-        return root.textContent?.toLowerCase().includes("acceso con código personal");
-      });
+      const emailInputs = Array.from(document.querySelectorAll('input[type="email"]'));
+      if (!passwordInputs.length || !emailInputs.length) return;
+      const emailInput = emailInputs.find(input => input.getClientRects().length > 0);
       if (!emailInput) return;
-
-      const passwordInput = passwordInputs.find((input) => {
-        const root = input.closest("form, section, div") || document.body;
-        return root.contains(emailInput);
-      });
+      // No exigir que ambos campos compartan el mismo div inmediato:
+      // el formulario móvil los coloca en contenedores hermanos.
+      const passwordInput = passwordInputs.find(input => input.getClientRects().length > 0 &&
+        !input.closest('[role="dialog"]'));
       if (!passwordInput) return;
-
-      const root = passwordInput.closest("form, section, div") || passwordInput.parentElement;
-      if (!root || root.querySelector(".voley-auth-recovery-controls")) return;
+      const root = passwordInput.parentElement?.parentElement || passwordInput.parentElement;
+      if (!root || root.querySelector(".voley-auth-recovery-controls") ||
+        document.querySelector(".voley-auth-recovery-controls")) return;
 
       const controls = document.createElement("div");
       controls.className = "voley-auth-recovery-controls";
