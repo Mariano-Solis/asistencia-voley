@@ -182,6 +182,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
   const [lineupDraft,setLineupDraft]=useState([]);
   const [jerseyDraft,setJerseyDraft]=useState({});
   const [editingLineup,setEditingLineup]=useState(false);
+  const [lineupError,setLineupError]=useState("");
   const [realtimeStatus,setRealtimeStatus]=useState("connecting");
   const actorRef=useRef(null);
   const flashTimer=useRef(null);
@@ -423,6 +424,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
     return String(value??"").replace(/\D/g,"").slice(0,2);
   }
   function setJerseyNumber(playerId,value){
+    setLineupError("");
     setJerseyDraft(current=>({...current,[playerId]:cleanJersey(value)}));
   }
   function beginEditLineup(){
@@ -449,19 +451,24 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
   }
   async function saveLineup(){
     const target=Math.min(6,players.length);
-    if(lineupDraft.length!==target){flash(`Elegí ${target} Jugador@${target===1?"":"s"}`);return;}
+    if(lineupDraft.length!==target){
+      setLineupError(`Seleccioná ${target} titulares tocando sus nombres (elegiste ${lineupDraft.length}). Después confirmá la formación.`);
+      return;
+    }
     const jerseyPairs=lineupDraft.map(id=>[id,cleanJersey(jerseyDraft[id])]).filter(([,num])=>num);
     const nums=jerseyPairs.map(([,num])=>num);
-    if(new Set(nums).size!==nums.length){flash("No Puede Haber Números De Camiseta Repetidos");return;}
+    if(new Set(nums).size!==nums.length){setLineupError("Hay números de camiseta repetidos. Corregilos antes de continuar.");return;}
     const normalizedJerseys=Object.fromEntries(jerseyPairs);
     if(await updateSession({current_lineup:lineupDraft,lineup_jersey_numbers:normalizedJerseys})){
       setJerseyDraft(normalizedJerseys);
       setEditingLineup(false);
+      setLineupError("");
       if(!lineupDraft.includes(selectedPlayer))setSelectedPlayer(lineupDraft[0]||"");
       flash("✓ Formación y Camisetas Actualizadas");
     }
   }
   function toggleLineup(id){
+    setLineupError("");
     setLineupDraft(current=>{
       if(current.includes(id))return current.filter(item=>item!==id);
       if(current.length>=Math.min(6,players.length)){flash("Máximo 6 En Cancha");return current;}
@@ -545,6 +552,8 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
 
           {editingLineup||lineup.length!==Math.min(6,players.length)?<section className="match-lineup-editor">
             <div className="match-live-section-head"><div><span>Antes De Empezar</span><h3>Elegí Jugadoras, Número y Posición Inicial</h3></div><b>{lineupDraft.length}/{Math.min(6,players.length)}</b></div>
+            <p className="match-lineup-instructions">1. Tocá los nombres de las 6 titulares. 2. Escribí sus números de camiseta. 3. Acomodá las posiciones y pulsá «Usar Esta Formación».</p>
+            {lineupError && <p className="match-lineup-error" role="alert">{lineupError}</p>}
             <div className="match-lineup-roster">{players.map(player=><div className={"match-lineup-roster-card "+(lineupDraft.includes(player.id)?"active":"")} key={player.id}>
               <button type="button" className={lineupDraft.includes(player.id)?"active":""} onClick={()=>toggleLineup(player.id)}>
                 <i>{jerseyDraft[player.id]||initials(player)}</i><span>{shortName(player)}</span>
@@ -557,7 +566,7 @@ export default function MatchStatsPanel({match,category,canManage=false,canView=
                 {lineupDraft.map(id=><option key={id} value={id}>{jerseyDraft[id]?"#"+jerseyDraft[id]+" · ":""}{shortName(playerById[id])}</option>)}
               </select></label>)}</div>
             </div>}
-            <div className="match-lineup-editor-actions">{lineup.length>0&&<button type="button" onClick={cancelEditLineup}>Cancelar</button>}<button type="button" className="primary" onClick={()=>void saveLineup()}>✓ Usar Esta Formación</button></div>
+            <div className="match-lineup-editor-actions">{lineup.length>0&&<button type="button" onClick={cancelEditLineup}>Cancelar</button>}<button type="button" className="primary" disabled={busy} onClick={()=>void saveLineup()}>{busy?"Guardando Formación…":"✓ Usar Esta Formación"}</button></div>
           </section>:<>
             <section className="match-live-court-card">
               <div className="match-live-section-head"><div><span>Jugador@s En Cancha</span><h3>Tocá A Quien Intervino</h3></div><div className="match-court-tools"><button type="button" onClick={beginEditLineup}>Cambiar</button><button type="button" onClick={()=>void rotate()}>↻ Rotar</button></div></div>
