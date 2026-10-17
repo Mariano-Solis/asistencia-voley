@@ -299,6 +299,9 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     setProgramRoundIds(null);
     setProgramStatus("all");
     setProgramCategoryKeys(null);
+    setProgramBranch("all");
+    setProgramDay("");
+    setProgramSort("date");
   }
 
   useEffect(() => {
@@ -789,7 +792,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
         <span>{programRoundSummary}</span>
         <span>{programCategorySummary}</span>
         <span>{programStatus === "all" ? "Todos Los Estados" : programStatus === "confirmed" ? "Confirmados" : "Tentativos"}</span>
-        {(programRoundIds !== null || programCategoryKeys !== null || programStatus !== "all" || programBranch !== "all" || programDay || programSort !== "date") && <button type="button" onClick={() => { resetProgramFilters(); setProgramBranch("all"); setProgramDay(""); setProgramSort("date"); }}>Restablecer</button>}
+        {(programRoundIds !== null || programCategoryKeys !== null || programStatus !== "all" || programBranch !== "all" || programDay || programSort !== "date") && <button type="button" onClick={resetProgramFilters}>Restablecer</button>}
       </div>
     </section> : null}
 
