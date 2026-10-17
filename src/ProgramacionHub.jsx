@@ -48,6 +48,16 @@ function formatTime(value) {
   }
 }
 
+function programMatchDay(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[1] + "-" + iso[2] + "-" + iso[3];
+  const local = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+  if (local) return local[3] + "-" + local[2].padStart(2, "0") + "-" + local[1].padStart(2, "0");
+  return "";
+}
+
 function displayTeam(value) {
   const team = String(value || "").trim();
   return team === "MSM B" ? "MSM B" : team;
@@ -102,6 +112,9 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
   const [fixtureOpponent, setFixtureOpponent] = useState("all");
   const [programRoundIds, setProgramRoundIds] = useState(null);
   const [programStatus, setProgramStatus] = useState("all");
+  const [programBranch, setProgramBranch] = useState("all");
+  const [programDay, setProgramDay] = useState("");
+  const [programSort, setProgramSort] = useState("date");
   const [programCategoryKeys, setProgramCategoryKeys] = useState(null);
   const abortRef = useRef(null);
 
@@ -217,13 +230,20 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       ...round,
       matches: round.matches.filter((match) => {
         if (programCategorySet !== null && !programCategorySet.has(match.permissionKey)) return false;
+        if (programBranch !== "all" && matchBranch(match) !== programBranch) return false;
+        if (programDay && programMatchDay(match.date) !== programDay) return false;
         if (programStatus === "confirmed" && !match.confirmed) return false;
         if (programStatus === "tentative" && match.confirmed) return false;
         return true;
+      }).sort((a, b) => {
+        const byDate = () => (programMatchDay(a.date) || "9999").localeCompare(programMatchDay(b.date) || "9999") || String(a.time || "").localeCompare(String(b.time || ""));
+        if (programSort === "category") return String(a.categoryLabel || "").localeCompare(String(b.categoryLabel || ""), "es") || byDate();
+        if (programSort === "branch") return matchBranch(a).localeCompare(matchBranch(b)) || byDate();
+        return byDate();
       }),
     }))
     .filter((round) => round.matches.length > 0),
-  [rounds, programRoundSet, programCategorySet, programStatus]);
+  [rounds, programRoundSet, programCategorySet, programStatus, programBranch, programDay, programSort]);
 
   const programVisibleMatchCount = useMemo(
     () => filteredProgramRounds.reduce((sum, round) => sum + round.matches.length, 0),
@@ -748,11 +768,28 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
         </label>
       </div>
 
+      <div className="programacion-program-filter-grid">
+        <label className="programacion-program-filter-selector"><span>Rama</span>
+          <select value={programBranch} onChange={(event) => setProgramBranch(event.target.value)}>
+            <option value="all">Todas Las Ramas</option><option value="female">Femenina</option><option value="male">Masculina</option>
+          </select>
+        </label>
+        <label className="programacion-program-filter-selector"><span>Día Específico</span>
+          <input type="date" value={programDay} onChange={(event) => setProgramDay(event.target.value)} aria-label="Filtrar partidos por día del calendario"/>
+        </label>
+        <label className="programacion-program-filter-selector"><span>Ordenar Por</span>
+          <select value={programSort} onChange={(event) => setProgramSort(event.target.value)}>
+            <option value="date">Fecha y Hora</option><option value="category">Categoría</option><option value="branch">Rama</option>
+          </select>
+        </label>
+      </div>
       <div className="programacion-program-filter-summary">
+        {programDay && <span>Día: {programDay.split("-").reverse().join("/")}</span>}
+        {programBranch !== "all" && <span>Rama: {branchLabel(programBranch)}</span>}
         <span>{programRoundSummary}</span>
         <span>{programCategorySummary}</span>
         <span>{programStatus === "all" ? "Todos Los Estados" : programStatus === "confirmed" ? "Confirmados" : "Tentativos"}</span>
-        {(programRoundIds !== null || programCategoryKeys !== null || programStatus !== "all") && <button type="button" onClick={resetProgramFilters}>Restablecer</button>}
+        {(programRoundIds !== null || programCategoryKeys !== null || programStatus !== "all" || programBranch !== "all" || programDay || programSort !== "date") && <button type="button" onClick={() => { resetProgramFilters(); setProgramBranch("all"); setProgramDay(""); setProgramSort("date"); }}>Restablecer</button>}
       </div>
     </section> : null}
 
