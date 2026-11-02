@@ -53,6 +53,8 @@ function programMatchDay(value) {
   if (!raw) return "";
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return iso[1] + "-" + iso[2] + "-" + iso[3];
+  const shortYear = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2})(?!\d)/);
+  if (shortYear) return `20${shortYear[3]}-${shortYear[2].padStart(2, "0")}-${shortYear[1].padStart(2, "0")}`;
   const local = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
   if (local) return local[3] + "-" + local[2].padStart(2, "0") + "-" + local[1].padStart(2, "0");
   return "";
