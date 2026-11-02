@@ -11,6 +11,7 @@ const SCHEDULE_TABLES=[
   {permissionKey:"female:level1:sub16",categoryLabel:"Sub 16 Femenino",tournamentId:899,stageId:3642,teams:["MSM"]},
   {permissionKey:"female:level1:sub14",categoryLabel:"Sub 14 Femenino",tournamentId:898,stageId:3641,teams:["MSM"]},
   {permissionKey:"female:level1:sub12",categoryLabel:"Sub 12 Femenino",tournamentId:897,stageId:3640,teams:["MSM"]},
+  {permissionKey:"female:level3:sub14a",categoryLabel:"Sub 14 Femenino · Nivel 3 · Zona A",tournamentId:913,stageId:3691,teams:[]},
   {permissionKey:"female:level3:sub14b",categoryLabel:"Sub 14 Femenino · Nivel 3 · Zona B",tournamentId:913,stageId:3692,teams:["MSM B"]},
   {permissionKey:"female:level3:sub12",categoryLabel:"Sub 12 Femenino · Nivel 3",tournamentId:915,stageId:3694,teams:["MSM B"]},
   {permissionKey:"female:master:master_a",categoryLabel:"Master A",tournamentId:886,stageId:3626,teams:["MSM"]},
