@@ -14,7 +14,7 @@ async function getFixtures(){
   if(!response.ok)throw Error("No se pudo consultar la programación");
   const payload=await response.json();
   if(payload.error)throw Error(payload.message||"Error de programación");
-  return payload.leagueFixtures||[];
+  return {fixtures:Array.isArray(payload.leagueFixtures)?payload.leagueFixtures:[],coverage:payload.leagueFixtureCoverage};
 }
 export default function FmvScenarioPanel({tables=[]}){
   const [key,setKey]=useState("");
@@ -29,11 +29,11 @@ export default function FmvScenarioPanel({tables=[]}){
   const table=tables.find(t=>t.tableKey===key)||tables[0];
   const selectedKey=table?.tableKey||"";
   useEffect(()=>{if(!tables.some(t=>t.tableKey===key))setKey(tables[0]?.tableKey||"")},[tables,key]);
-  useEffect(()=>{let live=true;setBusy(true);getFixtures().then(data=>{if(live){setFixtures(data.fixtures);setFixtureCoverage(data.coverage?.complete===true)}}).catch(e=>{if(live){setError(e.message);setFixtureCoverage(false)}}).finally(()=>{if(live)setBusy(false)});return()=>{live=false}},[]);
+  useEffect(()=>{let live=true;setBusy(true);getFixtures().then(data=>{if(live){setFixtures(Array.isArray(data?.fixtures)?data.fixtures:[]);setFixtureCoverage(data?.coverage?.complete===true)}}).catch(e=>{if(live){setError(e.message);setFixtureCoverage(false)}}).finally(()=>{if(live)setBusy(false)});return()=>{live=false}},[]);
   useEffect(()=>{setPredictions({});setSearch(null);setFavor([]);setOppose([])},[selectedKey]);
   const standings=useMemo(()=>(table?.positions||[]).map(r=>({id:normalize(r.id_equipo),name:r.id_equipo,points:Number(r.puntos||0),played:Number(r.jugados||0),won:Number(r.ganados||0),lost:Number(r.perdidos||0),setsFor:Number(r.setGanados||0),setsAgainst:Number(r.setPerdidos||0)})),[table]);
   const teamIds=useMemo(()=>new Set(standings.map(t=>t.id)),[standings]);
-  const pending=useMemo(()=>fixtures.filter(f=>f.permissionKey===selectedKey&&teamIds.has(normalize(f.local))&&teamIds.has(normalize(f.visitor))&&f.local&&f.visitor&&f.courtrackStatus==="upcoming").map((f,i)=>({id:String(f.id||[selectedKey,f.local,f.visitor,f.date,i].join(":")),homeId:normalize(f.local),awayId:normalize(f.visitor),date:f.date||"",time:f.time||""})).filter((f,i,arr)=>arr.findIndex(x=>x.id===f.id)===i),[fixtures,selectedKey,teamIds]);
+  const pending=useMemo(()=>(Array.isArray(fixtures)?fixtures:[]).filter(f=>f.permissionKey===selectedKey&&teamIds.has(normalize(f.local))&&teamIds.has(normalize(f.visitor))&&f.local&&f.visitor&&f.courtrackStatus==="upcoming").map((f,i)=>({id:String(f.id||[selectedKey,f.local,f.visitor,f.date,i].join(":")),homeId:normalize(f.local),awayId:normalize(f.visitor),date:f.date||"",time:f.time||""})).filter((f,i,arr)=>arr.findIndex(x=>x.id===f.id)===i),[fixtures,selectedKey,teamIds]);
   const projected=useMemo(()=>{try{return projectStandings(standings,pending,predictions)}catch{return standings}},[standings,pending,predictions]);
   const change=(id,value)=>{setSearch(null);setPredictions(current=>{const next={...current};if(value==="")delete next[id];else{const [homeSets,awaySets]=value.split("-").map(Number);next[id]={homeSets,awaySets}}return next})};
   const toggle=(setter,id)=>{setSearch(null);setter(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id])};

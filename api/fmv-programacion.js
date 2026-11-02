@@ -136,7 +136,7 @@ async function remainingFixtureFromCourtrack(rounds){
 
   const settled=await Promise.allSettled(SCHEDULE_TABLES.map(async config=>{
     const r=await fetch(`${COURTRACK_BASE}/findPartidos?id_torneos=${config.tournamentId}&id_etapas=${config.stageId}`,{headers:{Accept:"application/json"},cache:"no-store"});
-    if(!r.ok)return[];
+    if(!r.ok)throw new Error(`Courtrack ${config.permissionKey}: HTTP ${r.status}`);
     const payload=await r.json().catch(()=>({}));
     const rows=Array.isArray(payload?.data)?payload.data:[];
     return rows
