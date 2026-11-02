@@ -246,14 +246,14 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     }))
     .filter((round) => round.matches.length > 0)
     // Chronological mode must sort across rounds, not only inside each round.
-    .flatMap((round) => round.matches.map((match) => ({ ...round, matches: [match] })))
+    .flatMap((round) => programSort === "date" ? round.matches.map((match) => ({ ...round, matches: [match] })) : [round])
     .sort((a, b) => {
       if (programSort !== "date") return Number(a.round) - Number(b.round);
       const first = a.matches[0], second = b.matches[0];
       const dateA = programMatchDay(first.date) || "9999-12-31";
       const dateB = programMatchDay(second.date) || "9999-12-31";
       const timeValue = (value) => {
-        const match = String(value || "").match(/(\\d{1,2})(?::(\\d{2}))?/);
+        const match = String(value || "").match(/(\d{1,2})(?::(\d{2}))?/);
         return match ? Number(match[1]) * 60 + Number(match[2] || 0) : 9999;
       };
       return dateA.localeCompare(dateB) || timeValue(first.time) - timeValue(second.time)
