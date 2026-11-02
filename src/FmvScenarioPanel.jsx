@@ -25,19 +25,21 @@ export default function FmvScenarioPanel({tables=[]}){
   const [favor,setFavor]=useState([]);
   const [oppose,setOppose]=useState([]);
   const [search,setSearch]=useState(null);
+  const [fixtureCoverage,setFixtureCoverage]=useState(null);
   const table=tables.find(t=>t.tableKey===key)||tables[0];
   const selectedKey=table?.tableKey||"";
   useEffect(()=>{if(!tables.some(t=>t.tableKey===key))setKey(tables[0]?.tableKey||"")},[tables,key]);
-  useEffect(()=>{let live=true;setBusy(true);getFixtures().then(data=>{if(live)setFixtures(data)}).catch(e=>{if(live)setError(e.message)}).finally(()=>{if(live)setBusy(false)});return()=>{live=false}},[]);
+  useEffect(()=>{let live=true;setBusy(true);getFixtures().then(data=>{if(live){setFixtures(data);setFixtureCoverage(true)}}).catch(e=>{if(live){setError(e.message);setFixtureCoverage(false)}}).finally(()=>{if(live)setBusy(false)});return()=>{live=false}},[]);
   useEffect(()=>{setPredictions({});setSearch(null);setFavor([]);setOppose([])},[selectedKey]);
   const standings=useMemo(()=>(table?.positions||[]).map(r=>({id:normalize(r.id_equipo),name:r.id_equipo,points:Number(r.puntos||0),played:Number(r.jugados||0),won:Number(r.ganados||0),lost:Number(r.perdidos||0),setsFor:Number(r.setGanados||0),setsAgainst:Number(r.setPerdidos||0)})),[table]);
   const teamIds=useMemo(()=>new Set(standings.map(t=>t.id)),[standings]);
-  const pending=useMemo(()=>fixtures.filter(f=>f.permissionKey===selectedKey&&teamIds.has(normalize(f.local))&&teamIds.has(normalize(f.visitor))&&f.local&&f.visitor&&f.status!=="played").map((f,i)=>({id:String(f.id||[selectedKey,f.local,f.visitor,f.date,i].join(":")),homeId:normalize(f.local),awayId:normalize(f.visitor),date:f.date||"",time:f.time||""})).filter((f,i,arr)=>arr.findIndex(x=>x.id===f.id)===i),[fixtures,selectedKey,teamIds]);
+  const pending=useMemo(()=>fixtures.filter(f=>f.permissionKey===selectedKey&&teamIds.has(normalize(f.local))&&teamIds.has(normalize(f.visitor))&&f.local&&f.visitor&&f.courtrackStatus==="upcoming").map((f,i)=>({id:String(f.id||[selectedKey,f.local,f.visitor,f.date,i].join(":")),homeId:normalize(f.local),awayId:normalize(f.visitor),date:f.date||"",time:f.time||""})).filter((f,i,arr)=>arr.findIndex(x=>x.id===f.id)===i),[fixtures,selectedKey,teamIds]);
   const projected=useMemo(()=>{try{return projectStandings(standings,pending,predictions)}catch{return standings}},[standings,pending,predictions]);
   const change=(id,value)=>{setSearch(null);setPredictions(current=>{const next={...current};if(value==="")delete next[id];else{const [homeSets,awaySets]=value.split("-").map(Number);next[id]={homeSets,awaySets}}return next})};
   const toggle=(setter,id)=>{setSearch(null);setter(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id])};
   const optimize=()=>{
     setError("");setSearch(null);
+    if(fixtureCoverage!==true){setError("No se pudo verificar la programación completa.");return}
     if(!favor.length&&!oppose.length){setError("Elegí al menos un equipo para favorecer o perjudicar.");return}
     if(favor.some(id=>oppose.includes(id))){setError("Un equipo no puede estar simultáneamente en ambos objetivos.");return}
     const remaining=pending.filter(f=>!predictions[f.id]);
@@ -53,6 +55,7 @@ export default function FmvScenarioPanel({tables=[]}){
     <label>Tabla / categoría <select value={selectedKey} onChange={e=>setKey(e.target.value)}>{tables.map(t=><option key={t.tableKey} value={t.tableKey}>{t.categoryLabel} · {t.branch==="female"?"Femenino":"Masculino"} · {t.competition}</option>)}</select></label>
     {busy?<p>Consultando partidos pendientes…</p>:null}
     {error?<p role="alert" style={{color:"#b91c1c"}}>{error}</p>:null}
+    <p>Fuente: Courtrack, encuentros con estado upcoming. Los cálculos sólo abarcan las categorías y encuentros que devuelve la fuente. Las reglas de desempate y ascenso/descenso siguen sin certificar.</p>
     <h3>Partidos para pronosticar ({pending.length})</h3>
     {pending.length===0?<p>No se encontraron partidos pendientes compatibles con esta tabla. No se inventan encuentros.</p>:pending.map(f=><div key={f.id} style={{display:"flex",gap:12,alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #ddd",flexWrap:"wrap"}}>
       <span>{f.homeId} – {f.awayId} <small>{f.date}</small></span>
