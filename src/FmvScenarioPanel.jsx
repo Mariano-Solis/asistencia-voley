@@ -8,7 +8,7 @@ async function getFixtures(){
     if(response.status<200||response.status>=300)throw Error("No se pudo consultar la programación");
     const payload=typeof response.data==="string"?JSON.parse(response.data):response.data;
     if(payload?.error)throw Error(payload.message||"Error de programación");
-    return payload.leagueFixtures||[];
+    return {fixtures:payload.leagueFixtures||[],coverage:payload.leagueFixtureCoverage};
   }
   const response=await fetch("/api/fmv-programacion",{cache:"no-store"});
   if(!response.ok)throw Error("No se pudo consultar la programación");
@@ -29,7 +29,7 @@ export default function FmvScenarioPanel({tables=[]}){
   const table=tables.find(t=>t.tableKey===key)||tables[0];
   const selectedKey=table?.tableKey||"";
   useEffect(()=>{if(!tables.some(t=>t.tableKey===key))setKey(tables[0]?.tableKey||"")},[tables,key]);
-  useEffect(()=>{let live=true;setBusy(true);getFixtures().then(data=>{if(live){setFixtures(data);setFixtureCoverage(true)}}).catch(e=>{if(live){setError(e.message);setFixtureCoverage(false)}}).finally(()=>{if(live)setBusy(false)});return()=>{live=false}},[]);
+  useEffect(()=>{let live=true;setBusy(true);getFixtures().then(data=>{if(live){setFixtures(data.fixtures);setFixtureCoverage(data.coverage?.complete===true)}}).catch(e=>{if(live){setError(e.message);setFixtureCoverage(false)}}).finally(()=>{if(live)setBusy(false)});return()=>{live=false}},[]);
   useEffect(()=>{setPredictions({});setSearch(null);setFavor([]);setOppose([])},[selectedKey]);
   const standings=useMemo(()=>(table?.positions||[]).map(r=>({id:normalize(r.id_equipo),name:r.id_equipo,points:Number(r.puntos||0),played:Number(r.jugados||0),won:Number(r.ganados||0),lost:Number(r.perdidos||0),setsFor:Number(r.setGanados||0),setsAgainst:Number(r.setPerdidos||0)})),[table]);
   const teamIds=useMemo(()=>new Set(standings.map(t=>t.id)),[standings]);
@@ -56,6 +56,7 @@ export default function FmvScenarioPanel({tables=[]}){
     {busy?<p>Consultando partidos pendientes…</p>:null}
     {error?<p role="alert" style={{color:"#b91c1c"}}>{error}</p>:null}
     <p>Fuente: Courtrack, encuentros con estado upcoming. Los cálculos sólo abarcan las categorías y encuentros que devuelve la fuente. Las reglas de desempate y ascenso/descenso siguen sin certificar.</p>
+    {fixtureCoverage===false?<p role="alert">No se confirmó cobertura completa de todas las categorías. Las proyecciones podrían omitir partidos; se deshabilita la optimización automática.</p>:null}
     <h3>Partidos para pronosticar ({pending.length})</h3>
     {pending.length===0?<p>No se encontraron partidos pendientes compatibles con esta tabla. No se inventan encuentros.</p>:pending.map(f=><div key={f.id} style={{display:"flex",gap:12,alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #ddd",flexWrap:"wrap"}}>
       <span>{f.homeId} – {f.awayId} <small>{f.date}</small></span>
