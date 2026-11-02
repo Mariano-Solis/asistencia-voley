@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import FmvScenarioPanel from "./FmvScenarioPanel";
 
 const TABLE_CATALOG = [
   { key: "female:level1:sub12", branch: "female", competition: "level1", category: "sub12", apiCategory: "sub12", label: "Sub 12", tournamentId: 897, stageId: 3640 },
@@ -1181,5 +1182,6 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     </div>
 
     {generalPositionsSection}
+    {!loading && <FmvScenarioPanel tables={tables} />}
   </section>;
 }
