@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import FmvScenarioBoundary from "./FmvScenarioBoundary";
+import FmvScenarioPanel from "./FmvScenarioPanel";
 
 const TABLE_CATALOG = [
   { key: "female:level1:sub12", branch: "female", competition: "level1", category: "sub12", apiCategory: "sub12", label: "Sub 12", tournamentId: 897, stageId: 3640 },
@@ -395,6 +397,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const [selectedTeam, setSelectedTeam] = useState("MSM");
   const [advanced, setAdvanced] = useState(false);
   const [tables, setTables] = useState([]);
+  const [showSimulator, setShowSimulator] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
@@ -1181,6 +1184,7 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     </div>
 
     {generalPositionsSection}
-    {/* Simulador temporalmente desactivado por error de pantalla en blanco. */}
+    <section className="standings-card card"><button type="button" onClick={() => setShowSimulator(value => !value)} aria-expanded={showSimulator}>{showSimulator ? "Cerrar simulador" : "Abrir simulador de escenarios"}</button></section>
+    {showSimulator && !loading && <FmvScenarioBoundary><FmvScenarioPanel tables={tables}/></FmvScenarioBoundary>}
   </section>;
 }
