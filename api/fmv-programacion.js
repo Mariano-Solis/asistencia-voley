@@ -243,12 +243,12 @@ async function leagueUpcomingFixtures(rounds){
     if(!unique.has(key))unique.set(key,item);
   }
 
-  return [...unique.values()].sort((a,b)=>{
+  return {fixtures:[...unique.values()].sort((a,b)=>{
     const rank={reprogramming:0,scheduled:1,unscheduled:2};
     if(rank[a.scheduleState]!==rank[b.scheduleState])return rank[a.scheduleState]-rank[b.scheduleState];
     if(a.scheduled&&b.scheduled)return new Date(a.scheduledAt)-new Date(b.scheduledAt);
     return a.categoryLabel.localeCompare(b.categoryLabel,"es")||a.local.localeCompare(b.local,"es")||a.visitor.localeCompare(b.visitor,"es");
-  });
+  }), successfulSources:settled.filter(x=>x.status==="fulfilled").length, totalSources:SCHEDULE_TABLES.length};
 }
 
 async function tentativeFromCourtrack(cutoff){
@@ -298,7 +298,8 @@ export default async function handler(req,res){
       fetchedAt:new Date().toISOString(),
       rounds,
       remainingFixtures,
-      leagueFixtures
+      leagueFixtures:leagueFixtures.fixtures,
+      leagueFixtureCoverage:{successfulSources:leagueFixtures.successfulSources,totalSources:leagueFixtures.totalSources,complete:leagueFixtures.successfulSources===leagueFixtures.totalSources}
     },true);
   }catch(error){return send(res,502,{error:true,message:error?.message||"No Se Pudo Consultar La Programación."})}
 }
