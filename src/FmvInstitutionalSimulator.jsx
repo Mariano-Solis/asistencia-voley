@@ -82,10 +82,11 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
   const best=useMemo(()=>rankInstitutions(tables,relevant,autoPredictions(relevant,selected,true)),[tables,relevant,selected]);
   const worst=useMemo(()=>rankInstitutions(tables,relevant,autoPredictions(relevant,selected,false)),[tables,relevant,selected]);
   const find=(rows)=>rows.find(r=>r.id===selected);
+  const cutoff=ranking.length>=2?ranking.length-1:0;
   const status=(row)=>{
     if(!row)return "Sin datos";
-    if(!threshold)return "Sin cupo oficial configurado";
-    return row.position>=Number(threshold)?"En zona hipotética de descenso":"Fuera de zona hipotética";
+    if(!cutoff)return "Sin suficientes instituciones";
+    return row.position>=cutoff?"En zona de descenso (2 últimos)":"Fuera de zona de descenso";
   };
   if(entries.length!==4)return <section className="card"><h2>Simulador institucional</h2><p>No están disponibles las cuatro categorías de esta rama y nivel. No se mezclan torneos ni ramas.</p></section>;
   return <section className="card" style={{padding:18,marginTop:18}}>
@@ -98,7 +99,7 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
     <label>Institución <select value={selected} onChange={e=>{setTarget(e.target.value);setScenario("manual");setPredictions({})}}>{teams.map(id=><option key={id} value={id}>{id}</option>)}</select></label>
     <label>Escenario <select value={scenario} onChange={e=>setScenario(e.target.value)}><option value="manual">Resultados que elijo</option><option value="best">MSM / institución elegida gana todos sus pendientes</option><option value="worst">MSM / institución elegida pierde todos sus pendientes</option></select></label>
     <p>Los escenarios favorable y desfavorable son simulaciones de los partidos de la institución, <strong>no máximos o mínimos matemáticos globales</strong>: los partidos entre rivales no elegidos quedan sin pronóstico.</p>
-    <label>Primer puesto que descendería (solo para explorar una hipótesis, no reglamento FMV) <input type="number" min="1" max={Math.max(1,ranking.length)} value={threshold} onChange={e=>setThreshold(e.target.value)} placeholder="Sin definir"/></label>
+    <p>Descenso: los últimos dos puestos de la clasificación institucional, según el cupo informado por el usuario. Para Nivel I con 12 instituciones corresponden los puestos 11.º y 12.º.</p>
     <div style={{overflowX:"auto"}}><table className="standings-table"><thead><tr><th>Situación</th><th>Posición institucional</th><th>Puntos</th><th>Interpretación</th></tr></thead><tbody>
       {[["Actual",find(base)],["Ganando sus partidos",find(best)],["Perdiendo sus partidos",find(worst)],["Pronóstico elegido",find(ranking)]].map(([name,row])=><tr key={name}><td>{name}</td><td>{row?.position||"—"}</td><td>{row?.points??"—"}</td><td>{status(row)}</td></tr>)}
     </tbody></table></div>
@@ -107,6 +108,6 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
     <details><summary>Ver partidos pendientes de las cuatro categorías ({relevant.length})</summary>
       {relevant.map(f=><div key={f.id} style={{padding:"8px 0",borderBottom:"1px solid #ddd"}}><span>{label[String(f.permissionKey).split(":").pop()]||f.categoryLabel}: {f.local} – {f.visitor} · {f.date}</span> <select disabled={scenario!=="manual"} aria-label={f.local+" contra "+f.visitor} value={predictions[f.id]?predictions[f.id].homeSets+"-"+predictions[f.id].awaySets:""} onChange={e=>setPredictions(current=>{const next={...current};if(!e.target.value)delete next[f.id];else{const [homeSets,awaySets]=e.target.value.split("-").map(Number);next[f.id]={homeSets,awaySets}}return next})}><option value="">Sin pronóstico</option>{VOLLEY_RESULTS.map(([h,a])=><option key={h+"-"+a} value={h+"-"+a}>{h}–{a}</option>)}</select></div>)}
     </details>
-    <p><strong>Importante:</strong> hasta verificar la fórmula de ascenso/descenso y los desempates en la forma de disputa oficial 2026, el sistema no afirma que un club ascienda o descienda. Tampoco considera partidos faltantes fuera de la fuente.</p>
+    <p><strong>Importante:</strong> el cupo de dos ascensos y dos descensos fue informado por el usuario. La posición por categorías es una proyección; los criterios oficiales de desempate institucional requieren datos completos de puntos, sets y tantos. Tampoco considera partidos faltantes fuera de la fuente.</p>
   </section>;
 }
