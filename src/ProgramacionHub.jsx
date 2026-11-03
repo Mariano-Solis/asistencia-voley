@@ -448,6 +448,17 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     return true;
   }), [leagueFixtures, fixtureBranch, fixtureCategorySet, fixtureInstitution, fixtureOpponent]);
 
+  const chronologicalFixtures = useMemo(() => [...filteredFixtures].sort((a,b) => {
+    const dateA=programMatchDay(a.date)||"9999-12-31";
+    const dateB=programMatchDay(b.date)||"9999-12-31";
+    const timeMinutes=value=>{
+      const found=String(value||"").match(/(\d{1,2})(?::(\d{2}))?/);
+      return found?Number(found[1])*60+Number(found[2]||0):9999;
+    };
+    return dateA.localeCompare(dateB)||timeMinutes(a.time)-timeMinutes(b.time)
+      ||String(a.categoryLabel||"").localeCompare(String(b.categoryLabel||""),"es");
+  }),[filteredFixtures]);
+
   const fixtureStatusCounts = useMemo(() => ({
     reprogramming: filteredFixtures.filter((match) => match.scheduleState === "reprogramming").length,
     scheduled: filteredFixtures.filter((match) => match.scheduleState === "scheduled").length,
@@ -926,7 +937,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
       </div>
 
       {filteredFixtures.length ? <div className="programacion-fixture-list">
-        {filteredFixtures.map((match) => <article key={match.id} className="programacion-fixture-match">
+        {chronologicalFixtures.map((match) => <article key={match.id} className="programacion-fixture-match">
           <div className="programacion-fixture-match-top">
             <strong>{match.categoryLabel}</strong>
             <span className={match.scheduleState === "reprogramming" ? "reprogramming" : match.scheduled ? "scheduled" : "pending"}>
