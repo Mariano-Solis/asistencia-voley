@@ -452,7 +452,7 @@ export default function ProgramacionHub({ allowedCategories = null, unrestricted
     const dateA=programMatchDay(a.date)||"9999-12-31";
     const dateB=programMatchDay(b.date)||"9999-12-31";
     const timeMinutes=value=>{
-      const found=String(value||"").match(/(\\d{1,2})(?::(\\d{2}))?/);
+      const found=String(value||"").match(/(\d{1,2})(?::(\d{2}))?/);
       return found?Number(found[1])*60+Number(found[2]||0):9999;
     };
     return dateA.localeCompare(dateB)||timeMinutes(a.time)-timeMinutes(b.time)
