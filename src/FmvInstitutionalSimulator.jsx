@@ -2,7 +2,6 @@ import {useEffect,useMemo,useState} from "react";
 import {Capacitor,CapacitorHttp} from "@capacitor/core";
 import {projectStandings,VOLLEY_RESULTS} from "./fmvScenarioEngine";
 
-const CATEGORIES=["sub14","sub16","sub18","mayores"];
 const norm=value=>String(value||"").trim().toUpperCase();
 const institution=value=>norm(value).replace(/\\s+[A-C]$/,"");
 const score=position=>Math.max(0,13-position);
@@ -88,7 +87,7 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
     if(!threshold)return "Sin cupo oficial configurado";
     return row.position>=Number(threshold)?"En zona hipotética de descenso":"Fuera de zona hipotética";
   };
-  if(!entries.length)return <section className="card"><h2>Simulador institucional</h2><p>No están disponibles las cuatro categorías de esta rama y nivel. No se mezclan torneos ni ramas.</p></section>;
+  if(entries.length!==4)return <section className="card"><h2>Simulador institucional</h2><p>No están disponibles las cuatro categorías de esta rama y nivel. No se mezclan torneos ni ramas.</p></section>;
   return <section className="card" style={{padding:18,marginTop:18}}>
     <h2>Simulador institucional · Ascensos y descensos</h2>
     <p>Integra Sub 14, Sub 16, Sub 18 y Primera. Sub 12 queda excluida. Se calcula una clasificación orientativa por suma de puntos por posición (1.º=12, 2.º=11…). No altera las posiciones oficiales.</p>
