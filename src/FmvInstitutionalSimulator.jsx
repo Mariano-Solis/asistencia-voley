@@ -53,12 +53,12 @@ function autoPredictions(fixtures,target,optimistic){
   return predictions;
 }
 
-function findRelegationExamples(tables,fixtures,target,fixed={},maxChecks=12000){
+function findRelegationExamples(tables,fixtures,targets,safeTargets,fixed={},maxChecks=12000){
   const pending=fixtures.filter(f=>!fixed[String(f.id)]);
   const total=6**pending.length;
   const complete=Number.isSafeInteger(total)&&total<=maxChecks;
   const checks=complete?total:maxChecks;
-  const results={relegation:[],survival:[]};
+  const results={matching:[]};
   let seed=2166136261;
   const random=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return (seed>>>0)/4294967296};
   for(let i=0;i<checks;i++){
@@ -71,15 +71,17 @@ function findRelegationExamples(tables,fixtures,target,fixed={},maxChecks=12000)
       predictions[String(f.id)]={homeSets,awaySets};
     }
     const ranking=rankInstitutions(tables,fixtures,predictions);
-    const row=ranking.find(r=>r.id===target);
-    if(!row||ranking.length<3)continue;
-    const relegated=row.position>ranking.length-2;
-    const kind=relegated?"relegation":"survival";
-    const list=results[kind];
-    if(list.length<5&&!list.some(item=>item.position===row.position&&item.points===row.points)){
-      list.push({position:row.position,points:row.points,predictions});
+    if(ranking.length<3)continue;
+    const cutoff=ranking.length-1;
+    const descend=ranking.filter(r=>r.position>=cutoff).map(r=>r.id);
+    if(!targets.every(id=>descend.includes(id))||!safeTargets.every(id=>!descend.includes(id)))continue;
+    if(results.matching.length<8){
+      const signature=descend.join("|");
+      if(!results.matching.some(item=>item.signature===signature&&item.positions===targets.map(id=>ranking.find(r=>r.id===id)?.position).join(","))){
+        results.matching.push({ranking,predictions,signature,positions:targets.map(id=>ranking.find(r=>r.id===id)?.position).join(",")});
+      }
     }
-    if(results.relegation.length>=5&&results.survival.length>=5&&!complete)break;
+    if(results.matching.length>=8&&!complete)break;
   }
   return {complete,checks,total,results,remaining:pending.length};
 }
@@ -94,6 +96,8 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
   const [predictions,setPredictions]=useState({});
   const [scenario,setScenario]=useState("manual");
   const [examples,setExamples]=useState(null);
+  const [relegate,setRelegate]=useState([]);
+  const [protect,setProtect]=useState([]);
   const [threshold,setThreshold]=useState("");
   useEffect(()=>{
     let active=true;
@@ -110,7 +114,7 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
   const base=useMemo(()=>rankInstitutions(tables,[],{}),[tables]);
   const teams=base.map(r=>r.id);
   const selected=teams.includes(target)?target:teams[0]||"";
-  useEffect(()=>setExamples(null),[selected,scenario,predictions,relevant]);
+  useEffect(()=>setExamples(null),[selected,scenario,predictions,relevant,relegate,protect]);
   const activePredictions=useMemo(()=>scenario==="manual"?predictions:autoPredictions(relevant,selected,scenario==="best"),[scenario,predictions,relevant,selected]);
   const ranking=useMemo(()=>rankInstitutions(tables,relevant,activePredictions),[tables,relevant,activePredictions]);
   const best=useMemo(()=>rankInstitutions(tables,relevant,autoPredictions(relevant,selected,true)),[tables,relevant,selected]);
@@ -137,20 +141,28 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
     <div style={{overflowX:"auto"}}><table className="standings-table"><thead><tr><th>Situación</th><th>Posición institucional</th><th>Puntos</th><th>Interpretación</th></tr></thead><tbody>
       {[["Actual",find(base)],["Ganando sus partidos",find(best)],["Perdiendo sus partidos",find(worst)],["Pronóstico elegido",find(ranking)]].map(([name,row])=><tr key={name}><td>{name}</td><td>{row?.position||"—"}</td><td>{row?.points??"—"}</td><td>{status(row)}</td></tr>)}
     </tbody></table></div>
-    <h3>Buscar resultados para que una institución descienda o se salve</h3>
-    <p>La búsqueda combina resultados de todos los partidos pendientes de las cuatro categorías, incluidos los encuentros entre rivales. Los pronósticos manuales quedan fijos. Los demás partidos pueden terminar 3–0, 3–1, 3–2, 2–3, 1–3 o 0–3.</p>
-    <button type="button" disabled={busy||!coverage||!selected||relevant.length===0} onClick={()=>{setScenario("manual");setExamples(findRelegationExamples(tables,relevant,selected,predictions))}}>Buscar escenarios de descenso y permanencia</button>
+    <h3>Objetivo inverso: ¿qué instituciones querés que desciendan?</h3>
+    <p>Elegí una o dos instituciones para descender y, si querés, otras que deban salvarse. El buscador combina los resultados pendientes de todas las instituciones y categorías simultáneamente.</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+      <fieldset><legend>Quiero que desciendan (máximo 2)</legend>
+        {teams.map(id=><label key={id} style={{display:"block",marginBottom:5}}><input type="checkbox" checked={relegate.includes(id)} disabled={!relegate.includes(id)&&(relegate.length>=2||protect.includes(id))} onChange={e=>setRelegate(old=>e.target.checked?[...old,id]:old.filter(x=>x!==id))}/> {id}</label>)}
+      </fieldset>
+      <fieldset><legend>Quiero que se salven</legend>
+        {teams.map(id=><label key={id} style={{display:"block",marginBottom:5}}><input type="checkbox" checked={protect.includes(id)} disabled={!protect.includes(id)&&relegate.includes(id)} onChange={e=>setProtect(old=>e.target.checked?[...old,id]:old.filter(x=>x!==id))}/> {id}</label>)}
+      </fieldset>
+    </div>
+    <p>Las selecciones se evalúan a la vez. El sistema no acepta que una misma institución descienda y se salve, ni más de dos descensos.</p>
+    <button type="button" disabled={busy||!coverage||(!relegate.length&&!protect.length)||relevant.length===0} onClick={()=>{setScenario("manual");setExamples(findRelegationExamples(tables,relevant,relegate,protect,predictions))}}>Buscar resultados que cumplan mi objetivo</button>
     {examples?<div>
-      <p>Se evaluaron {examples.checks.toLocaleString("es-AR")} combinaciones. {examples.complete?"Búsqueda exhaustiva de los partidos incluidos.":"Muestreo de combinaciones: no garantiza encontrar todos los escenarios ni permite declarar descenso inevitable."}</p>
-      {[[ "relegation","Escenarios que lo dejan entre los dos últimos"],["survival","Escenarios que lo mantienen fuera del descenso"]].map(([kind,title])=><div key={kind}>
-        <h4>{title} ({examples.results[kind].length} ejemplos)</h4>
-        {!examples.results[kind].length?<p>No se encontró ningún ejemplo en la búsqueda realizada; esto no demuestra imposibilidad salvo que la búsqueda sea exhaustiva y los datos estén completos.</p>:null}
-        {examples.results[kind].map((item,i)=><details key={i}><summary>Ejemplo {i+1}: puesto {item.position} · {item.points} puntos institucionales</summary>
-          <ol>{relevant.map(f=>{const p=item.predictions[String(f.id)];return p?<li key={f.id}>{f.categoryLabel}: {f.local} – {f.visitor}: {p.homeSets}–{p.awaySets}</li>:null})}</ol>
-          <button type="button" onClick={()=>{setPredictions(item.predictions);setScenario("manual")}}>Aplicar este escenario a la tabla</button>
-        </details>)}
-      </div>)}
-      <p>Los ejemplos corresponden a la fórmula de puntos por posición usada por la aplicación. Los desempates reglamentarios completos y la cobertura de datos deben verificarse antes de considerar definitivo un descenso.</p>
+      <p>Se evaluaron {examples.checks.toLocaleString("es-AR")} combinaciones. {examples.complete?"Búsqueda exhaustiva sobre los encuentros incluidos.":"Búsqueda por muestreo: no garantiza encontrar todos los escenarios ni permite declarar imposible un objetivo."}</p>
+      <h4>Escenarios encontrados: {examples.results.matching.length}</h4>
+      {!examples.results.matching.length?<p>No se encontraron combinaciones que cumplan el objetivo en esta búsqueda. {examples.complete?"Con los encuentros y criterios incluidos, no existe una combinación válida.":"Puede haber combinaciones que el muestreo no haya encontrado."}</p>:null}
+      {examples.results.matching.map((item,i)=><details key={i}><summary>Escenario {i+1}: descienden {item.ranking.slice(-2).map(r=>r.id).join(" y ")}</summary>
+        <p>Posiciones finales: {item.ranking.map(r=>r.position+".º "+r.id).join(" · ")}</p>
+        <ol>{relevant.map(f=>{const p=item.predictions[String(f.id)];return p?<li key={f.id}>{f.categoryLabel}: {f.local} – {f.visitor}: {p.homeSets}–{p.awaySets}</li>:null})}</ol>
+        <button type="button" onClick={()=>{setPredictions(item.predictions);setScenario("manual")}}>Aplicar este escenario</button>
+      </details>)}
+      <p>Los resultados son proyecciones: para certificar un descenso oficial deben verificarse la cobertura de encuentros y todos los desempates reglamentarios.</p>
     </div>:null}
     <h3>Tabla institucional proyectada</h3>
     <div style={{overflowX:"auto"}}><table className="standings-table"><thead><tr><th>#</th><th>Institución</th><th>Puntos</th><th>Categorías</th></tr></thead><tbody>{ranking.map(row=><tr key={row.id}><td>{row.position}</td><td>{row.id}</td><td>{row.points}</td><td>{row.categories}/4</td></tr>)}</tbody></table></div>
