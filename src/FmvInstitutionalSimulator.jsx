@@ -53,6 +53,24 @@ function autoPredictions(fixtures,target,optimistic){
   return predictions;
 }
 
+function objectiveMet(ranking,targets,safeTargets){
+  if(ranking.length<3)return false;
+  const relegated=new Set(ranking.slice(-2).map(r=>r.id));
+  return targets.every(id=>relegated.has(id))&&safeTargets.every(id=>!relegated.has(id));
+}
+function decisiveMatches(tables,fixtures,predictions,targets,safeTargets){
+  // One-match counterfactual: keep every other projected result unchanged.
+  // Only display a fixture if a valid alternative flips the chosen objective.
+  return fixtures.filter(f=>{
+    const current=predictions[String(f.id)];
+    if(!current)return false;
+    return VOLLEY_RESULTS.some(([homeSets,awaySets])=>{
+      if(homeSets===current.homeSets&&awaySets===current.awaySets)return false;
+      const changed={...predictions,[String(f.id)]:{homeSets,awaySets}};
+      return !objectiveMet(rankInstitutions(tables,fixtures,changed),targets,safeTargets);
+    });
+  });
+}
 function findRelegationExamples(tables,fixtures,targets,safeTargets,fixed={},maxChecks=12000){
   const pending=fixtures.filter(f=>!fixed[String(f.id)]);
   const total=6**pending.length;
@@ -74,11 +92,11 @@ function findRelegationExamples(tables,fixtures,targets,safeTargets,fixed={},max
     if(ranking.length<3)continue;
     const cutoff=ranking.length-1;
     const descend=ranking.filter(r=>r.position>=cutoff).map(r=>r.id);
-    if(!targets.every(id=>descend.includes(id))||!safeTargets.every(id=>!descend.includes(id)))continue;
+    if(!objectiveMet(ranking,targets,safeTargets))continue;
     if(results.matching.length<8){
       const signature=descend.join("|");
       if(!results.matching.some(item=>item.signature===signature&&item.positions===targets.map(id=>ranking.find(r=>r.id===id)?.position).join(","))){
-        results.matching.push({ranking,predictions,signature,positions:targets.map(id=>ranking.find(r=>r.id===id)?.position).join(",")});
+        results.matching.push({ranking,predictions,signature,positions:targets.map(id=>ranking.find(r=>r.id===id)?.position).join(","),decisive:decisiveMatches(tables,fixtures,predictions,targets,safeTargets)});
       }
     }
     if(results.matching.length>=8&&!complete)break;
@@ -159,10 +177,11 @@ export default function FmvInstitutionalSimulator({entries=[],loadTable}){
       {!examples.results.matching.length?<p>No se encontraron combinaciones que cumplan el objetivo en esta búsqueda. {examples.complete?"Con los encuentros y criterios incluidos, no existe una combinación válida.":"Puede haber combinaciones que el muestreo no haya encontrado."}</p>:null}
       {examples.results.matching.map((item,i)=><details key={i}><summary>Escenario {i+1}: descienden {item.ranking.slice(-2).map(r=>r.id).join(" y ")}</summary>
         <p>Posiciones finales: {item.ranking.map(r=>r.position+".º "+r.id).join(" · ")}</p>
-        <ol>{relevant.map(f=>{const p=item.predictions[String(f.id)];return p?<li key={f.id}>{f.categoryLabel}: {f.local} – {f.visitor}: {p.homeSets}–{p.awaySets}</li>:null})}</ol>
+        <p><strong>Resultados decisivos:</strong> {item.decisive.length}. Solo se muestran los partidos cuyo marcador, al cambiarlo individualmente y mantener los demás resultados de este escenario, puede hacer que el objetivo deje de cumplirse.</p>
+        {item.decisive.length?<ol>{item.decisive.map(f=>{const p=item.predictions[String(f.id)];return <li key={f.id}>{f.categoryLabel}: {f.local} – {f.visitor}: {p.homeSets}–{p.awaySets}</li>})}</ol>:<p>No se detectó un partido decisivo individual. El objetivo puede depender de varios resultados combinados; no significa que los partidos restantes sean irrelevantes.</p>}
         <button type="button" onClick={()=>{setPredictions(item.predictions);setScenario("manual")}}>Aplicar este escenario</button>
       </details>)}
-      <p>Los resultados son proyecciones: para certificar un descenso oficial deben verificarse la cobertura de encuentros y todos los desempates reglamentarios.</p>
+      <p>Filtro de relevancia: cambio individual de cada marcador con los demás fijos. No identifica todas las dependencias conjuntas ni demuestra un conjunto mínimo de resultados. Los resultados son proyecciones; para certificar un descenso oficial deben verificarse la cobertura de encuentros y los desempates reglamentarios.</p>
     </div>:null}
     <h3>Tabla institucional proyectada</h3>
     <div style={{overflowX:"auto"}}><table className="standings-table"><thead><tr><th>#</th><th>Institución</th><th>Puntos</th><th>Categorías</th></tr></thead><tbody>{ranking.map(row=><tr key={row.id}><td>{row.position}</td><td>{row.id}</td><td>{row.points}</td><td>{row.categories}/4</td></tr>)}</tbody></table></div>
