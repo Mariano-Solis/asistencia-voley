@@ -3,7 +3,7 @@ import {Capacitor,CapacitorHttp} from "@capacitor/core";
 import {projectStandings,VOLLEY_RESULTS} from "./fmvScenarioEngine";
 
 const norm=value=>String(value||"").trim().toUpperCase();
-const institution=value=>norm(value).replace(/\\s+[A-C]$/,"");
+const institution=value=>norm(value).replace(/\s+[A-C]$/,"");
 const score=position=>Math.max(0,13-position);
 const label={sub14:"Sub 14",sub16:"Sub 16",sub18:"Sub 18",mayores:"Primera"};
 async function loadFixtures(){
