@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
-import FmvScenarioBoundary from "./FmvScenarioBoundary";
-import FmvScenarioPanel from "./FmvScenarioPanel";
-import FmvInstitutionalSimulator from "./FmvInstitutionalSimulator";
 
 const TABLE_CATALOG = [
   { key: "female:level1:sub12", branch: "female", competition: "level1", category: "sub12", apiCategory: "sub12", label: "Sub 12", tournamentId: 897, stageId: 3640 },
@@ -374,8 +371,6 @@ async function loadWebTable(entry, signal) {
   };
 }
 
-const loadInstitutionalTable = (entry) => Capacitor.isNativePlatform() ? loadNativeTable(entry) : loadWebTable(entry);
-
 export default function StandingsHub({ compact = false, allowedCategories = null, unrestricted = false, playerMode = false, staffMode = false, allowComparison = false, allowGeneralPositions = false }) {
   const allowedKeys = useMemo(
     () => buildAllowedKeys(allowedCategories, unrestricted),
@@ -400,7 +395,6 @@ export default function StandingsHub({ compact = false, allowedCategories = null
   const [selectedTeam, setSelectedTeam] = useState("MSM");
   const [advanced, setAdvanced] = useState(false);
   const [tables, setTables] = useState([]);
-  const [showSimulator, setShowSimulator] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
@@ -1187,7 +1181,5 @@ export default function StandingsHub({ compact = false, allowedCategories = null
     </div>
 
     {generalPositionsSection}
-    <section className="standings-card card"><button type="button" onClick={() => setShowSimulator(value => !value)} aria-expanded={showSimulator}>{showSimulator ? "Cerrar simulador" : "Abrir simulador de escenarios"}</button></section>
-    {showSimulator && !loading && <FmvScenarioBoundary><FmvInstitutionalSimulator entries={generalCatalogOptions.filter(item => item.competition === competition && item.branch === branch && ["sub14","sub16","sub18","mayores"].includes(item.category))} loadTable={loadInstitutionalTable}/><details style={{marginTop:16}}><summary>Simulador individual por categoría (avanzado)</summary><FmvScenarioPanel tables={tables}/></details></FmvScenarioBoundary>}
   </section>;
 }
