@@ -47,7 +47,7 @@
 - El super_admin actual es global en funciones inspeccionadas; no habilitar multicliente con esa autorización.
 - No se verificó aún el esquema vivo ni todos los permisos/RLS.
 - No se verificaron build, pruebas automatizadas ni despliegue del piloto.
-- Faltan datos oficiales y autorización institucional para activar Junín.
+- Administrador designado por el propietario: Juan Pablo Solis (Junín Vóley JNN). Falta su correo de acceso y confirmar autorización de activación y datos institucionales.
 
 ## Criterio de ejecución
 Implementar por dependencias, no fusionar con main ni desplegar producción sin autorización y pruebas. Cada cierre requiere evidencia, resultado reproducible y rollback.
