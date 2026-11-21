@@ -47,7 +47,7 @@
 - El super_admin actual es global en funciones inspeccionadas; no habilitar multicliente con esa autorización.
 - No se verificó aún el esquema vivo ni todos los permisos/RLS.
 - No se verificaron build, pruebas automatizadas ni despliegue del piloto.
-- Administrador designado por el propietario: Juan Pablo Solis (Junín Vóley JNN). Falta su correo de acceso y confirmar autorización de activación y datos institucionales.
+- Administrador designado: Juan Pablo Solis (Junín Vóley JNN). Correo de acceso: juampy9977@gmail.com. Cuenta aún no creada ni activada; falta confirmar datos institucionales y realizar pruebas de aislamiento.
 
 ## Criterio de ejecución
 Implementar por dependencias, no fusionar con main ni desplegar producción sin autorización y pruebas. Cada cierre requiere evidencia, resultado reproducible y rollback.
