@@ -91,7 +91,7 @@ begin
   if not exists (
     select 1 from public.players p join public.training_sessions s
       on s.institution_id=p.institution_id and s.category_id=p.category_id
-    where p.institution_id=new.institution_id and p.id=new.player_id and s.id=new.session_id
+    where p.institution_id=new.institution_id and p.id=new.player_id and p.active and s.id=new.session_id
   ) then raise exception 'Player and session categories must match'; end if;
   return new;
 end $$;
@@ -231,6 +231,23 @@ begin
   if v_user is null then raise exception 'Professor must sign up and verify email first'; end if;
   insert into public.institution_memberships(institution_id,user_id,role) values(p_institution,v_user,'professor');
 end $$;
+create function public.pilot_list_professors(p_institution uuid)
+returns table(user_id uuid,email text,status text) language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.pilot_member(p_institution,true) then raise exception 'Institution administrator required'; end if;
+  return query select m.user_id,u.email::text,m.status
+  from public.institution_memberships m join auth.users u on u.id=m.user_id
+  where m.institution_id=p_institution and m.role='professor'
+  order by u.email;
+end $$;
+create function public.pilot_set_professor_status(p_institution uuid,p_user uuid,p_active boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.pilot_member(p_institution,true) then raise exception 'Institution administrator required'; end if;
+  update public.institution_memberships set status=case when p_active then 'active' else 'suspended' end
+  where institution_id=p_institution and user_id=p_user and role='professor';
+  if not found then raise exception 'Professor not found'; end if;
+end $$;
 create function public.pilot_update_brand(p_institution uuid,p_name text,p_color text)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
@@ -240,9 +257,11 @@ begin
   update public.institutions set name=btrim(p_name),primary_color=p_color where id=p_institution;
 end $$;
 revoke all on function public.pilot_issue_code(uuid,text,int),public.pilot_set_license(uuid,timestamptz,boolean),
-  public.pilot_redeem_code(text),public.pilot_add_professor(uuid,text),public.pilot_update_brand(uuid,text,text) from public;
+  public.pilot_redeem_code(text),public.pilot_add_professor(uuid,text),public.pilot_list_professors(uuid),
+  public.pilot_set_professor_status(uuid,uuid,boolean),public.pilot_update_brand(uuid,text,text) from public;
 grant execute on function public.pilot_issue_code(uuid,text,int),public.pilot_set_license(uuid,timestamptz,boolean),
-  public.pilot_redeem_code(text),public.pilot_add_professor(uuid,text),public.pilot_update_brand(uuid,text,text) to authenticated;
+  public.pilot_redeem_code(text),public.pilot_add_professor(uuid,text),public.pilot_list_professors(uuid),
+  public.pilot_set_professor_status(uuid,uuid,boolean),public.pilot_update_brand(uuid,text,text) to authenticated;
 
 insert into public.institutions(slug,name) values ('jnn','Junín Vóley JNN');
 insert into public.institution_licenses(institution_id)
