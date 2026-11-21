@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
+import { attendanceCsv, attendanceFilename } from './exportAttendance.js'
 import './pilot.css'
 
 // Deliberately independent of src/supabase.js (San Martín redirects and auth overrides).
@@ -158,14 +159,9 @@ function Pilot() {
     if (error) throw error
   }
   function exportCsv() {
-    const quote = value => `"${String(value ?? '').replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"','""')}"`
-    const rows = [['Fecha','Categoría','Jugador','Estado'],...attendance.map(mark => {
-      const day = sessions.find(item => item.id === mark.session_id)
-      return [day?.session_date,categories.find(c => c.id === day?.category_id)?.name,players.find(p => p.id === mark.player_id)?.full_name,mark.status]
-    })]
-    const blob = new Blob(['\ufeff',rows.map(row => row.map(quote).join(';')).join('\r\n')],{ type:'text/csv;charset=utf-8' })
+    const blob = new Blob([attendanceCsv({ attendance,sessions,categories,players })],{ type:'text/csv;charset=utf-8' })
     const anchor = document.createElement('a')
-    anchor.href = URL.createObjectURL(blob); anchor.download = `asistencia-${institution.name}-${date}.csv`; anchor.click()
+    anchor.href = URL.createObjectURL(blob); anchor.download = attendanceFilename(institution.name,date); anchor.click()
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
   }
 

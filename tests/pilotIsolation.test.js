@@ -129,6 +129,17 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     })
     await as(owner,async () => db.query('select public.pilot_set_license($1,now()+interval \'3 days\',true)',[jnn]))
     await as(jnnAdmin,async () => assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),2))
+    await db.query("update public.institution_licenses set expires_at=now()-interval '1 second' where institution_id=$1",[jnn])
+    await as(jnnAdmin,async () => {
+      assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0)
+      assert.ok(new Date((await row('select expires_at from public.pilot_account_status()')).expires_at)<new Date())
+    })
+    await db.query("update public.institution_licenses set expires_at=now()+interval '3 days' where institution_id=$1",[jnn])
+    await db.query("update public.institutions set status='suspended' where id=$1",[jnn])
+    await as(jnnAdmin,async () => {
+      assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0)
+      assert.equal((await row('select institution_status from public.pilot_account_status()')).institution_status,'suspended')
+    })
     await as(stranger,async () => assert.equal(await count('select count(*) from public.players'),0))
   } finally { await db.close() }
 })

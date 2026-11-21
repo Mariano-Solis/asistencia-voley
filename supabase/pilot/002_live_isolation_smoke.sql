@@ -107,5 +107,18 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001'
 select public.pilot_set_license(institution_id,now()+interval '3 days',true) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
 select pg_temp.assert_eq((select count(*) from public.players where id='40000000-0000-4000-8000-000000000001'),1,'renewed license restores own data');
+reset role;
+update public.institution_licenses set expires_at=now()-interval '1 second'
+where institution_id=(select id from public.institutions where slug='jnn');
+set local role authenticated;
+select pg_temp.assert_eq((select count(*) from public.players where id='40000000-0000-4000-8000-000000000001'),0,'expired license denies JNN');
+select pg_temp.assert_eq((select count(*) from public.pilot_account_status() where expires_at<now()),1,'expired license status visible');
+reset role;
+update public.institution_licenses set expires_at=now()+interval '3 days'
+where institution_id=(select id from public.institutions where slug='jnn');
+update public.institutions set status='suspended' where slug='jnn';
+set local role authenticated;
+select pg_temp.assert_eq((select count(*) from public.players where id='40000000-0000-4000-8000-000000000001'),0,'suspended institution denies JNN');
+select pg_temp.assert_eq((select count(*) from public.pilot_account_status() where institution_status='suspended'),1,'institution status visible');
 rollback;
 select 'PASS: real PostgreSQL RLS, licenses, activation and tenant isolation; fixtures rolled back' as result;

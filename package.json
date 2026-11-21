@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:pilot": "node scripts/build-pilot.mjs",
     "preview": "vite preview",
-    "test:pilot": "node --test tests/pilotIsolation.test.js tests/pilotLiveScript.test.js"
+    "test:pilot": "node --test tests/pilotIsolation.test.js tests/pilotLiveScript.test.js tests/pilotExport.test.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
