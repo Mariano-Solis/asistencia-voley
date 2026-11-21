@@ -37,6 +37,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     const localSchema = schema.replace('create extension if not exists pgcrypto with schema extensions;', '')
     await db.exec(localSchema)
     await db.exec(readFileSync(new URL('../supabase/pilot/003_account_status_and_audit.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/004_owner_institution_creation.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
       [owner,'owner@example.test'], [jnnAdmin,'jnn@example.test'],
       [otherAdmin,'other@example.test'], [professor,'professor@example.test'],
@@ -57,6 +58,10 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     const denied = async action => assert.rejects(action)
 
     await as(jnnAdmin, () => denied(() => db.query('select public.pilot_set_license($1,now()+interval \'3 days\',true)',[jnn])))
+    await as(jnnAdmin, () => denied(() => db.query("select public.pilot_create_institution('intruder','Intruder')")))
+    const pending = await as(owner,async () => (await row("select public.pilot_create_institution('new-club','Nuevo club') as id")).id)
+    assert.equal((await row('select status from public.institution_licenses where institution_id=$1',[pending])).status,'pending')
+    await as(owner, () => denied(() => db.query("select public.pilot_create_institution('new-club','Duplicado')")))
     await as(owner, async () => {
       await db.query('select public.pilot_set_license($1,now()+interval \'3 days\',true)',[jnn])
       await db.query('select public.pilot_set_license($1,now()+interval \'3 days\',true)',[other])

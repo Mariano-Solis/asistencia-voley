@@ -45,6 +45,7 @@
 
 ## Estado del piloto aislado (21/11/2026)
 - El proyecto `savptjiwzaypisayulwp` está separado: esquema 001 aplicado, 10 tablas y 11 políticas con RLS. La ampliación aditiva 003 de estados y auditoría también está aplicada. JNN conserva estado `pending`, Auth tiene 0 usuarios y Storage 0 buckets.
+- La ampliación 004 permite crear futuras instituciones únicamente al propietario, en estado pendiente; fue aplicada y ensayada allí con una institución ficticia revertida. JNN permanece sin activar.
 - `supabase/pilot/002_live_isolation_smoke.sql` aprobó en PostgreSQL real de ese proyecto con dos instituciones ficticias, identidad simulada por contexto SQL y `ROLLBACK`. Las pruebas locales del esquema y la compilación del piloto también aprobaron. Evidencia y límites detallados en `docs/VOLEY-JUNIN-IMPLEMENTACION.md`.
 - La interfaz del piloto contiene registro, login, recuperación, propietario, categorías, jugadores, profesores y asistencia. El flujo de confirmación por correo, JWT real/PostgREST y la navegación del navegador **no están comprobados**. No hay Preview ni activación de Juan Pablo.
 

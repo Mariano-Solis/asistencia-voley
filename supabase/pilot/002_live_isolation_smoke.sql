@@ -42,6 +42,8 @@ grant execute on function pg_temp.assert_denied(text),pg_temp.assert_eq(bigint,b
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+select public.pilot_create_institution('test-new','Club pendiente ficticio C');
+select pg_temp.assert_eq((select count(*) from public.institution_licenses l join public.institutions i on i.id=l.institution_id where i.slug='test-new' and i.status='pending' and l.status='pending'),1,'new buyer stays pending');
 select public.pilot_set_license(id,now()+interval '3 days',true) from public.institutions where slug in ('jnn','test-other');
 insert into pilot_codes select id,public.pilot_issue_code(id,'pilot-jnn@example.invalid') from public.institutions where slug='jnn';
 insert into pilot_codes select id,public.pilot_issue_code(id,'pilot-other@example.invalid') from public.institutions where slug='test-other';
@@ -50,6 +52,7 @@ select pg_temp.assert_eq((select count(*) from public.pilot_owner_events(institu
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',true);
 select pg_temp.assert_denied(format('select public.pilot_redeem_code(%L)',code)) from pilot_codes limit 1;
 select pg_temp.assert_denied(format('select public.pilot_issue_code(%L,%L)',institution_id,'pilot-outsider@example.invalid')) from pilot_codes limit 1;
+select pg_temp.assert_denied($q$select public.pilot_create_institution('intruder','Intruder')$q$);
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
 select public.pilot_redeem_code(code) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
