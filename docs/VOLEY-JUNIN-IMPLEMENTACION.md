@@ -53,5 +53,6 @@ Probar además recarga de página, cierre/entrada de sesión, persistencia de as
 
 - `npm ci --no-audit --no-fund`: correcto.
 - `npm run build`: correcto; generó `dist/index.html` y `dist/pilot.html`.
+- `npm run build:pilot` con URL y clave ficticias: correcto; genera únicamente la entrada piloto y sus dependencias, sin recursos públicos de San Martín. La validación de URL rechazó un host ficticio con guion y acepta las referencias Supabase de formato estándar; falta repetir con el proyecto aislado real.
 - `node --test tests/*.test.js`: 4 pruebas existentes pasan. Esas pruebas cubren cálculo de FMV, **no** RLS ni el flujo piloto.
 - Pendientes: aplicación SQL, tests de RLS con dos clubes y cuentas reales de prueba, respaldo/restauración, despliegue separado y prueba de extremo a extremo. No hay URL pública válida todavía.
