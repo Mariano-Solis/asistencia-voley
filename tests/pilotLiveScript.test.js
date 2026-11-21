@@ -26,6 +26,7 @@ test('live Supabase smoke script parses, asserts boundaries and rolls back fixtu
     await db.exec(schema)
     await db.exec(readFileSync(new URL('../supabase/pilot/003_account_status_and_audit.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/004_owner_institution_creation.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/005_owner_activation_hardening.sql',import.meta.url),'utf8'))
     const smoke = readFileSync(new URL('../supabase/pilot/002_live_isolation_smoke.sql',import.meta.url),'utf8')
     const results = await db.exec(smoke)
     assert.match(results.at(-1).rows[0].result,/^PASS:/)

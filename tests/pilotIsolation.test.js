@@ -38,6 +38,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await db.exec(localSchema)
     await db.exec(readFileSync(new URL('../supabase/pilot/003_account_status_and_audit.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/004_owner_institution_creation.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/005_owner_activation_hardening.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
       [owner,'owner@example.test'], [jnnAdmin,'jnn@example.test'],
       [otherAdmin,'other@example.test'], [professor,'professor@example.test'],
@@ -61,13 +62,17 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(jnnAdmin, () => denied(() => db.query("select public.pilot_create_institution('intruder','Intruder')")))
     const pending = await as(owner,async () => (await row("select public.pilot_create_institution('new-club','Nuevo club') as id")).id)
     assert.equal((await row('select status from public.institution_licenses where institution_id=$1',[pending])).status,'pending')
+    await as(owner, () => denied(() => db.query('select public.pilot_issue_code($1,$2)',[pending,'jnn@example.test'])))
     await as(owner, () => denied(() => db.query("select public.pilot_create_institution('new-club','Duplicado')")))
     await as(owner, async () => {
       await db.query('select public.pilot_set_license($1,now()+interval \'3 days\',true)',[jnn])
       await db.query('select public.pilot_set_license($1,now()+interval \'3 days\',true)',[other])
     })
+    const revokedCode = await as(owner, async () => (await row('select public.pilot_issue_code($1,$2) as code',[jnn,'jnn@example.test'])).code)
     const jnnCode = await as(owner, async () => (await row('select public.pilot_issue_code($1,$2) as code',[jnn,'jnn@example.test'])).code)
     const otherCode = await as(owner, async () => (await row('select public.pilot_issue_code($1,$2) as code',[other,'other@example.test'])).code)
+    await as(owner, () => denied(() => db.query('select public.pilot_redeem_code($1)',[jnnCode])))
+    await as(jnnAdmin, () => denied(() => db.query('select public.pilot_redeem_code($1)',[revokedCode])))
     await as(stranger, () => denied(() => db.query('select public.pilot_redeem_code($1)',[jnnCode])))
     await as(jnnAdmin, async () => {
       assert.equal((await row('select public.pilot_redeem_code($1) as id',[jnnCode])).id,jnn)

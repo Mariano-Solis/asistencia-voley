@@ -53,7 +53,7 @@
 - El super_admin actual es global en funciones inspeccionadas; no habilitar multicliente con esa autorización.
 - No se ensayaron Auth/correo reales ni permisos con JWT real desde PostgREST, ni la interfaz de extremo a extremo.
 - Faltan una cuenta ficticia con correo verificable y pruebas autenticadas de interfaz y JWT/PostgREST. La Preview protegida no constituye todavía una entrega para uso real. No tocar el proyecto Vercel existente `asistencia-voley`.
-- Administrador designado: Juan Pablo Solis (Junín Vóley JNN). Correo de acceso: juampy9977@gmail.com. Cuenta aún no creada ni activada; falta confirmar datos institucionales y realizar pruebas de aislamiento.
+- Administrador designado: Juan Pablo Solis (Junín Vóley JNN). Su correo definitivo se conserva fuera del repositorio. Cuenta aún no creada ni activada; falta confirmar datos institucionales y realizar pruebas de aislamiento.
 
 ## Criterio de ejecución
 Implementar por dependencias, no fusionar con main ni desplegar producción sin autorización y pruebas. Cada cierre requiere evidencia, resultado reproducible y rollback.

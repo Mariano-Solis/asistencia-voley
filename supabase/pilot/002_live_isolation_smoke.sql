@@ -44,9 +44,14 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 select public.pilot_create_institution('test-new','Club pendiente ficticio C');
 select pg_temp.assert_eq((select count(*) from public.institution_licenses l join public.institutions i on i.id=l.institution_id where i.slug='test-new' and i.status='pending' and l.status='pending'),1,'new buyer stays pending');
+select pg_temp.assert_denied($q$select public.pilot_issue_code((select id from public.institutions where slug='test-new'),'pilot-jnn@example.invalid')$q$);
 select public.pilot_set_license(id,now()+interval '3 days',true) from public.institutions where slug in ('jnn','test-other');
 insert into pilot_codes select id,public.pilot_issue_code(id,'pilot-jnn@example.invalid') from public.institutions where slug='jnn';
 insert into pilot_codes select id,public.pilot_issue_code(id,'pilot-other@example.invalid') from public.institutions where slug='test-other';
+select pg_temp.assert_denied(format('select public.pilot_redeem_code(%L)',code)) from pilot_codes limit 1;
+reset role;
+select pg_temp.assert_eq((select count(*) from public.activation_codes where institution_id=(select id from public.institutions where slug='jnn') and redeemed_at is null and revoked_at is null),1,'one active code per recipient');
+set local role authenticated;
 select pg_temp.assert_eq((select count(*) from public.pilot_owner_events(institution_id,20)),2,'owner audit records license and code') from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',true);
