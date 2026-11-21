@@ -8,8 +8,8 @@ if (!process.env.VITE_PILOT_SUPABASE_URL || !process.env.VITE_PILOT_SUPABASE_ANO
 }
 const url = process.env.VITE_PILOT_SUPABASE_URL
 const key = process.env.VITE_PILOT_SUPABASE_ANON_KEY
-if (!/^https:\/\/[a-z0-9]+\.supabase\.co\/?$/.test(url) || /sswdpyksugjtfimptmww|mcufazokoopvlroktarj/.test(url)) {
-  console.error('Pilot requires a new, dedicated Supabase project URL')
+if (!/^https:\/\/savptjiwzaypisayulwp\.supabase\.co\/?$/.test(url)) {
+  console.error('Pilot requires the dedicated Junín Supabase project URL')
   process.exit(1)
 }
 let jwtRole = ''
