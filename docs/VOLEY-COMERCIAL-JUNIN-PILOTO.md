@@ -47,12 +47,12 @@
 - El proyecto `savptjiwzaypisayulwp` está separado: esquema 001 aplicado, 10 tablas y 11 políticas con RLS. La ampliación aditiva 003 de estados y auditoría también está aplicada. JNN conserva estado `pending`, Auth tiene 0 usuarios y Storage 0 buckets.
 - La ampliación 004 permite crear futuras instituciones únicamente al propietario, en estado pendiente; fue aplicada y ensayada allí con una institución ficticia revertida. JNN permanece sin activar.
 - `supabase/pilot/002_live_isolation_smoke.sql` aprobó en PostgreSQL real de ese proyecto con dos instituciones ficticias, identidad simulada por contexto SQL y `ROLLBACK`. Las pruebas locales del esquema y la compilación del piloto también aprobaron. Evidencia y límites detallados en `docs/VOLEY-JUNIN-IMPLEMENTACION.md`.
-- La interfaz del piloto contiene registro, login, recuperación, propietario, categorías, jugadores, profesores y asistencia. El flujo de confirmación por correo, JWT real/PostgREST y la navegación del navegador **no están comprobados**. No hay Preview ni activación de Juan Pablo.
+- La interfaz del piloto contiene registro, login, recuperación, propietario, categorías, jugadores, profesores y asistencia. Una Preview independiente y protegida muestra las pantallas públicas y rechazó un login ficticio inexistente. El flujo de confirmación por correo, JWT real/PostgREST y la navegación de los paneles **no están comprobados**. Juan Pablo sigue sin activar.
 
 ## Bloqueantes técnicos detectados
 - El super_admin actual es global en funciones inspeccionadas; no habilitar multicliente con esa autorización.
 - No se ensayaron Auth/correo reales ni permisos con JWT real desde PostgREST, ni la interfaz de extremo a extremo.
-- Falta una Preview independiente protegida, sin costo y configurada con la clave publicable comercial. No tocar el proyecto Vercel existente `asistencia-voley`.
+- Faltan una cuenta ficticia con correo verificable y pruebas autenticadas de interfaz y JWT/PostgREST. La Preview protegida no constituye todavía una entrega para uso real. No tocar el proyecto Vercel existente `asistencia-voley`.
 - Administrador designado: Juan Pablo Solis (Junín Vóley JNN). Correo de acceso: juampy9977@gmail.com. Cuenta aún no creada ni activada; falta confirmar datos institucionales y realizar pruebas de aislamiento.
 
 ## Criterio de ejecución
