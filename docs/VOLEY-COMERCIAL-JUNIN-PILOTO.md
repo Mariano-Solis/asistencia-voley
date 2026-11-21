@@ -43,10 +43,15 @@
 - Demás módulos solo si pasan pruebas; etiquetar claramente los pendientes.
 - Sin prometer entrega pública hasta validar seguridad y flujo extremo a extremo.
 
+## Estado del piloto aislado (21/11/2026)
+- El proyecto `savptjiwzaypisayulwp` está separado: esquema 001 aplicado, 10 tablas y 11 políticas con RLS. La ampliación aditiva 003 de estados y auditoría también está aplicada. JNN conserva estado `pending`, Auth tiene 0 usuarios y Storage 0 buckets.
+- `supabase/pilot/002_live_isolation_smoke.sql` aprobó en PostgreSQL real de ese proyecto con dos instituciones ficticias, identidad simulada por contexto SQL y `ROLLBACK`. Las pruebas locales del esquema y la compilación del piloto también aprobaron. Evidencia y límites detallados en `docs/VOLEY-JUNIN-IMPLEMENTACION.md`.
+- La interfaz del piloto contiene registro, login, recuperación, propietario, categorías, jugadores, profesores y asistencia. El flujo de confirmación por correo, JWT real/PostgREST y la navegación del navegador **no están comprobados**. No hay Preview ni activación de Juan Pablo.
+
 ## Bloqueantes técnicos detectados
 - El super_admin actual es global en funciones inspeccionadas; no habilitar multicliente con esa autorización.
-- No se verificó aún el esquema vivo ni todos los permisos/RLS.
-- No se verificaron build, pruebas automatizadas ni despliegue del piloto.
+- No se ensayaron Auth/correo reales ni permisos con JWT real desde PostgREST, ni la interfaz de extremo a extremo.
+- Falta una Preview independiente protegida, sin costo y configurada con la clave publicable comercial. No tocar el proyecto Vercel existente `asistencia-voley`.
 - Administrador designado: Juan Pablo Solis (Junín Vóley JNN). Correo de acceso: juampy9977@gmail.com. Cuenta aún no creada ni activada; falta confirmar datos institucionales y realizar pruebas de aislamiento.
 
 ## Criterio de ejecución

@@ -45,6 +45,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001'
 select public.pilot_set_license(id,now()+interval '3 days',true) from public.institutions where slug in ('jnn','test-other');
 insert into pilot_codes select id,public.pilot_issue_code(id,'pilot-jnn@example.invalid') from public.institutions where slug='jnn';
 insert into pilot_codes select id,public.pilot_issue_code(id,'pilot-other@example.invalid') from public.institutions where slug='test-other';
+select pg_temp.assert_eq((select count(*) from public.pilot_owner_events(institution_id,20)),2,'owner audit records license and code') from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',true);
 select pg_temp.assert_denied(format('select public.pilot_redeem_code(%L)',code)) from pilot_codes limit 1;
@@ -52,7 +53,9 @@ select pg_temp.assert_denied(format('select public.pilot_issue_code(%L,%L)',inst
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
 select public.pilot_redeem_code(code) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
+select pg_temp.assert_eq((select count(*) from public.pilot_account_status() where role='super_admin' and membership_status='active' and license_status='active'),1,'JNN admin status');
 select pg_temp.assert_denied(format('select public.pilot_redeem_code(%L)',code)) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
+select pg_temp.assert_denied($q$update public.institution_memberships set role='super_admin' where user_id=auth.uid()$q$);
 insert into public.categories(id,institution_id,name)
 select '30000000-0000-4000-8000-000000000001',id,'Sub 16 ficticia' from public.institutions where slug='jnn';
 insert into public.players(id,institution_id,category_id,full_name)
@@ -73,9 +76,12 @@ select pg_temp.assert_eq((select count(*) from public.training_sessions where id
 select pg_temp.assert_eq((select count(*) from public.attendance where session_id='50000000-0000-4000-8000-000000000001'),0,'B cannot read JNN attendance');
 select pg_temp.assert_no_change($q$update public.players set full_name='forbidden' where id='40000000-0000-4000-8000-000000000001'$q$,'B cannot update JNN');
 select pg_temp.assert_no_change($q$delete from public.players where id='40000000-0000-4000-8000-000000000001'$q$,'B cannot delete JNN');
+select pg_temp.assert_no_change($q$update public.players set institution_id='20000000-0000-4000-8000-000000000001' where id='40000000-0000-4000-8000-000000000001'$q$,'B cannot move JNN player');
+select pg_temp.assert_denied($q$update public.institution_licenses set status='active' where institution_id='20000000-0000-4000-8000-000000000001'$q$);
 select pg_temp.assert_denied($q$insert into public.players(institution_id,category_id,full_name) values ((select id from public.institutions where slug='test-other'),'30000000-0000-4000-8000-000000000001','cross FK')$q$);
 select pg_temp.assert_denied(format($q$insert into public.players(institution_id,category_id,full_name) values (%L,'30000000-0000-4000-8000-000000000002','wrong tenant')$q$,institution_id)) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 select pg_temp.assert_denied(format('select * from public.pilot_list_professors(%L)',institution_id)) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
+select pg_temp.assert_denied(format('select * from public.pilot_owner_events(%L,20)',institution_id)) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',true);
 select pg_temp.assert_eq((select count(*) from public.players where id='40000000-0000-4000-8000-000000000001'),1,'JNN professor reads own player');
@@ -83,14 +89,17 @@ select pg_temp.assert_denied($q$insert into public.categories(institution_id,nam
 select pg_temp.assert_denied($q$select public.pilot_set_license('20000000-0000-4000-8000-000000000001'::uuid,now(),false)$q$);
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
+select pg_temp.assert_denied($q$update public.players set institution_id='20000000-0000-4000-8000-000000000001' where id='40000000-0000-4000-8000-000000000001'$q$);
 select public.pilot_set_professor_status(institution_id,'00000000-0000-4000-8000-000000000004',false) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',true);
 select pg_temp.assert_eq((select count(*) from public.players where id='40000000-0000-4000-8000-000000000001'),0,'suspended professor denied');
+select pg_temp.assert_eq((select count(*) from public.pilot_account_status() where membership_status='suspended'),1,'suspended professor receives status');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 select public.pilot_set_license(institution_id,null,false) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
 select pg_temp.assert_eq((select count(*) from public.players where id='40000000-0000-4000-8000-000000000001'),0,'suspended license denied');
+select pg_temp.assert_eq((select count(*) from public.pilot_account_status() where license_status='suspended'),1,'suspended license receives status');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 select public.pilot_set_license(institution_id,now()+interval '3 days',true) from pilot_codes where institution_id<>'20000000-0000-4000-8000-000000000001';
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);

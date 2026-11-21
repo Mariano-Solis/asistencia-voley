@@ -36,6 +36,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     // supplied by pgcrypto in the real migration and are not tested here.
     const localSchema = schema.replace('create extension if not exists pgcrypto with schema extensions;', '')
     await db.exec(localSchema)
+    await db.exec(readFileSync(new URL('../supabase/pilot/003_account_status_and_audit.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
       [owner,'owner@example.test'], [jnnAdmin,'jnn@example.test'],
       [otherAdmin,'other@example.test'], [professor,'professor@example.test'],
@@ -94,6 +95,8 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     const jnnOtherPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Otro ficticio') returning id",[jnn,jnnOtherCat])).id)
     await as(jnnAdmin,async () => denied(() => db.query('insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,$4)',[jnn,jnnSession,jnnOtherPlayer,'present'])))
     await as(jnnAdmin,async () => db.query('select public.pilot_add_professor($1,$2)',[jnn,'professor@example.test']))
+    await as(jnnAdmin,async () => denied(() => db.query('select * from public.pilot_owner_events($1)',[jnn])))
+    await as(owner,async () => assert.ok(await count('select count(*) from public.pilot_owner_events($1)',[jnn]) >= 3))
     await as(otherAdmin,async () => denied(() => db.query('select * from public.pilot_list_professors($1)',[jnn])))
     await as(jnnAdmin,async () => assert.equal(await count('select count(*) from public.pilot_list_professors($1)',[jnn]),1))
     await as(professor,async () => {
@@ -102,7 +105,10 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       await denied(() => db.query('select public.pilot_set_license($1,now(),false)',[jnn]))
     })
     await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_status($1,$2,false)',[jnn,professor]))
-    await as(professor,async () => assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0))
+    await as(professor,async () => {
+      assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0)
+      assert.equal((await row('select membership_status from public.pilot_account_status()')).membership_status,'suspended')
+    })
     await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_status($1,$2,true)',[jnn,professor]))
     await as(professor,async () => assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),2))
     await as(jnnAdmin,async () => {
@@ -114,6 +120,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(jnnAdmin,async () => {
       assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0)
       await denied(() => db.query("insert into public.categories(institution_id,name) values ($1,'Blocked')",[jnn]))
+      assert.equal((await row('select license_status from public.pilot_account_status()')).license_status,'suspended')
     })
     await as(owner,async () => db.query('select public.pilot_set_license($1,now()+interval \'3 days\',true)',[jnn]))
     await as(jnnAdmin,async () => assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),2))
