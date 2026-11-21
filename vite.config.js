@@ -1,6 +1,7 @@
 import { copyFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'node:path'
 
 function stableLogoAsset() {
   return {
@@ -11,10 +12,13 @@ function stableLogoAsset() {
   }
 }
 
+const pilotBuild = process.env.VITE_PILOT_BUILD === '1'
 export default defineConfig({
-  plugins: [react(), stableLogoAsset()],
+  publicDir: pilotBuild ? false : 'public',
+  plugins: [react(), ...(pilotBuild ? [] : [stableLogoAsset()])],
   build: {
     rollupOptions: {
+      input: pilotBuild ? resolve(import.meta.dirname, 'pilot.html') : { main: resolve(import.meta.dirname, 'index.html'), pilot: resolve(import.meta.dirname, 'pilot.html') },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pilot": "node scripts/build-pilot.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
