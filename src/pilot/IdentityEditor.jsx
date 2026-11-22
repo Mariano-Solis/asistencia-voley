@@ -72,7 +72,7 @@ export function IdentityEditor({ institution, client, logoUrl, onSaved }) {
   return <section><h2>Identidad institucional</h2><p>Podés completar la identidad sin usar Court Track. Los datos y el escudo quedan asociados solamente a este club.</p>
     <form onSubmit={save}>
       <label>1. Nombre público<input value={name} onChange={event => setName(event.target.value)} minLength="2" maxLength="100" required /></label>
-      <label>2. Modalidad<select value={mode} onChange={event => setMode(event.target.value)}><option value="combined">Combinada: ajustar después de una búsqueda</option><option value="manual">Manual: usar mis datos y escudo</option><option value="automatic">Automática: fuente verificada</option></select></label>
+      <label>2. Modalidad<select value={mode} onChange={event => setMode(event.target.value)}><option value="combined">Combinada: conservar datos importados y ajustes propios</option><option value="manual">Manual: usar mis datos y escudo</option></select></label>
       <label>3. Escudo propio, opcional<input type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseFile} /></label>
       <p>PNG, JPG o WebP hasta 4 MB; se recorta y guarda una copia WebP privada de hasta 2 MB.</p>
       {bitmap && <div className="crop-tools"><canvas ref={canvas} className="crop-preview" aria-label="Vista previa del escudo recortado" />
