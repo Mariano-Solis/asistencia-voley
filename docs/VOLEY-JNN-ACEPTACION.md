@@ -35,7 +35,29 @@ Fecha: 22/11/2026. Criterio estricto: una fila solo se aprueba cuando el recorri
 
 ## Siguiente puerta verificable
 
-Conseguir una segunda identidad de ensayo controlada y confirmada por el flujo normal de correo, sin utilizar la cuenta del propietario como club B. Preparar dos clubes ficticios y licencias de ensayo reversibles. Registrar JWT de cada sesión solo en memoria, nunca en logs ni repositorio; ejecutar POST/GET/PATCH/DELETE sobre PostgREST y upload/download sobre Storage con cada identidad, capturar códigos de estado y resultados sin datos privados, y limpiar solo las filas inequívocamente ficticias. Si no existe una segunda casilla bajo control del titular, esta puerta queda pendiente; no confirmarla artificialmente.
+La segunda identidad autorizada confirmó el enlace normal y Supabase Authentication mostró `Confirmed` y `Last signed in` el 22/11. Se creó Club Ficticio B (`club-ficticio-b-20261122`) en el proyecto comercial con licencia de ensayo activa hasta el 24/11/2026 23:59:59 (Argentina); la comprobación posterior mostró cero membresías y cero códigos. El propietario aún debe emitir el código personal desde su panel y el destinatario canjearlo. Esto **no** aprueba todavía las filas 4, 17 o 18.
+
+Una vez que ambas membresías estén activas, ejecutar `scripts/pilot-jwt-isolation.mjs` con dos JWT Auth vigentes y distintos, proporcionados solo al entorno local del proceso; el script rechaza claves secretas, crea sus propios registros ficticios y comprueba solicitudes directas sobre PostgREST y Storage. No colocar JWT, correo ni código en comandos compartidos, chat, capturas, logs o Git. El script se limita al host comercial y requiere la clave publicable. Registrar solo sus etiquetas PASS y comprobar que se limpiaron los objetos y filas de ensayo. El archivo está preparado, **no ejecutado con JWT reales**.
+
+La Preview añade además un panel de ensayo solo para un superadministrador autenticado al abrir el **alias estable** con `?qa=1`. Cada administrador prepara una categoría, un jugador, una jornada y un archivo PNG ficticios con su JWT actual; copia al otro únicamente los cinco identificadores mostrados. Cada uno ejecuta las denegaciones cruzadas y descarga el informe JSON sin credenciales. El panel debe indicar PASS en ambos sentidos y limpiar sus propios datos **después** de que ambos completaron el ensayo. Si un control falla, conservar evidencia y no habilitar usuarios reales. El panel está implementado y compilado, **no probado aún con dos sesiones institucionales reales**.
+
+## Análisis de los 11 requisitos pendientes
+
+| Fila | Comprobación exacta pendiente | Automatizable y dependencia |
+|---|---|---|
+| 4 | Segundo canje real del código ya consumido y emisión/canje con sesiones de propietario y destinatario | Sí, con sesiones Auth y un código de ensayo; concurrencia requiere dos solicitudes controladas |
+| 6 | Subida, recorte, guardado y lectura de escudo tras recarga/cambio de dispositivo; rechazo Storage cruzado | Parcialmente: API automatizable con dos JWT; recorte Android físico manual |
+| 8 | Renombrar categoría desde sesión institucional, recargar y verificar valor | Sí en navegador autenticado; Android físico manual |
+| 10 | Editar jugador, buscar, filtrar, desactivar y verificar persistencia | Sí en navegador autenticado; Android físico manual |
+| 13 | Filtrar historial por fecha, categoría y jugador y comprobar conteos/filas | Sí en navegador autenticado |
+| 14 | Descargar CSV nuevo en Android y abrirlo en planilla, comparar tildes, estados y filas | Generador automatizado; descarga y apertura físicas manuales |
+| 15 | Profesor Auth propio: lectura permitida, administración/roles/licencias rechazados y suspensión | Sí, pero requiere tercer usuario verificado distinto de ambos administradores |
+| 16 | Cerrar, volver a entrar, persistencia y recuperación de contraseña | Navegador parcialmente automatizable; enlace de correo requiere titular |
+| 17 | Solicitudes cruzadas GET/POST/PATCH/DELETE y cambio de `institution_id` con dos JWT | Sí, tras canje B; `scripts/pilot-jwt-isolation.mjs` preparado |
+| 18 | Subida/descarga/firma y modificación de rutas ajenas con dos JWT | Sí, tras canje B; script preparado, contenido y limpieza deben verificarse |
+| 20 | Recorrido completo de escritorio con sesión JNN, categoría, jugador, asistencia, historial, CSV y salida | Sí con sesión autorizada en navegador de escritorio |
+
+La prueba anónima real del 22/11 obtuvo HTTP 401 al leer `players` e `institutions`; la lista del bucket privado respondió HTTP 200 con **cero objetos visibles**. Es una comprobación adicional de denegación anónima, no una prueba de aislamiento entre dos usuarios.
 
 ## Otras funciones
 

@@ -20,6 +20,19 @@ Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietar
 - Court Track no disponible: seguí con la configuración manual. No se bloquea el uso deportivo.
 - CSV no descargado: revisá los permisos de descargas del navegador Android y repetí el filtro. Registrá modelo, navegador y fecha; esta comprobación sobre la última candidata aún requiere prueba manual.
 
+## Comprobación breve en Android de la candidata actual
+
+Usá solo nombres ficticios. Anotá el resultado y una captura sin correo ni código visible:
+
+1. Editá una categoría, actualizá la página y comprobá el nombre.
+2. Creá o editá un jugador ficticio, buscalo por parte del nombre, filtrá por categoría y probá Desactivar/Reactivar.
+3. Filtrá Historial por categoría, fecha y jugador; cotejá el número del botón Exportar con las filas mostradas.
+4. Descargá el CSV **nuevo** y abrilo en una planilla: nombres acentuados y Presente/Tarde/Ausente deben aparecer como en pantalla.
+5. En Identidad, subí un escudo de ensayo que tengas derecho a usar, recortalo, guardalo y recargá. Verificá después desde otro dispositivo con la misma cuenta. No subas un escudo oficial de JNN sin confirmación.
+6. Cerrá sesión, abrí otra vez y verificá que solicite acceso; probá recuperación solo con una cuenta de ensayo controlada.
+
+Una captura de pantalla del resultado y el CSV bastan para revisar los pasos visibles. Los controles de RLS y Storage requieren además las solicitudes directas con dos JWT; no se aprueban por una captura de la interfaz.
+
 ## Transición posterior a la cuenta definitiva
 
 Después de aprobar el aislamiento con dos cuentas Auth institucionales reales, el propietario verifica por un canal independiente la identidad y el correo del administrador designado. Esa persona crea su **propia** cuenta y confirma el enlace normal de Supabase Auth. El propietario emite una nueva autorización personal de un solo uso y vigencia controlada; el destinatario la canjea en su sesión. Se comprueba su membresía y acceso. Luego se suspende la membresía temporal y se verifica que ya no puede acceder, sin compartir contraseñas, transferir sesiones ni alterar `auth.users` manualmente. No ejecutar este procedimiento todavía.
