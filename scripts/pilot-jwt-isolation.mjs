@@ -1,0 +1,163 @@
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+
+// Execute only with two real, email-verified Supabase Auth sessions. This file
+// has no owner/admin key and never prints JWTs, activation codes or emails.
+const origin = 'https://savptjiwzaypisayulwp.supabase.co'
+const apiKey = process.env.PILOT_PUBLISHABLE_KEY
+const jwtA = process.env.PILOT_JNN_JWT
+const jwtB = process.env.PILOT_CLUB_B_JWT
+if (!apiKey || !jwtA || !jwtB || apiKey.startsWith('sb_secret_')) {
+  throw new Error('Provide a publishable key and two distinct user JWTs through the process environment')
+}
+function claims(jwt) {
+  try { return JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString()) }
+  catch { throw new Error('A user JWT is malformed') }
+}
+const a = claims(jwtA), b = claims(jwtB)
+assert(a.sub && b.sub && a.sub !== b.sub, 'Two distinct Auth users required')
+assert(a.role === 'authenticated' && b.role === 'authenticated', 'Use authenticated user sessions')
+assert(a.exp > Date.now()/1000 && b.exp > Date.now()/1000, 'Refresh expired user sessions')
+
+async function request(jwt, path, { method = 'GET', body, headers = {} } = {}) {
+  const response = await fetch(origin + path, {
+    method, headers: {
+      apikey: apiKey, Authorization: `Bearer ${jwt}`,
+      ...(body && !(body instanceof Uint8Array) ? {'Content-Type':'application/json'} : {}),
+      ...headers,
+    },
+    body: body instanceof Uint8Array ? body : body === undefined ? undefined : JSON.stringify(body),
+  })
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  let data = null
+  if (response.headers.get('content-type')?.includes('application/json')) {
+    try { data = JSON.parse(Buffer.from(bytes).toString()) } catch { /* keep status only */ }
+  }
+  return { status: response.status, ok: response.ok, data, bytes }
+}
+const rest = (jwt, table, search = '', options = {}) => request(jwt, `/rest/v1/${table}${search}`, options)
+const eq = (column, value) => `${column}=eq.${encodeURIComponent(value)}`
+function rows(result, expected, label) {
+  assert(result.ok && Array.isArray(result.data) && result.data.length === expected, `${label}: unexpected status or row count (${result.status})`)
+  return result.data
+}
+function denied(result, label) {
+  assert(!result.ok || (Array.isArray(result.data) && result.data.length === 0), `${label}: foreign operation succeeded`)
+}
+const results = []
+function pass(label) { results.push(label) }
+const accounts = [{label:'JNN',jwt:jwtA},{label:'B',jwt:jwtB}]
+const fixture = new Map()
+const png = new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=', 'base64'))
+const stamp = randomUUID().slice(0, 8)
+
+try {
+  for (const account of accounts) {
+    const memberships = rows(await rest(account.jwt,'institution_memberships','?select=institution_id,role,status'),1,`${account.label} membership`)
+    assert.equal(memberships[0].role,'super_admin')
+    assert.equal(memberships[0].status,'active')
+    account.institution = memberships[0].institution_id
+    rows(await rest(account.jwt,'institutions',`?select=id,slug&${eq('id',account.institution)}`),1,`${account.label} institution`)
+    pass(`${account.label}: verified own institution`)
+  }
+  assert.notEqual(accounts[0].institution, accounts[1].institution, 'Institutions must differ')
+
+  for (const account of accounts) {
+    const institution_id = account.institution
+    const category = rows(await rest(account.jwt,'categories','?select=id',{
+      method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,name:`Ensayo JWT ${stamp} ${account.label}`},
+    }),1,`${account.label} own category`)[0].id
+    fixture.set(account.label,{category})
+    const player = rows(await rest(account.jwt,'players','?select=id',{
+      method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,category_id:category,full_name:`Jugador ficticio JWT ${stamp}`},
+    }),1,`${account.label} own player`)[0].id
+    fixture.get(account.label).player = player
+    const date = new Date().toISOString().slice(0,10)
+    const session = rows(await rest(account.jwt,'training_sessions','?select=id',{
+      method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,category_id:category,session_date:date},
+    }),1,`${account.label} own session`)[0].id
+    fixture.get(account.label).session = session
+    rows(await rest(account.jwt,'attendance','?select=session_id',{
+      method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,session_id:session,player_id:player,status:'present'},
+    }),1,`${account.label} own attendance`)
+    const path = `${institution_id}/${randomUUID()}.png`
+    const uploaded = await request(account.jwt,`/storage/v1/object/pilot-branding/${path}`,{
+      method:'POST',body:png,headers:{'Content-Type':'image/png','x-upsert':'false'},
+    })
+    assert(uploaded.ok,`${account.label} own Storage upload failed (${uploaded.status})`)
+    fixture.get(account.label).logo = path
+    const downloaded = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${path}`)
+    assert(downloaded.ok && downloaded.bytes.length === png.length,`${account.label} own Storage download failed (${downloaded.status})`)
+    pass(`${account.label}: own category, player, attendance and private file`)
+  }
+
+  for (const account of accounts) {
+    const other = accounts.find(item => item !== account)
+    const target = fixture.get(other.label)
+    for (const table of ['institutions','institution_memberships','institution_licenses','categories','players','training_sessions','attendance']) {
+      const column = table === 'institutions' ? 'id' : 'institution_id'
+      rows(await rest(account.jwt,table,`?select=*&${eq(column,other.institution)}`),0,`${account.label} foreign ${table} read`)
+    }
+    pass(`${account.label}: foreign institution, roles, license and sports reads denied`)
+    denied(await rest(account.jwt,'categories','?select=id',{
+      method:'POST',headers:{Prefer:'return=representation'},body:{institution_id:other.institution,name:`Invasión ${stamp}`},
+    }),`${account.label} foreign category insert`)
+    denied(await rest(account.jwt,'players','?select=id',{
+      method:'POST',headers:{Prefer:'return=representation'},body:{institution_id:other.institution,category_id:target.category,full_name:'Intruso ficticio'},
+    }),`${account.label} foreign player insert`)
+    denied(await rest(account.jwt,'players',`?${eq('id',target.player)}&select=id`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{full_name:'Modificación indebida'},
+    }),`${account.label} foreign player edit`)
+    denied(await rest(account.jwt,'players',`?${eq('id',target.player)}&select=id`,{
+      method:'DELETE',headers:{Prefer:'return=representation'},
+    }),`${account.label} foreign player delete`)
+    denied(await rest(account.jwt,'players',`?${eq('id',fixture.get(account.label).player)}&select=id`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{institution_id:other.institution},
+    }),`${account.label} change institution_id`)
+    denied(await rest(account.jwt,'institution_memberships',`?${eq('institution_id',other.institution)}&select=user_id`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{role:'super_admin'},
+    }),`${account.label} foreign role edit`)
+    denied(await rest(account.jwt,'institution_licenses',`?${eq('institution_id',other.institution)}&select=institution_id`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{status:'active'},
+    }),`${account.label} foreign license edit`)
+    denied(await request(account.jwt,'/rest/v1/rpc/pilot_update_identity',{
+      method:'POST',body:{p_institution:other.institution,p_name:'Intruso ficticio',p_primary:'#194b77',p_secondary:'#e7eef5',p_accent:'#0c765b',p_background:'#f1f5fa',p_surface:'#ffffff',p_logo_path:target.logo,p_mode:'manual'},
+    }),`${account.label} foreign identity RPC`)
+    const foreignDownload = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${target.logo}`)
+    denied(foreignDownload,`${account.label} foreign private file download`)
+    const foreignSign = await request(account.jwt,`/storage/v1/object/sign/pilot-branding/${target.logo}`,{
+      method:'POST',body:{expiresIn:60},
+    })
+    denied(foreignSign,`${account.label} foreign private file signed URL`)
+    const foreignPath = `${other.institution}/${randomUUID()}.png`
+    denied(await request(account.jwt,`/storage/v1/object/pilot-branding/${foreignPath}`,{
+      method:'POST',body:png,headers:{'Content-Type':'image/png','x-upsert':'false'},
+    }),`${account.label} foreign file upload`)
+    denied(await request(account.jwt,`/storage/v1/object/pilot-branding/${target.logo}`,{
+      method:'PUT',body:png,headers:{'Content-Type':'image/png'},
+    }),`${account.label} foreign file update`)
+    const intact = rows(await rest(other.jwt,'players',`?select=id,full_name&${eq('id',target.player)}`),1,`${other.label} own player still exists`)
+    assert.equal(intact[0].full_name,`Jugador ficticio JWT ${stamp}`,`${other.label} player changed across institutions`)
+    pass(`${account.label}: foreign writes, role, license, identity and Storage denied`)
+  }
+} finally {
+  // Unique fixture IDs only. If cleanup fails, report the failure without
+  // printing JWTs or touching any pre-existing rows.
+  const cleanupWarnings = []
+  for (const account of accounts) {
+    const f = fixture.get(account.label)
+    if (!f) continue
+    const own = account.jwt
+    const remove = async (label,action) => {
+      try { if (!(await action()).ok) cleanupWarnings.push(`${account.label} ${label}`) }
+      catch { cleanupWarnings.push(`${account.label} ${label}`) }
+    }
+    if (f.logo) await remove('logo',() => request(own,'/storage/v1/object/pilot-branding',{method:'DELETE',body:{prefixes:[f.logo]}}))
+    if (f.session && f.player) await remove('attendance',() => rest(own,'attendance',`?${eq('session_id',f.session)}&${eq('player_id',f.player)}`,{method:'DELETE'}))
+    if (f.session) await remove('session',() => rest(own,'training_sessions',`?${eq('id',f.session)}`,{method:'DELETE'}))
+    if (f.player) await remove('player',() => rest(own,'players',`?${eq('id',f.player)}`,{method:'DELETE'}))
+    if (f.category) await remove('category',() => rest(own,'categories',`?${eq('id',f.category)}`,{method:'DELETE'}))
+  }
+  if (cleanupWarnings.length) console.error('CLEANUP_PENDING',cleanupWarnings.join(', '))
+}
+console.log(JSON.stringify({result:'PASS',checks:results}))
