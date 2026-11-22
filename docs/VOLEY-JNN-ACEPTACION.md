@@ -4,7 +4,7 @@ Fecha: 22/11/2026. Criterio estricto: una fila solo se aprueba cuando el recorri
 
 | # | Requisito obligatorio | Implementado | Probado | Evidencia y tipo | Riesgo / estado |
 |---|---|---|---|---|---|
-| 1 | Inicio de sesión del propietario | Sí | Sí | Captura del panel autenticado en Android del titular, 22/11 | Aprobado en Preview anterior |
+| 1 | Inicio de sesión del propietario | Sí | No, en la candidata actual | Captura anterior del panel Android; intento actual rechazado por Auth HTTP 400 | Bloqueado hasta recuperar acceso y repetir la prueba |
 | 2 | Inicio de sesión del administrador temporal | Sí | Sí | Captura del panel JNN con rol Administrador, 22/11 | Aprobado en Preview anterior |
 | 3 | Licencia temporal y vínculo institucional | Sí | Sí | Consulta de solo lectura: activa, una membresía y código canjeado; 22/11 | Aprobado como ensayo; no comercial definitivo |
 | 4 | Emisión y recanje único desde sesiones reales | Sí | No | Emisión y primer canje observados; rechazo de segundo canje solo SQL simulado | Pendiente recanje real y concurrencia |
@@ -25,7 +25,7 @@ Fecha: 22/11/2026. Criterio estricto: una fila solo se aprueba cuando el recorri
 | 19 | Interfaz del panel en Android | Sí | Sí | Capturas físicas enviadas por el titular: navegación y asistencia | Aprobado en Preview anterior; cambios nuevos pendientes |
 | 20 | Recorrido completo en computadora | Sí | No | Pantalla anónima y compilación; sin sesión institucional de escritorio | Pendiente |
 
-**Resultado estricto: 9/20 = 45 %.** No se alcanzó la meta del 90 %. La ausencia de los controles 17 y 18 impide declarar la entrega segura aunque aumente el porcentaje. El dato compara requisitos de la demostración, no módulos históricos migrados.
+**Resultado estricto actual: 8/20 = 40 %.** El resultado anterior era 9/20 (45 %); el acceso del propietario dejó de estar demostrado para esta candidata y la fila 1 pasó a pendiente. No se alcanzó la meta del 90 %. La ausencia de los controles 17 y 18 impide declarar la entrega segura aunque aumente el porcentaje. El dato compara requisitos de la demostración, no módulos históricos migrados.
 
 ## Incidencia de acceso del propietario (22/11, noche)
 
