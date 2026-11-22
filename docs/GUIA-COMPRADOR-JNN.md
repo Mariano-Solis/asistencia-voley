@@ -1,0 +1,25 @@
+# Guía breve de la demostración JNN
+
+Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietario, autenticación de Vercel para el equipo de prueba y después cuenta propia de la aplicación (Supabase Auth). El comprador final no necesitará una cuenta Vercel cuando se habilite un entorno de entrega, previa revisión de seguridad. No compartir códigos de activación ni contraseñas.
+
+## Recorrido
+
+1. Abrí la Preview protegida e iniciá sesión en la aplicación con la identidad temporal autorizada. Si cambiaste de navegador, seguí el acceso por correo; no reutilices el enlace anterior.
+2. Comprobá que la cabecera muestre Junín Vóley JNN y que el rol sea Administrador. La identidad actual es provisional: todavía no hay un escudo oficial asociado.
+3. En **Categorías**, creá una categoría ficticia o editá su nombre. No uses nombres de alumnos o jugadores reales en la demostración.
+4. En **Jugadores**, agregá una persona ficticia, buscala, cambiale el nombre y filtrá por categoría. La opción Desactivar conserva el historial.
+5. En **Asistencia**, elegí categoría y fecha, creá una jornada si hace falta y marcá Presente, Tarde o Ausente.
+6. En **Historial**, filtrá por categoría, fecha o jugador. El número del botón Exportar CSV debe coincidir con las asistencias filtradas. Descargá el archivo y comprobá las columnas Fecha, Categoría, Jugador y Estado.
+7. En **Identidad**, podés elegir nombre público, colores y subir un escudo autorizado desde el dispositivo. Revisá la vista previa antes de guardar. El escudo queda en almacenamiento privado por institución. No uses el resultado «Junín Municipalidad» de Court Track como escudo de JNN sin confirmar la relación y el permiso de uso.
+8. Cerrá sesión desde la cabecera. Al volver, la aplicación debe pedir autenticación y verificar la vigencia institucional.
+
+## Si aparece un problema
+
+- «Acceso institucional no disponible»: pedí al propietario que revise membresía y vigencia de la licencia de ensayo. La licencia temporal vence al terminar el 24/11/2026 en Argentina.
+- Error al guardar: no repitas inmediatamente una emisión o canje de código. Actualizá los datos y comunicá el mensaje exacto al responsable.
+- Court Track no disponible: seguí con la configuración manual. No se bloquea el uso deportivo.
+- CSV no descargado: revisá los permisos de descargas del navegador Android y repetí el filtro. Registrá modelo, navegador y fecha; esta comprobación sobre la última candidata aún requiere prueba manual.
+
+## Transición posterior a la cuenta definitiva
+
+Después de aprobar el aislamiento con dos cuentas Auth institucionales reales, el propietario verifica por un canal independiente la identidad y el correo del administrador designado. Esa persona crea su **propia** cuenta y confirma el enlace normal de Supabase Auth. El propietario emite una nueva autorización personal de un solo uso y vigencia controlada; el destinatario la canjea en su sesión. Se comprueba su membresía y acceso. Luego se suspende la membresía temporal y se verifica que ya no puede acceder, sin compartir contraseñas, transferir sesiones ni alterar `auth.users` manualmente. No ejecutar este procedimiento todavía.

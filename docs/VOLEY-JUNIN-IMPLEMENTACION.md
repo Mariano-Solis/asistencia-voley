@@ -182,3 +182,9 @@ El propietario autorizó usar una cuenta ficticia temporal con nombre de prueba 
 ### Enlace final de esta sesión
 
 - Cambio de interfaz publicado en `13f7dbd`: el asistente institucional solo muestra modalidades manual y combinada operativas. `test:pilot` **10/10** y `build:pilot` **79 módulos** repitieron resultado satisfactorio. Preview final `dpl_ET423iBtmujuKLzDmqzpYd5zdRnu` desde ese commit, `READY`, `target=null`, URL exacta `https://voley-comercial-junin-piloto-kaf4co0gz-miga-mia.vercel.app/`. El alias protegido y autorizado en Supabase Auth `https://voley-comercial-junin-piloto-git-feature-voley-8add7d-miga-mia.vercel.app/` se abrió y muestra la pantalla de acceso. Usar el alias para las pruebas de correo y Android; evita agregar una redirección por cada Preview.
+
+### Iteración de aceptación comercial — 22/11/2026
+
+- Se incorporó edición de categorías, búsqueda/filtro de jugadores, filtro de historial por jugador y exportación que usa las mismas filas filtradas. El nombre del CSV sin fecha seleccionada indica «todas-las-fechas». Los formularios de categoría muestran confirmación; las actualizaciones exigen que PostgREST devuelva una fila para detectar denegaciones RLS.
+- Pruebas locales **11/11**, compilación piloto **80 módulos**, compilación general **180 módulos** y `git diff --check` correctos. No se ejecutaron JWT reales ni subida Storage real en esta iteración.
+- Guía de demostración: `docs/GUIA-COMPRADOR-JNN.md`. Matriz estricta: `docs/VOLEY-JNN-ACEPTACION.md`, **9/20 = 45 %**; bloqueo crítico por ausencia de ensayos cruzados PostgREST/Storage con dos sesiones Auth institucionales reales. Ninguna cifra de compilación sustituye estas puertas.
