@@ -6,7 +6,7 @@ export function CategoryManager({ client, institution, categories, canEdit, busy
     {canEdit && <form onSubmit={event => { event.preventDefault(); const form = event.currentTarget; run(async () => {
       await insert('categories', { institution_id: institution.id, name: String(new FormData(form).get('name')).trim() })
       form.reset(); announce('Categoría creada.')
-    }) }}><label>Nombre<input name="name" minLength="2" maxLength="100" required /></label><button disabled={busy}>Agregar categoría</button></form>}
+    }) }}><label>Nombre<input name="name" minLength="2" maxLength="80" required /></label><button disabled={busy}>Agregar categoría</button></form>}
     <ul>{categories.map(item => <li key={item.id}>
       <span>{item.name}</span>
       {canEdit && <button disabled={busy} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancelar' : 'Editar'}</button>}
@@ -14,7 +14,7 @@ export function CategoryManager({ client, institution, categories, canEdit, busy
         const { error } = await client.from('categories').update({ name }).eq('institution_id', institution.id).eq('id', item.id).select('id').single()
         if (error) throw error
         setEditing(null); announce('Categoría actualizada.')
-      }) }}><label>Nombre<input name="name" defaultValue={item.name} minLength="2" maxLength="100" required /></label><button disabled={busy}>Guardar cambios</button></form>}
+      }) }}><label>Nombre<input name="name" defaultValue={item.name} minLength="2" maxLength="80" required /></label><button disabled={busy}>Guardar cambios</button></form>}
     </li>)}</ul>
     {!categories.length && <p>Agregá una categoría para empezar a cargar jugadores y asistencia.</p>}
   </section>
