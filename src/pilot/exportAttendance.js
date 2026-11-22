@@ -1,4 +1,5 @@
 export function attendanceCsv({ attendance, sessions, categories, players }) {
+  const statusNames = { present: 'Presente', late: 'Tarde', absent: 'Ausente' }
   const days = new Map(sessions.map(item => [item.id, item]))
   const categoryNames = new Map(categories.map(item => [item.id, item.name]))
   const playerNames = new Map(players.map(item => [item.id, item.full_name]))
@@ -10,7 +11,7 @@ export function attendanceCsv({ attendance, sessions, categories, players }) {
   }
   const rows = [['Fecha','Categoría','Jugador','Estado'],...attendance.map(mark => {
     const day = days.get(mark.session_id)
-    return [day?.session_date,categoryNames.get(day?.category_id),playerNames.get(mark.player_id),mark.status]
+    return [day?.session_date,categoryNames.get(day?.category_id),playerNames.get(mark.player_id),statusNames[mark.status] ?? mark.status]
   })]
   return '\ufeff' + rows.map(row => row.map(escape).join(';')).join('\r\n')
 }
