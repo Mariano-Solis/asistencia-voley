@@ -27,6 +27,16 @@ Fecha: 22/11/2026. Criterio estricto: una fila solo se aprueba cuando el recorri
 
 **Resultado estricto: 9/20 = 45 %.** No se alcanzó la meta del 90 %. La ausencia de los controles 17 y 18 impide declarar la entrega segura aunque aumente el porcentaje. El dato compara requisitos de la demostración, no módulos históricos migrados.
 
+## Incidencia de acceso del propietario (22/11, noche)
+
+Consulta de solo lectura en `auth.users`, `auth.identities` y `platform_owners` del proyecto comercial, **sin consultar ni registrar el verificador**: un único usuario del correo del propietario; correo confirmado; una identidad `email`; verificador de contraseña presente; UID original conservado; un registro de autorización de propietario vinculado a ese UID. La existencia del verificador no demuestra que una contraseña concreta coincida con él ni cuándo se estableció.
+
+Los registros de Auth del mismo proyecto mostraron `POST /auth/v1/recover` con HTTP 429 y dos `POST /auth/v1/token?grant_type=password` con HTTP 400. Un intento de `/auth/v1/otp` también fue limitado. El formulario actual utiliza `signInWithPassword({ email, password })` y el correo se normaliza sin modificar la contraseña. Vercel Preview declara exclusivamente URL `https://savptjiwzaypisayulwp.supabase.co` y una clave publicable; el build aislado rechaza otra URL y claves secretas. La redirección de recuperación usa el alias estable autorizado; la entrada con contraseña no depende de ese enlace. No se determinaron el motivo interno preciso del rechazo 400 ni la correspondencia de la contraseña que el titular conoce: **acceso actual no recuperado y fila 1 no revalidada**.
+
+Corrección de interfaz: al pasar a sesión iniciada, cerrada o recuperación se limpia el aviso previo; el límite de correos explica que el envío está temporalmente restringido y que el ingreso con contraseña es otra operación. No se cambió Auth, usuario, hash, rol, licencia o límite. Pruebas locales: test del mensaje 429 y conservación del rechazo 400, más compilación aislada. Falta comprobar esa versión en Preview y el ingreso real del titular.
+
+Recuperación segura: esperar a que se reponga la cuota de correos sin reiterar solicitudes. Desde el alias estable protegido, elegir **Recuperar acceso**, introducir únicamente el correo propio y enviar **una** solicitud. Si vuelve 429, esperar y revisar la cuota de Auth antes de otro intento. Abrir el enlace más reciente en el mismo navegador protegido, completar **Elegí una contraseña nueva** personalmente, cerrar sesión y entrar con esa contraseña. Verificar panel propietario y acceso a Club Ficticio B antes de emitir un código de ensayo. Nunca compartir contraseña, enlaces ni códigos en chat; no registrar otra cuenta. Este procedimiento sigue pendiente del titular y de la cuota. Club Ficticio B tiene licencia de ensayo activa, sin código ni membresía aún: su activación y pruebas de dos JWT siguen bloqueadas.
+
 ## Pruebas de esta iteración
 
 - `npm run test:pilot`: 11/11 (PGlite local, parseo de script SQL, exportación, paleta, Court Track y validación de imagen). No usa dos JWT Auth reales.

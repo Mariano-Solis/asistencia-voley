@@ -9,6 +9,7 @@ import { AttendanceHistory } from './AttendanceHistory.jsx'
 import { CourtTrackFinder } from './CourtTrackFinder.jsx'
 import { IdentityEditor } from './IdentityEditor.jsx'
 import { IsolationProbe } from './IsolationProbe.jsx'
+import { authErrorMessage } from './authMessages.js'
 import './pilot.css'
 
 // Deliberately independent of src/supabase.js (San Martín redirects and auth overrides).
@@ -54,6 +55,7 @@ function Pilot() {
     const { data: { subscription } } = client.auth.onAuthStateChange((event, current) => {
       if (!active) return
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'PASSWORD_RECOVERY') setMessage('')
       setSession(current)
       setChecking(false)
     })
@@ -82,7 +84,7 @@ function Pilot() {
     return () => { active = false }
   }, [institution?.logo_path, institution?.logo_url])
 
-  const showError = error => setMessage(error?.message || 'No se pudo completar la operación.')
+  const showError = error => setMessage(authErrorMessage(error))
   async function query(table, fields = '*', filters = []) {
     let request = client.from(table).select(fields)
     for (const [field, value] of filters) request = request.eq(field, value)
