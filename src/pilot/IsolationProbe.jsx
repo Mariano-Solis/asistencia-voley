@@ -12,7 +12,7 @@ export function IsolationProbe({ client, institution }) {
   const [own, setOwn] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(storageKey) || 'null') } catch { return null }
   })
-  const [target, setTarget] = useState({ institution:'',category:'',player:'',session:'',logo:'' })
+  const [target, setTarget] = useState({ institution:'',name:'',category:'',player:'',session:'',logo:'' })
   const [report, setReport] = useState([])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -20,7 +20,7 @@ export function IsolationProbe({ client, institution }) {
 
   async function prepare() {
     setBusy(true); setMessage(''); setReport([])
-    const fixture = { institution:institution.id }
+    const fixture = { institution:institution.id, name:institution.name }
     try {
       const suffix = crypto.randomUUID().slice(0,8)
       const { data:categories,error:catError } = await client.from('categories').insert({institution_id:institution.id,name:`Ensayo JWT ${suffix}`}).select('id')
@@ -41,7 +41,7 @@ export function IsolationProbe({ client, institution }) {
       const { data:download,error:downloadError } = await client.storage.from('pilot-branding').download(fixture.logo)
       if (downloadError || download.size !== png.length) throw downloadError || Error('No se pudo descargar el escudo propio')
       sessionStorage.setItem(storageKey,JSON.stringify(fixture)); setOwn(fixture)
-      setMessage('Datos ficticios propios preparados. Copiá solo los cinco identificadores al otro administrador de prueba.')
+      setMessage('Datos ficticios propios preparados. Copiá solo los identificadores y el nombre del club al otro administrador de prueba.')
     } catch (error) {
       sessionStorage.setItem(storageKey,JSON.stringify(fixture)); setOwn(fixture)
       setMessage(`Preparación incompleta: ${error.message}. Limpiá estos datos antes de repetir.`)
@@ -64,7 +64,7 @@ export function IsolationProbe({ client, institution }) {
       add('Cambio de institution_id',await client.from('players').update({institution_id:target.institution}).eq('id',own.player).select('id'),denied)
       add('Cambio de rol',await client.from('institution_memberships').update({role:'super_admin'}).eq('institution_id',target.institution).select('user_id'),denied)
       add('Cambio de licencia',await client.from('institution_licenses').update({status:'active'}).eq('institution_id',target.institution).select('institution_id'),denied)
-      add('Cambio de identidad ajena',await client.rpc('pilot_update_identity',{p_institution:target.institution,p_name:'Intruso ficticio',p_primary:'#194b77',p_secondary:'#e7eef5',p_accent:'#0c765b',p_background:'#f1f5fa',p_surface:'#ffffff',p_logo_path:target.logo,p_mode:'manual'}),response => Boolean(response.error))
+      add('Cambio directo de identidad ajena',await client.from('institutions').update({name:target.name}).eq('id',target.institution).select('id'),denied)
       const bucket = client.storage.from('pilot-branding')
       add('Descarga privada ajena',await bucket.download(target.logo),response => Boolean(response.error))
       add('Firma URL privada ajena',await bucket.createSignedUrl(target.logo,60),response => Boolean(response.error))

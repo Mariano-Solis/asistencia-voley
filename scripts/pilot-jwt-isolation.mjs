@@ -48,6 +48,7 @@ const results = []
 function pass(label) { results.push(label) }
 const accounts = [{label:'JNN',jwt:jwtA},{label:'B',jwt:jwtB}]
 const fixture = new Map()
+const cleanupWarnings = []
 const png = new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=', 'base64'))
 const stamp = randomUUID().slice(0, 8)
 
@@ -57,7 +58,7 @@ try {
     assert.equal(memberships[0].role,'super_admin')
     assert.equal(memberships[0].status,'active')
     account.institution = memberships[0].institution_id
-    rows(await rest(account.jwt,'institutions',`?select=id,slug&${eq('id',account.institution)}`),1,`${account.label} institution`)
+    account.identity = rows(await rest(account.jwt,'institutions',`?select=id,slug,name,primary_color,secondary_color,accent_color,background_color,surface_color,logo_path,visual_mode&${eq('id',account.institution)}`),1,`${account.label} institution`)[0]
     pass(`${account.label}: verified own institution`)
   }
   assert.notEqual(accounts[0].institution, accounts[1].institution, 'Institutions must differ')
@@ -99,12 +100,16 @@ try {
       rows(await rest(account.jwt,table,`?select=*&${eq(column,other.institution)}`),0,`${account.label} foreign ${table} read`)
     }
     pass(`${account.label}: foreign institution, roles, license and sports reads denied`)
-    denied(await rest(account.jwt,'categories','?select=id',{
+    const foreignCategory = await rest(account.jwt,'categories','?select=id',{
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id:other.institution,name:`Invasión ${stamp}`},
-    }),`${account.label} foreign category insert`)
-    denied(await rest(account.jwt,'players','?select=id',{
+    })
+    if (foreignCategory.ok && foreignCategory.data?.[0]?.id) (target.unexpectedCategories ??= []).push(foreignCategory.data[0].id)
+    denied(foreignCategory,`${account.label} foreign category insert`)
+    const foreignPlayer = await rest(account.jwt,'players','?select=id',{
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id:other.institution,category_id:target.category,full_name:'Intruso ficticio'},
-    }),`${account.label} foreign player insert`)
+    })
+    if (foreignPlayer.ok && foreignPlayer.data?.[0]?.id) (target.unexpectedPlayers ??= []).push(foreignPlayer.data[0].id)
+    denied(foreignPlayer,`${account.label} foreign player insert`)
     denied(await rest(account.jwt,'players',`?${eq('id',target.player)}&select=id`,{
       method:'PATCH',headers:{Prefer:'return=representation'},body:{full_name:'Modificación indebida'},
     }),`${account.label} foreign player edit`)
@@ -120,8 +125,9 @@ try {
     denied(await rest(account.jwt,'institution_licenses',`?${eq('institution_id',other.institution)}&select=institution_id`,{
       method:'PATCH',headers:{Prefer:'return=representation'},body:{status:'active'},
     }),`${account.label} foreign license edit`)
+    const identity = other.identity
     denied(await request(account.jwt,'/rest/v1/rpc/pilot_update_identity',{
-      method:'POST',body:{p_institution:other.institution,p_name:'Intruso ficticio',p_primary:'#194b77',p_secondary:'#e7eef5',p_accent:'#0c765b',p_background:'#f1f5fa',p_surface:'#ffffff',p_logo_path:target.logo,p_mode:'manual'},
+      method:'POST',body:{p_institution:other.institution,p_name:identity.name,p_primary:identity.primary_color,p_secondary:identity.secondary_color,p_accent:identity.accent_color,p_background:identity.background_color,p_surface:identity.surface_color,p_logo_path:identity.logo_path,p_mode:identity.visual_mode},
     }),`${account.label} foreign identity RPC`)
     const foreignDownload = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${target.logo}`)
     denied(foreignDownload,`${account.label} foreign private file download`)
@@ -130,9 +136,11 @@ try {
     })
     denied(foreignSign,`${account.label} foreign private file signed URL`)
     const foreignPath = `${other.institution}/${randomUUID()}.png`
-    denied(await request(account.jwt,`/storage/v1/object/pilot-branding/${foreignPath}`,{
+    const foreignUpload = await request(account.jwt,`/storage/v1/object/pilot-branding/${foreignPath}`,{
       method:'POST',body:png,headers:{'Content-Type':'image/png','x-upsert':'false'},
-    }),`${account.label} foreign file upload`)
+    })
+    if (foreignUpload.ok) (target.unexpectedLogos ??= []).push(foreignPath)
+    denied(foreignUpload,`${account.label} foreign file upload`)
     denied(await request(account.jwt,`/storage/v1/object/pilot-branding/${target.logo}`,{
       method:'PUT',body:png,headers:{'Content-Type':'image/png'},
     }),`${account.label} foreign file update`)
@@ -143,7 +151,6 @@ try {
 } finally {
   // Unique fixture IDs only. If cleanup fails, report the failure without
   // printing JWTs or touching any pre-existing rows.
-  const cleanupWarnings = []
   for (const account of accounts) {
     const f = fixture.get(account.label)
     if (!f) continue
@@ -152,6 +159,9 @@ try {
       try { if (!(await action()).ok) cleanupWarnings.push(`${account.label} ${label}`) }
       catch { cleanupWarnings.push(`${account.label} ${label}`) }
     }
+    for (const path of f.unexpectedLogos || []) await remove('unexpected foreign logo',() => request(own,'/storage/v1/object/pilot-branding',{method:'DELETE',body:{prefixes:[path]}}))
+    for (const id of f.unexpectedPlayers || []) await remove('unexpected foreign player',() => rest(own,'players',`?${eq('id',id)}`,{method:'DELETE'}))
+    for (const id of f.unexpectedCategories || []) await remove('unexpected foreign category',() => rest(own,'categories',`?${eq('id',id)}`,{method:'DELETE'}))
     if (f.logo) await remove('logo',() => request(own,'/storage/v1/object/pilot-branding',{method:'DELETE',body:{prefixes:[f.logo]}}))
     if (f.session && f.player) await remove('attendance',() => rest(own,'attendance',`?${eq('session_id',f.session)}&${eq('player_id',f.player)}`,{method:'DELETE'}))
     if (f.session) await remove('session',() => rest(own,'training_sessions',`?${eq('id',f.session)}`,{method:'DELETE'}))
@@ -160,4 +170,5 @@ try {
   }
   if (cleanupWarnings.length) console.error('CLEANUP_PENDING',cleanupWarnings.join(', '))
 }
+if (cleanupWarnings.length) throw new Error('Cleanup incomplete; inspect fictitious fixtures before retrying')
 console.log(JSON.stringify({result:'PASS',checks:results}))
