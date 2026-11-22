@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { brandColors } from './brand.js'
+import { brandColors, paletteFromPrimary } from './brand.js'
 import { validatedLogo, renderCrop, croppedBlob } from './logoUpload.js'
 
 export function IdentityEditor({ institution, client, logoUrl, onSaved }) {
@@ -25,7 +25,11 @@ export function IdentityEditor({ institution, client, logoUrl, onSaved }) {
       previewCanvas.current.width = previewCanvas.current.height = 64
       previewCanvas.current.getContext('2d').drawImage(canvas.current,0,0,64,64)
     }
-    if (extracted && zoom === 1 && horizontal === 0 && vertical === 0) setPrimary(extracted)
+    if (extracted && zoom === 1 && horizontal === 0 && vertical === 0) {
+      const palette = paletteFromPrimary(extracted)
+      setPrimary(palette.primary); setSecondary(palette.secondary); setAccent(palette.accent)
+      setBackground(palette.background); setSurface(palette.surface)
+    }
   } },[bitmap,zoom,horizontal,vertical])
   useEffect(() => () => bitmap?.close(),[bitmap])
 
@@ -83,7 +87,7 @@ export function IdentityEditor({ institution, client, logoUrl, onSaved }) {
       </details>
       <h3>5. Vista previa</h3><div className="identity-preview" style={{background}}>
         <div className="preview-heading" style={{background:primary,color:brandColors(primary)['--club-on-primary']}}>{bitmap && <canvas className="preview-crest" ref={previewCanvas} />}{!bitmap && logoUrl && <img className="preview-crest" src={logoUrl} alt="" />}<strong>{name || 'Tu institución'}</strong></div>
-        <div className="preview-card" style={{background:surface,color:'#13283b'}}>Categorías · Jugadores · Asistencia <span style={{color:accent}}>●</span></div>
+        <div className="preview-card" style={{background:surface,color:brandColors(surface)['--club-on-primary']}}>Categorías · Jugadores · Asistencia <span style={{color:accent}}>●</span></div>
       </div>
       <button disabled={busy}>6. Confirmar y guardar</button>
     </form>{message && <p className="notice" role="status">{message}</p>}

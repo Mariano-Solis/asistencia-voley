@@ -13,3 +13,17 @@ export function brandColors(value) {
     '--club-selected': light ? '#153c32' : '#0c765b',
   }
 }
+
+const blend = (hex, target, ratio) => `#${rgb(hex).map((value, index) =>
+  Math.round(value * (1 - ratio) + target[index] * ratio).toString(16).padStart(2,'0')).join('')}`
+
+export function paletteFromPrimary(value) {
+  const primary = brandColors(value)['--club-primary']
+  return {
+    primary,
+    secondary: blend(primary,[255,255,255],0.82),
+    accent: blend(primary,[0,0,0],0.3),
+    background: blend(primary,[255,255,255],0.95),
+    surface: '#ffffff',
+  }
+}
