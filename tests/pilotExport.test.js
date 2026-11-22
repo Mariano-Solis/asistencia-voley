@@ -23,3 +23,15 @@ test('attendance CSV exports the remaining statuses in Spanish', () => {
   assert.match(csv, /"Tarde"\r\n/)
   assert.match(csv, /"Ausente"$/)
 })
+
+test('attendance CSV filters by club category and date before export', () => {
+  const csv = attendanceCsv({
+    sessions:[{id:'one',session_date:'2026-11-22',category_id:'a'}, {id:'two',session_date:'2026-11-22',category_id:'b'}, {id:'three',session_date:'2026-11-23',category_id:'a'}],
+    categories:[{id:'a',name:'Sub16'}, {id:'b',name:'Sub18'}],
+    players:[{id:'p',full_name:'Ejemplo'}],
+    attendance:[{session_id:'one',player_id:'p',status:'present'}, {session_id:'two',player_id:'p',status:'late'}, {session_id:'three',player_id:'p',status:'absent'}],
+    categoryId:'a', date:'2026-11-22'
+  })
+  assert.match(csv,/"Sub16";"Ejemplo";"Presente"/)
+  assert.doesNotMatch(csv,/Sub18|Tarde|Ausente/)
+})

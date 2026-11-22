@@ -1,4 +1,4 @@
-export function attendanceCsv({ attendance, sessions, categories, players }) {
+export function attendanceCsv({ attendance, sessions, categories, players, categoryId = '', date = '' }) {
   const statusNames = { present: 'Presente', late: 'Tarde', absent: 'Ausente' }
   const days = new Map(sessions.map(item => [item.id, item]))
   const categoryNames = new Map(categories.map(item => [item.id, item.name]))
@@ -9,7 +9,10 @@ export function attendanceCsv({ attendance, sessions, categories, players }) {
     if (/^[\s\uFEFF]*[=+@-]/u.test(text)) text = `'${text}`
     return `"${text.replaceAll('"','""')}"`
   }
-  const rows = [['Fecha','Categoría','Jugador','Estado'],...attendance.map(mark => {
+  const rows = [['Fecha','Categoría','Jugador','Estado'],...attendance.filter(mark => {
+    const day = days.get(mark.session_id)
+    return day && (!categoryId || day.category_id === categoryId) && (!date || day.session_date === date)
+  }).map(mark => {
     const day = days.get(mark.session_id)
     return [day?.session_date,categoryNames.get(day?.category_id),playerNames.get(mark.player_id),statusNames[mark.status] ?? mark.status]
   })]
