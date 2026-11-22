@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { attendanceCsv,attendanceFilename } from '../src/pilot/exportAttendance.js'
+import { attendanceCsv,attendanceFilename,filteredAttendance } from '../src/pilot/exportAttendance.js'
 
 test('attendance CSV preserves data and neutralizes spreadsheet formulas', () => {
   const csv = attendanceCsv({
@@ -34,4 +34,19 @@ test('attendance CSV filters by club category and date before export', () => {
   })
   assert.match(csv,/"Sub16";"Ejemplo";"Presente"/)
   assert.doesNotMatch(csv,/Sub18|Tarde|Ausente/)
+})
+
+test('history count and CSV contain the same player rows with accented names', () => {
+  const data = {
+    sessions:[{id:'one',session_date:'2026-11-22',category_id:'a'}],
+    categories:[{id:'a',name:'Sub 16'}],
+    players:[{id:'p1',full_name:'María José Núñez'}, {id:'p2',full_name:'Otro Jugador'}],
+    attendance:[{session_id:'one',player_id:'p1',status:'late'}, {session_id:'one',player_id:'p2',status:'present'}],
+    playerId:'p1'
+  }
+  assert.equal(filteredAttendance(data).length,1)
+  const csv = attendanceCsv(data)
+  assert.match(csv,/María José Núñez/)
+  assert.match(csv,/"Tarde"/)
+  assert.doesNotMatch(csv,/Otro Jugador|"Presente"/)
 })

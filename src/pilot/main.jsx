@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { attendanceCsv, attendanceFilename } from './exportAttendance.js'
 import { brandColors } from './brand.js'
 import { PlayerManager } from './PlayerManager.jsx'
+import { CategoryManager } from './CategoryManager.jsx'
 import { AttendanceHistory } from './AttendanceHistory.jsx'
 import { CourtTrackFinder } from './CourtTrackFinder.jsx'
 import { IdentityEditor } from './IdentityEditor.jsx'
@@ -173,10 +174,10 @@ function Pilot() {
     const { error } = await client.from('attendance').upsert({ institution_id: institution.id, session_id: currentSession.id, player_id: player.id, status })
     if (error) throw error
   }
-  function exportCsv({ categoryId = '', date: filterDate = '' } = {}) {
-    const blob = new Blob([attendanceCsv({ attendance,sessions,categories,players,categoryId,date:filterDate })],{ type:'text/csv;charset=utf-8' })
+  function exportCsv({ categoryId = '', date: filterDate = '', playerId = '' } = {}) {
+    const blob = new Blob([attendanceCsv({ attendance,sessions,categories,players,categoryId,date:filterDate,playerId })],{ type:'text/csv;charset=utf-8' })
     const anchor = document.createElement('a')
-    anchor.href = URL.createObjectURL(blob); anchor.download = attendanceFilename(institution.name,filterDate || date); anchor.click()
+    anchor.href = URL.createObjectURL(blob); anchor.download = attendanceFilename(institution.name,filterDate || 'todas-las-fechas'); anchor.click()
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
   }
 
@@ -195,11 +196,11 @@ function Pilot() {
     : !institution ? <section><h2>Activación institucional</h2><p>Si sos propietario de la plataforma, tu acceso se habilita mediante verificación administrativa: no necesitás un código. Si sos administrador de una institución, ingresá el código personal que te entregó el propietario. Los profesores deben esperar la habilitación de su administrador.</p><button disabled={busy} onClick={() => run(async () => { await Promise.all([refreshMembership(),refreshOwner()]) })}>Comprobar acceso nuevamente</button><form onSubmit={event => { event.preventDefault(); const code = new FormData(event.currentTarget).get('code'); run(async () => { const { error } = await client.rpc('pilot_redeem_code', { p_code: String(code).trim() }); if (error) throw error; await refreshMembership() }) }}><label>Código de activación<input name="code" required autoComplete="off"/></label><button disabled={busy}>Canjear código</button></form></section>
     : <><nav aria-label="Secciones del club">{[['asistencia','Asistencia'],['jugadores','Jugadores'],['categorias','Categorías'],...(membership?.role === 'super_admin' ? [['profesores','Profesores']] : []),['historial','Historial'],['identidad','Identidad']].map(([id,label]) => <button className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} key={id} onClick={() => setSection(id)}>{label}</button>)}<button onClick={() => run(refreshData)} disabled={busy}>Actualizar</button></nav>
       <p>Institución: {institution.name} · Rol: {membership?.role === 'super_admin' ? 'Administrador' : 'Profesor'}</p>
-      {section === 'categorias' && <section><h2>Categorías</h2>{membership?.role === 'super_admin' && <form onSubmit={event => { event.preventDefault(); const name = new FormData(event.currentTarget).get('name'); run(async () => { await insert('categories',{ institution_id: institution.id, name: String(name).trim() }); event.target.reset() }) }}><label>Nombre<input name="name" minLength="2" required/></label><button disabled={busy}>Agregar categoría</button></form>}<ul>{categories.map(c => <li key={c.id}>{c.name}</li>)}</ul></section>}
+      {section === 'categorias' && <CategoryManager client={client} institution={institution} categories={categories} canEdit={membership?.role === 'super_admin'} busy={busy} run={run} insert={insert} announce={setMessage} />}
       {section === 'jugadores' && <PlayerManager client={client} institution={institution} categories={categories} players={players} attendance={attendance} busy={busy} run={run} insert={insert} /> }
       {section === 'profesores' && <section><h2>Profesores</h2>{membership?.role === 'super_admin' ? <><form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, email = new FormData(form).get('email'); run(async () => { const { error } = await client.rpc('pilot_add_professor',{ p_institution: institution.id, p_email: emailOf(email) }); if (error) throw error; setMessage('Profesor habilitado.'); form.reset() }) }}><p>El profesor debe registrarse y verificar su correo antes de habilitarlo.</p><label>Correo<input name="email" type="email" required/></label><button disabled={busy}>Habilitar profesor</button></form><ul>{professors.map(p => <li key={p.user_id}>{p.email} · {p.status === 'active' ? 'Activo' : 'Suspendido'} <button disabled={busy} onClick={() => run(async () => { const { error } = await client.rpc('pilot_set_professor_status',{ p_institution: institution.id,p_user:p.user_id,p_active:p.status !== 'active' }); if (error) throw error })}>{p.status === 'active' ? 'Suspender' : 'Reactivar'}</button></li>)}</ul></> : <p>Solo el administrador habilita profesores.</p>}</section>}
       {section === 'identidad' && <IdentityEditor institution={institution} client={client} logoUrl={logoSrc} onSaved={refreshMembership} /> }
-      {section === 'historial' && <AttendanceHistory attendance={attendance} sessions={sessions} categories={categories} onExport={exportCsv} /> }
+      {section === 'historial' && <AttendanceHistory attendance={attendance} sessions={sessions} categories={categories} players={players} onExport={exportCsv} /> }
       {section === 'asistencia' && <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)}/></label>{category && !currentSession && <button disabled={busy} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy} onClick={() => run(() => setMark(p,value))}>{label}</button>)}</div></li>)}</ul>}</section>}
     </>}
     <footer>Versión piloto independiente · Los datos de San Martín no se utilizan aquí.</footer>

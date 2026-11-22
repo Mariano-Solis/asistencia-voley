@@ -1,4 +1,12 @@
-export function attendanceCsv({ attendance, sessions, categories, players, categoryId = '', date = '' }) {
+export function filteredAttendance({ attendance, sessions, categoryId = '', date = '', playerId = '' }) {
+  const days = new Map(sessions.map(item => [item.id, item]))
+  return attendance.filter(mark => {
+    const day = days.get(mark.session_id)
+    return day && (!categoryId || day.category_id === categoryId) && (!date || day.session_date === date) && (!playerId || mark.player_id === playerId)
+  })
+}
+
+export function attendanceCsv({ attendance, sessions, categories, players, categoryId = '', date = '', playerId = '' }) {
   const statusNames = { present: 'Presente', late: 'Tarde', absent: 'Ausente' }
   const days = new Map(sessions.map(item => [item.id, item]))
   const categoryNames = new Map(categories.map(item => [item.id, item.name]))
@@ -9,10 +17,7 @@ export function attendanceCsv({ attendance, sessions, categories, players, categ
     if (/^[\s\uFEFF]*[=+@-]/u.test(text)) text = `'${text}`
     return `"${text.replaceAll('"','""')}"`
   }
-  const rows = [['Fecha','Categoría','Jugador','Estado'],...attendance.filter(mark => {
-    const day = days.get(mark.session_id)
-    return day && (!categoryId || day.category_id === categoryId) && (!date || day.session_date === date)
-  }).map(mark => {
+  const rows = [['Fecha','Categoría','Jugador','Estado'],...filteredAttendance({ attendance, sessions, categoryId, date, playerId }).map(mark => {
     const day = days.get(mark.session_id)
     return [day?.session_date,categoryNames.get(day?.category_id),playerNames.get(mark.player_id),statusNames[mark.status] ?? mark.status]
   })]

@@ -2,6 +2,11 @@ import React, { useState } from 'react'
 
 export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert }) {
   const [editing, setEditing] = useState(null)
+  const [search, setSearch] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [status, setStatus] = useState('active')
+  const shown = players.filter(p => (!search || p.full_name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
+    && (!categoryId || p.category_id === categoryId) && (status === 'all' || p.active === (status === 'active')))
   return <section><h2>Jugadores</h2>
     <form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, data = new FormData(form); run(async () => {
       await insert('players', { institution_id: institution.id, category_id: data.get('category'), full_name: String(data.get('name')).trim() })
@@ -11,7 +16,10 @@ export function PlayerManager({ client, institution, categories, players, attend
       <label>Categoría<select name="category" required defaultValue=""><option value="" disabled>Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
       <button disabled={busy || !categories.length}>Agregar jugador</button>
     </form>
-    <ul>{players.map(p => <li key={p.id}>
+    <div className="history-filters"><label>Buscar jugador<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nombre" /></label>
+      <label>Filtrar categoría<select value={categoryId} onChange={event => setCategoryId(event.target.value)}><option value="">Todas</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <label>Estado<select value={status} onChange={event => setStatus(event.target.value)}><option value="active">Activos</option><option value="inactive">Inactivos</option><option value="all">Todos</option></select></label></div>
+    <ul>{shown.map(p => <li key={p.id}>
       <span>{p.full_name} · {categories.find(c => c.id === p.category_id)?.name} · {p.active ? 'Activo' : 'Inactivo'}</span>
       <div><button disabled={busy} onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? 'Cancelar' : 'Editar'}</button>
         <button disabled={busy} onClick={() => run(async () => {
@@ -31,5 +39,6 @@ export function PlayerManager({ client, institution, categories, players, attend
         <button disabled={busy}>Guardar cambios</button>
       </form>}
     </li>)}</ul>
+    {!shown.length && <p>{players.length ? 'No hay jugadores que coincidan con los filtros.' : 'Agregá el primer jugador en una categoría.'}</p>}
   </section>
 }
