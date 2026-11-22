@@ -178,3 +178,7 @@ El propietario autorizó usar una cuenta ficticia temporal con nombre de prueba 
 - Supabase Auth comercial permite esa URL exacta y el alias estable protegido `https://voley-comercial-junin-piloto-git-feature-voley-8add7d-miga-mia.vercel.app/`; este último es ahora Site URL y su página de acceso se abrió correctamente. La sesión del administrador temporal en esa URL, la subida real, el CSV corregido en Android y los JWT de dos clubes siguen sin comprobarse.
 
 - La modalidad «automática» no aparece aún en el asistente del administrador: la búsqueda FMV disponible está en el panel del propietario y exige selección explícita. Se conserva la modalidad combinada para preservar datos importados junto a ajustes manuales. Antes de ofrecer búsqueda automática a cada administrador se requiere validar un catálogo institucional y el permiso de uso de imágenes.
+
+### Enlace final de esta sesión
+
+- Cambio de interfaz publicado en `13f7dbd`: el asistente institucional solo muestra modalidades manual y combinada operativas. `test:pilot` **10/10** y `build:pilot` **79 módulos** repitieron resultado satisfactorio. Preview final `dpl_ET423iBtmujuKLzDmqzpYd5zdRnu` desde ese commit, `READY`, `target=null`, URL exacta `https://voley-comercial-junin-piloto-kaf4co0gz-miga-mia.vercel.app/`. El alias protegido y autorizado en Supabase Auth `https://voley-comercial-junin-piloto-git-feature-voley-8add7d-miga-mia.vercel.app/` se abrió y muestra la pantalla de acceso. Usar el alias para las pruebas de correo y Android; evita agregar una redirección por cada Preview.
