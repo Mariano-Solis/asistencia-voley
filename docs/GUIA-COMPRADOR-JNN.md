@@ -2,6 +2,8 @@
 
 Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietario, autenticación de Vercel para el equipo de prueba y después cuenta propia de la aplicación (Supabase Auth). El comprador final no necesitará una cuenta Vercel cuando se habilite un entorno de entrega, previa revisión de seguridad. No compartir códigos de activación ni contraseñas.
 
+Los enlaces de confirmación, acceso por correo y recuperación del piloto llevan al **alias estable protegido** de la rama comercial. Si comenzaste desde una URL única de Preview, el enlace puede abrir el mismo piloto bajo otra dirección; completá el recorrido allí. La comprobación automatizada de esa redirección usó respuestas simuladas: todavía falta validar un correo real después de este cambio.
+
 ## Demostración controlada de 10–15 minutos
 
 Reservá 2 minutos para ingresar y verificar Junín JNN, 3 para crear y editar una categoría y un jugador ficticios, 3 para registrar Presente/Tarde/Ausente, 3 para filtrar Historial y abrir el CSV, y 2 para mostrar Identidad y cerrar sesión. No uses datos reales ni un escudo no autorizado. La Preview requiere primero el acceso del equipo de pruebas por Vercel; el acceso comercial definitivo será independiente de Vercel después de aprobar las pruebas de seguridad.
