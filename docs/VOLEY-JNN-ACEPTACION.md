@@ -11,14 +11,14 @@ Fecha: 22/11/2026. Criterio estricto: una fila solo se aprueba cuando el recorri
 | 5 | Identidad provisional JNN sin escudo erróneo | Sí | Sí | Captura Android de cabecera JNN; consulta de logo sin asignar | Aprobado como identidad provisional |
 | 6 | Carga, recorte y persistencia de escudo privado | Sí | No | Tests locales de archivo/paleta y SQL simulado de política; falta subida real | Pendiente JWT Storage y Android |
 | 7 | Alta de categoría desde Android | Sí | Sí | Captura con categoría Sub16 Piloto, 22/11 | Aprobado en Preview anterior |
-| 8 | Edición de categoría | Sí | No | Código y compilación local 22/11; sin ensayo autenticado | Pendiente |
+| 8 | Edición de categoría | Sí | No | PGlite local: cambio de nombre y lectura posterior correctos; falta ensayo Auth en Preview | Pendiente interfaz autenticada |
 | 9 | Alta de jugador desde Android | Sí | Sí | Captura de Jugador de Prueba JNN, 22/11 | Aprobado en Preview anterior |
-| 10 | Edición, búsqueda y baja lógica de jugador | Sí | No | Código y compilación local; sin ensayo Auth posterior | Pendiente |
+| 10 | Edición, búsqueda y baja lógica de jugador | Sí | No | PGlite local: edición, búsqueda y cambio de categoría sin historial; falta búsqueda/filtros/baja en Preview autenticada | Pendiente interfaz autenticada |
 | 11 | Registro de asistencia | Sí | Sí | Captura Presente del jugador ficticio, 22/11 | Aprobado en Preview anterior |
 | 12 | Historial de asistencia | Sí | Sí | Captura de jornada y total, 22/11 | Aprobado en Preview anterior |
 | 13 | Filtros de fecha, categoría y jugador | Sí | No | Test local de selección CSV 11/11; falta navegación autenticada | Pendiente |
 | 14 | CSV corregido desde Android y planilla | Sí | No | Descarga Android del CSV previo; traducción Presente/Tarde/Ausente y tildes probadas localmente | Pendiente nueva descarga y apertura |
-| 15 | Profesores y permisos | Sí | No | RPC y RLS ensayadas con SQL simulado; sin profesor Auth real | Pendiente |
+| 15 | Profesores y permisos | Parcial | No | Alta, suspensión y permisos de rol ensayados con SQL simulado; sin profesor Auth real; asignación por categoría no implementada | Pendiente identidad y alcance por categoría |
 | 16 | Cierre, persistencia y recuperación Auth | Sí | No | Formularios implementados; no se observó el ciclo completo reciente | Pendiente |
 | 17 | Aislamiento PostgREST con dos JWT institucionales | Sí | No | SQL local y transaccional con claims simulados; no hay dos sesiones reales de clubes | Bloqueante crítico |
 | 18 | Aislamiento de Storage con dos JWT | Sí | No | Políticas y rutas SQL simuladas; sin subidas/descargas reales | Bloqueante crítico |
@@ -38,6 +38,12 @@ Corrección de interfaz: al pasar a sesión iniciada, cerrada o recuperación se
 Recuperación segura: esperar a que se reponga la cuota de correos sin reiterar solicitudes. Desde el alias estable protegido, elegir **Recuperar acceso**, introducir únicamente el correo propio y enviar **una** solicitud. Si vuelve 429, esperar y revisar la cuota de Auth antes de otro intento. Abrir el enlace más reciente en el mismo navegador protegido, completar **Elegí una contraseña nueva** personalmente, cerrar sesión y entrar con esa contraseña. Verificar panel propietario y acceso a Club Ficticio B antes de emitir un código de ensayo. Nunca compartir contraseña, enlaces ni códigos en chat; no registrar otra cuenta. Este procedimiento sigue pendiente del titular y de la cuota. Club Ficticio B tiene licencia de ensayo activa, sin código ni membresía aún: su activación y pruebas de dos JWT siguen bloqueadas.
 
 ## Pruebas de esta iteración
+
+**Actualización 23/11 (sin intervención del titular):** `npm run test:pilot` 14/14; compilación aislada 82 módulos y general 182 módulos. La integración local PGlite ahora comprueba alta/edición de categorías y jugadores, búsqueda SQL, los tres estados de asistencia, historial filtrado por jugador, permisos de profesor, suspensión y nuevas barreras de integridad. En PostgreSQL real del proyecto comercial, la migración `009_sports_tenant_and_history_guards.sql` instaló seis triggers; un ensayo con `ROLLBACK` comprobó actualización legítima de asistencia y rechazo de cambio de categoría de jugador/jornada con asistencia y cambio de institución; cero registros de ensayo persistidos. Auditoría de catálogo: 10/10 tablas del piloto con RLS, cuatro políticas `pilot_brand_%`, bucket privado de 2 MB, sin permiso `anon` para emitir códigos y sin escritura directa de `platform_owners` ni `institution_licenses` para `authenticated`. Son pruebas SQL y de privilegios, **no dos JWT**.
+
+La Preview `dpl_EDhCPnSaX82W1hT8tbr5rJ5MVgdN` se abrió en navegador de escritorio sin credenciales: pantalla inicial, cuatro formularios, validación de campo obligatorio y consola sin errores de la aplicación (un error de metadatos provino de una extensión del navegador). No se ejecutó un recorrido autenticado ni una prueba física Android en esta iteración. La fila 20 sigue pendiente. El script de dos JWT ahora considera HTTP 500 fallo del ensayo y nunca lo cuenta como denegación; todavía no se ejecutó porque Club Ficticio B carece de membresía.
+
+**Puntuación sin cambios: 8/20 (40 %).** Mejoró la integridad y la preparación de pruebas, pero las filas pendientes exigen el recorrido concreto indicado en la tabla.
 
 - `npm run test:pilot`: 11/11 (PGlite local, parseo de script SQL, exportación, paleta, Court Track y validación de imagen). No usa dos JWT Auth reales.
 - `npm run build:pilot`: 80 módulos, con URL comercial y clave pública ficticia **solo local para compilar**. No es prueba del despliegue.

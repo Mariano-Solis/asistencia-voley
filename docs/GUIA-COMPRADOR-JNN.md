@@ -8,6 +8,7 @@ Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietar
 2. Comprobá que la cabecera muestre Junín Vóley JNN y que el rol sea Administrador. La identidad actual es provisional: todavía no hay un escudo oficial asociado.
 3. En **Categorías**, creá una categoría ficticia o editá su nombre. No uses nombres de alumnos o jugadores reales en la demostración.
 4. En **Jugadores**, agregá una persona ficticia, buscala, cambiale el nombre y filtrá por categoría. La opción Desactivar conserva el historial.
+   Si el jugador ya tiene asistencias, su categoría queda fija para preservar el historial. Podés seguir editando su nombre y estado.
 5. En **Asistencia**, elegí categoría y fecha, creá una jornada si hace falta y marcá Presente, Tarde o Ausente.
 6. En **Historial**, filtrá por categoría, fecha o jugador. El número del botón Exportar CSV debe coincidir con las asistencias filtradas. Descargá el archivo y comprobá las columnas Fecha, Categoría, Jugador y Estado.
 7. En **Identidad**, podés elegir nombre público, colores y subir un escudo autorizado desde el dispositivo. Revisá la vista previa antes de guardar. El escudo queda en almacenamiento privado por institución. No uses el resultado «Junín Municipalidad» de Court Track como escudo de JNN sin confirmar la relación y el permiso de uso.
@@ -18,6 +19,7 @@ Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietar
 - «Acceso institucional no disponible»: pedí al propietario que revise membresía y vigencia de la licencia de ensayo. La licencia temporal vence al terminar el 24/11/2026 en Argentina.
 - Error al guardar: no repitas inmediatamente una emisión o canje de código. Actualizá los datos y comunicá el mensaje exacto al responsable.
 - Court Track no disponible: seguí con la configuración manual. No se bloquea el uso deportivo.
+- Profesor: el administrador puede habilitar o suspender una cuenta verificada. En esta candidata el profesor autorizado ve las categorías de su institución; la asignación limitada a categorías individuales todavía está en desarrollo y no debe prometerse.
 - CSV no descargado: revisá los permisos de descargas del navegador Android y repetí el filtro. Registrá modelo, navegador y fecha; esta comprobación sobre la última candidata aún requiere prueba manual.
 
 ## Comprobación breve en Android de la candidata actual
