@@ -157,7 +157,7 @@ try {
       await page.getByText('Sub18 recuperación').waitFor()
       await page.getByRole('button',{name:'Jugadores'}).click()
       await page.getByLabel('Nombre completo').fill('Jugador ficticio recuperación')
-      await page.getByLabel('Categoría').selectOption(store.categories[0].id)
+      await page.getByLabel('Categoría').first().selectOption(store.categories[0].id)
       failNextPlayerRead = true
       await page.getByRole('button',{name:'Agregar jugador'}).click()
       await page.getByRole('status').getByText(/La operación terminó, pero no se pudieron actualizar/).waitFor()
