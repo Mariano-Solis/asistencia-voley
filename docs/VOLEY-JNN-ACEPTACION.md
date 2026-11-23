@@ -18,7 +18,7 @@ Fecha: 22/11/2026. Criterio estricto: una fila solo se aprueba cuando el recorri
 | 12 | Historial de asistencia | Sí | Sí | Captura de jornada y total, 22/11 | Aprobado en Preview anterior |
 | 13 | Filtros de fecha, categoría y jugador | Sí | No | Test local de selección CSV 11/11; falta navegación autenticada | Pendiente |
 | 14 | CSV corregido desde Android y planilla | Sí | No | Descarga Android del CSV previo; traducción Presente/Tarde/Ausente y tildes probadas localmente | Pendiente nueva descarga y apertura |
-| 15 | Profesores y permisos | Parcial | No | Alta, suspensión y permisos de rol ensayados con SQL simulado; sin profesor Auth real; asignación por categoría no implementada | Pendiente identidad y alcance por categoría |
+| 15 | Profesores y permisos | Parcial | No | Alta/suspensión y permisos por categoría `can_view`, `can_edit`, `can_attendance` probados con claims SQL simulados; migración 014 instalada y políticas inspeccionadas; sin profesor Auth real | Pendiente profesor autenticado con JWT, asignación/revocación y PostgREST propio/ajeno |
 | 16 | Cierre, persistencia y recuperación Auth | Sí | No | Formularios implementados; no se observó el ciclo completo reciente | Pendiente |
 | 17 | Aislamiento PostgREST con dos JWT institucionales | Sí | No | SQL local y transaccional con claims simulados; no hay dos sesiones reales de clubes | Bloqueante crítico |
 | 18 | Aislamiento de Storage con dos JWT | Sí | No | Políticas y rutas SQL simuladas; sin subidas/descargas reales | Bloqueante crítico |
@@ -132,3 +132,7 @@ La prueba anónima real del 22/11 obtuvo HTTP 401 al leer `players` e `instituti
 ## Otras funciones
 
 La búsqueda Court Track consulta un índice acotado FMV y exige selección explícita del propietario; no es catálogo universal y no se asignó escudo. La configuración manual permite operar sin proveedor. Planificación, estadísticas, pizarra, programación, posiciones y pagos no forman parte de esta candidata. El rol de profesor conserva las restricciones de servidor, pero falta prueba con su propio JWT.
+
+## Revisión C15 · 23/11/2026
+
+El proyecto Supabase comercial está accesible y ACTIVE_HEALTHY. Se respaldaron las cuatro tablas deportivas en `pilot_backups` sin acceso para `authenticated`, luego se aplicaron 012–015. RLS sigue activo en las seis tablas deportivas relevantes; `players`, `categories`, `training_sessions` y `attendance` conservan dos filas cada una, iguales al respaldo. Las políticas delegan categorías de profesor con comprobación del servidor y la función administrativa de evento RLS ya no es ejecutable por roles API. El CI de la interfaz del commit `2b2dfd9` pasó en Chromium con backend **simulado**; 34/34 pruebas locales y ambas compilaciones pasaron después de las migraciones. La nueva interfaz continúa apagada en la Preview protegida. No se dispuso de dos JWT de administradores ni de un profesor Auth para comprobar los requisitos 15, 17 y 18; ninguno cambia de estado. **Aceptación: 8/20 (40 %)**. Paridad histórica completa: 0/10 bloques.
