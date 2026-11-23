@@ -241,7 +241,12 @@ try {
     await page.getByText(`Vacía UI ${viewport.width}`).waitFor()
     page.once('dialog',dialog => dialog.accept())
     await page.getByRole('button',{name:'Eliminar'}).last().click()
-    await page.getByRole('status').getByText('Categoría vacía eliminada.').waitFor()
+    try { await page.getByRole('status').getByText('Categoría vacía eliminada.').waitFor({timeout:4000}) }
+    catch (error) {
+      console.error('Category removal screen:',(await page.locator('body').innerText()).slice(0,1200))
+      console.error('Recent mock calls:',calls.slice(-20),'Page errors:',errors)
+      throw error
+    }
     assert.equal(store.categories.length,1,'Only the empty own category is removed')
 
     await page.getByRole('button',{name:'Jugadores'}).click()
