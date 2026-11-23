@@ -7,6 +7,8 @@ on:
       - feature/voley-comercial-junin-piloto
     paths:
       - .github/workflows/pilot-browser-smoke.yml
+      - scripts/pilot-browser-smoke.mjs
+      - src/pilot/**
 
 permissions:
   contents: read

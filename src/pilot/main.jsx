@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
 import { attendanceCsv, attendanceFilename } from './exportAttendance.js'
@@ -10,7 +10,7 @@ import { CourtTrackFinder } from './CourtTrackFinder.jsx'
 import { IdentityEditor } from './IdentityEditor.jsx'
 import { IsolationProbe } from './IsolationProbe.jsx'
 import { authErrorMessage } from './authMessages.js'
-import { usableAccountStatus } from './accountAccess.js'
+import { matchingActiveMembership, usableAccountStatus } from './accountAccess.js'
 import { performClubAction } from './actionFlow.js'
 import './pilot.css'
 
@@ -42,6 +42,7 @@ function Pilot() {
   const [section, setSection] = useState('asistencia')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const actionRunning = useRef(false)
   const [category, setCategory] = useState('')
   const [date, setDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
 
@@ -106,14 +107,12 @@ function Pilot() {
     const usable = usableAccountStatus(statuses)
     const status = usable || statuses?.[0] || null
     setAccountStatus(status)
-    if (!usable) {
-      setMembership(null); setInstitution(null); return
-    }
+    if (!usable) { setMembership(null); setInstitution(null); return }
     const memberships = await query('institution_memberships', 'institution_id,role,status')
-    const first = memberships.find(m => m.status === 'active' && m.institution_id === usable.institution_id)
-    if (!first) return
+    const first = matchingActiveMembership(usable,memberships)
+    if (!first) { setMembership(null); setInstitution(null); return }
     const institutions = await query('institutions', '*', [['id', first.institution_id]])
-    if (!institutions[0]) return
+    if (!institutions[0]) { setMembership(null); setInstitution(null); return }
     setMembership(first); setInstitution(institutions[0])
   }
   async function refreshOwner() {
@@ -150,6 +149,9 @@ function Pilot() {
     setAttendance(await query('attendance','*',[['institution_id',institution.id]]))
   }
   async function run(action, { refresh = true } = {}) {
+    // A second event can arrive before React paints a disabled submit button.
+    if (actionRunning.current) return
+    actionRunning.current = true
     setBusy(true); setMessage('')
     try {
       const followUp = refresh === 'owner' ? refreshOwner : refresh && institution ? (refresh === 'attendance' ? refreshAttendance : refreshData) : null
@@ -157,7 +159,7 @@ function Pilot() {
       if (!result.refreshed) setMessage('La operación terminó, pero no se pudieron actualizar los datos. Tocá Actualizar antes de repetirla.')
     }
     catch (error) { showError(error) }
-    finally { setBusy(false) }
+    finally { actionRunning.current = false; setBusy(false) }
   }
   async function insert(table, values) {
     const { error } = await client.from(table).insert(values)

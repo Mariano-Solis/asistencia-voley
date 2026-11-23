@@ -91,6 +91,7 @@ try {
     const context = await browser.newContext({viewport,acceptDownloads:true})
     const page = await context.newPage()
     const errors=[]
+    const unexpected=[]
     page.on('pageerror',error => errors.push(error.message))
     await page.route(`${origin}/**`,async route => {
       const request=route.request(),url=new URL(request.url()),path=url.pathname,method=request.method()
@@ -102,7 +103,7 @@ try {
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
       else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role:'super_admin',membership_status:'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
       else if (path.startsWith('/rest/v1/')) response=respondRest(method,path.split('/')[3],url,request)
-      else response=json({message:'Unexpected mocked endpoint'},404)
+      else { unexpected.push(`${method} ${path}`); response=json({message:'Unexpected mocked endpoint'},404) }
       await route.fulfill(response)
     })
     await page.goto(`http://127.0.0.1:${port}/`)
@@ -111,7 +112,14 @@ try {
     await login.getByLabel('Correo').fill('admin@example.test')
     await login.getByLabel('Contraseña').fill('clave-ficticia')
     await login.getByRole('button',{name:'Iniciar sesión'}).click()
-    await page.getByRole('heading',{name:'Asistencia'}).waitFor()
+    try { await page.getByRole('heading',{name:'Asistencia'}).waitFor({timeout:10000}) }
+    catch (error) {
+      // The account and all endpoints here are fictitious. Never print actual
+      // auth headers, token bodies or user-input passwords in CI diagnostics.
+      console.error('Mock journey stopped at:',(await page.locator('body').innerText()).slice(0,1500))
+      console.error('Unexpected mock endpoints:',unexpected,'Page errors:',errors)
+      throw error
+    }
 
     await page.getByRole('button',{name:'Categorías'}).click()
     await page.getByLabel('Nombre',{exact:true}).first().fill(`Sub16 UI ${viewport.width}`)
