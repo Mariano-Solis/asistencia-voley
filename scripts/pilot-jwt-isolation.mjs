@@ -138,9 +138,11 @@ try {
       method:'PATCH',headers:{Prefer:'return=representation'},body:{status:'active'},
     }),`${account.label} foreign license edit`)
     const identity = other.identity
-    denied(await request(account.jwt,'/rest/v1/rpc/pilot_update_identity',{
+    const foreignIdentity = await request(account.jwt,'/rest/v1/rpc/pilot_update_identity',{
       method:'POST',body:{p_institution:other.institution,p_name:identity.name,p_primary:identity.primary_color,p_secondary:identity.secondary_color,p_accent:identity.accent_color,p_background:identity.background_color,p_surface:identity.surface_color,p_logo_path:identity.logo_path,p_mode:identity.visual_mode},
-    }),`${account.label} foreign identity RPC`)
+    })
+    assert.equal(foreignIdentity.status,400,`${account.label} foreign identity RPC must run and reject access`)
+    assert.equal(foreignIdentity.data?.message,'Institution administrator required',`${account.label} identity RPC rejected for an unexpected reason`)
     const foreignDownload = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${target.logo}`)
     denied(foreignDownload,`${account.label} foreign private file download`)
     const foreignSign = await request(account.jwt,`/storage/v1/object/sign/pilot-branding/${target.logo}`,{
