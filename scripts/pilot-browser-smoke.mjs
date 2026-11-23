@@ -22,7 +22,7 @@ const userId = '20000000-0000-4000-8000-000000000002'
 const user = { id:userId, email:'admin@example.test', aud:'authenticated', role:'authenticated', app_metadata:{provider:'email',providers:['email']}, user_metadata:{}, created_at:new Date().toISOString() }
 const token = `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:userId,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.mock-signature`
 let role = 'super_admin'
-let failNextPlayerRead = false
+let playerReadOutage = false
 const store = {
   categories:[], players:[], training_sessions:[], attendance:[],
   institution_memberships:[{institution_id:club,role:'super_admin',status:'active'}],
@@ -111,8 +111,7 @@ try {
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
       else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
-      else if (failNextPlayerRead && path==='/rest/v1/players' && method==='GET') {
-        failNextPlayerRead = false
+      else if (playerReadOutage && path==='/rest/v1/players' && method==='GET') {
         response = json({message:'Temporary simulated read outage'},503)
       }
       else if (path.startsWith('/rest/v1/')) response=respondRest(method,path.split('/')[3],url,request)
@@ -158,7 +157,7 @@ try {
       await page.getByRole('button',{name:'Jugadores'}).click()
       await page.getByLabel('Nombre completo').fill('Jugador ficticio recuperación')
       await page.getByLabel('Categoría').first().selectOption(store.categories[0].id)
-      failNextPlayerRead = true
+      playerReadOutage = true
       await page.getByRole('button',{name:'Agregar jugador'}).click()
       try { await page.getByRole('status').getByText(/La operación terminó, pero no se pudieron actualizar/).waitFor({timeout:10000}) }
       catch (error) {
@@ -167,6 +166,7 @@ try {
         throw error
       }
       assert.equal(store.players.length,1,'The successful write must not be retried')
+      playerReadOutage = false
       await page.getByRole('button',{name:'Actualizar'}).click()
       await page.getByText(/Jugador ficticio recuperación/).waitFor()
       assert.equal(store.players.length,1,'Manual refresh must not repeat the write')
