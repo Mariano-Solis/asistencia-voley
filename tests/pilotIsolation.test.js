@@ -55,6 +55,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await db.exec(readFileSync(new URL('../supabase/pilot/010_sports_history_delete_guards.sql',import.meta.url),'utf8'))
     // Staged C15 schema is exercised locally; it has not been applied to the
     // connected commercial database or asserted with real JWTs.
+    await db.exec(readFileSync(new URL('../supabase/pilot/012_preflight_backup.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/012_category_player_parity.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/013_private_player_photos.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/014_professor_category_scope.sql',import.meta.url),'utf8'))
@@ -255,11 +256,20 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       await denied(() => db.query("insert into public.training_sessions(institution_id,category_id,session_date) values ($1,$2,current_date+5)",[jnn,jnnCat]))
     })
     await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_category_permission($1,$2,$3,false,false,true)',[jnn,professor,jnnCat]))
+    const guestCategory = await as(jnnAdmin,async () => (await row("insert into public.categories(institution_id,name) values ($1,'Invitados') returning id",[jnn])).id)
+    const guestPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Invitado') returning id",[jnn,guestCategory])).id)
+    await as(jnnAdmin,async () => denied(() => db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'present')",[jnn,jnnSession,guestPlayer])))
     await as(professor,async () => {
       assert.equal(await count('select count(*) from public.players where id=$1',[jnnPlayer]),1)
       assert.equal(await count('select count(*) from public.player_private_details where player_id=$1',[jnnPlayer]),0)
+      assert.equal(await count('select count(*) from public.players where id=$1',[guestPlayer]),0)
+      await denied(() => db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'late') on conflict (institution_id,session_id,player_id) do update set status=excluded.status",[jnn,jnnSession,guestPlayer]))
       await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Solo asistencia')",[jnn,jnnCat]))
       await db.query("update public.attendance set status='present' where institution_id=$1 and session_id=$2 and player_id=$3",[jnn,jnnSession,jnnPlayer])
+    })
+    await as(jnnAdmin,async () => {
+      assert.equal((await db.query('delete from public.players where id=$1',[guestPlayer])).affectedRows,1)
+      assert.equal((await db.query('delete from public.categories where id=$1',[guestCategory])).affectedRows,1)
     })
     await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_category_permission($1,$2,$3,false,false,false)',[jnn,professor,jnnCat]))
     await as(professor,async () => {
