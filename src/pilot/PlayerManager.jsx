@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert }) {
+export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce }) {
   const [editing, setEditing] = useState(null)
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -10,7 +10,7 @@ export function PlayerManager({ client, institution, categories, players, attend
   return <section><h2>Jugadores</h2>
     <form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, data = new FormData(form); run(async () => {
       await insert('players', { institution_id: institution.id, category_id: data.get('category'), full_name: String(data.get('name')).trim() })
-      form.reset()
+      form.reset(); announce('Jugador agregado.')
     }) }}>
       <label>Nombre completo<input name="name" minLength="2" maxLength="120" required /></label>
       <label>Categoría<select name="category" required defaultValue=""><option value="" disabled>Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -25,12 +25,13 @@ export function PlayerManager({ client, institution, categories, players, attend
         <button disabled={busy} onClick={() => run(async () => {
           const { error } = await client.from('players').update({ active: !p.active }).eq('institution_id', institution.id).eq('id', p.id).select('id').single()
           if (error) throw error
+          announce(p.active ? 'Jugador desactivado. Su historial se conserva.' : 'Jugador reactivado.')
         })}>{p.active ? 'Desactivar' : 'Reactivar'}</button></div>
       {editing === p.id && <form className="inline-editor" onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); run(async () => {
         const { error } = await client.from('players').update({ full_name: String(data.get('name')).trim(), category_id: String(data.get('category') || p.category_id) })
           .eq('institution_id', institution.id).eq('id', p.id).select('id').single()
         if (error) throw error
-        setEditing(null)
+        setEditing(null); announce('Jugador actualizado.')
       }) }}>
         <label>Nombre completo<input name="name" defaultValue={p.full_name} minLength="2" maxLength="120" required /></label>
         <label>Categoría<select name="category" defaultValue={p.category_id} disabled={attendance.some(a => a.player_id === p.id)}>

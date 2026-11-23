@@ -10,6 +10,7 @@ Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietar
 4. En **Jugadores**, agregá una persona ficticia, buscala, cambiale el nombre y filtrá por categoría. La opción Desactivar conserva el historial.
    Si el jugador ya tiene asistencias, su categoría queda fija para preservar el historial. Podés seguir editando su nombre y estado.
 5. En **Asistencia**, elegí categoría y fecha, creá una jornada si hace falta y marcá Presente, Tarde o Ausente.
+   Al guardar, la candidata anuncia el nombre y el estado; en Jugadores anuncia cada alta, edición y cambio de actividad. Si no aparece la confirmación, comprobá el aviso antes de repetir la operación.
 6. En **Historial**, filtrá por categoría, fecha o jugador. El número del botón Exportar CSV debe coincidir con las asistencias filtradas. Descargá el archivo y comprobá las columnas Fecha, Categoría, Jugador y Estado.
 7. En **Identidad**, podés elegir nombre público, colores y subir un escudo autorizado desde el dispositivo. Revisá la vista previa antes de guardar. El escudo queda en almacenamiento privado por institución. No uses el resultado «Junín Municipalidad» de Court Track como escudo de JNN sin confirmar la relación y el permiso de uso.
 8. Cerrá sesión desde la cabecera. Al volver, la aplicación debe pedir autenticación y verificar la vigencia institucional.
