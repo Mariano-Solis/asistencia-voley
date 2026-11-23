@@ -53,6 +53,9 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await db.exec(readFileSync(new URL('../supabase/pilot/008_universal_identity.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/009_sports_tenant_and_history_guards.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/010_sports_history_delete_guards.sql',import.meta.url),'utf8'))
+    // Staged C15 schema is exercised locally; it has not been applied to the
+    // connected commercial database or asserted with real JWTs.
+    await db.exec(readFileSync(new URL('../supabase/pilot/012_category_player_parity.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
       [owner,'owner@example.test'], [jnnAdmin,'jnn@example.test'],
       [otherAdmin,'other@example.test'], [professor,'professor@example.test'],
@@ -114,7 +117,29 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     })
     const jnnCat = await as(jnnAdmin,async () => (await row("insert into public.categories(institution_id,name) values ($1,'Sub 16') returning id",[jnn])).id)
     const otherCat = await as(otherAdmin,async () => (await row("insert into public.categories(institution_id,name) values ($1,'Sub 18') returning id",[other])).id)
+    await as(jnnAdmin,async () => db.query("update public.categories set gender='female' where id=$1",[jnnCat]))
+    await as(otherAdmin,async () => db.query("update public.categories set gender='male' where id=$1",[otherCat]))
+    await as(jnnAdmin,async () => {
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name,sex) values ($1,$2,'Rama equivocada','male')",[jnn,jnnCat]))
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name,sex) values ($1,$2,'Categoría ajena','male')",[jnn,otherCat]))
+    })
     const jnnPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Jugador ficticio') returning id",[jnn,jnnCat])).id)
+    await as(jnnAdmin,async () => {
+      await db.query("update public.players set first_name='Ana María',last_name='Prueba',sex='female',dni='12345678',birth_date='2010-11-22',team='A' where id=$1",[jnnPlayer])
+      assert.equal((await row('select first_name from public.players where id=$1',[jnnPlayer])).first_name,'Ana María')
+      await denied(() => db.query("update public.players set sex='male' where id=$1",[jnnPlayer]))
+      await denied(() => db.query("update public.categories set gender='male' where id=$1",[jnnCat]))
+      await denied(() => db.query("update public.players set birth_date=current_date+1 where id=$1",[jnnPlayer]))
+      await db.query('update public.categories set active=false where id=$1',[jnnCat])
+      assert.equal((await row('select active from public.categories where id=$1',[jnnCat])).active,false)
+      assert.equal(await count('select count(*) from public.players where category_id=$1',[jnnCat]),1)
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Nuevo en inactiva')",[jnn,jnnCat]))
+      await db.query('update public.categories set active=true where id=$1',[jnnCat])
+    })
+    await as(otherAdmin,async () => {
+      assert.equal(await count('select count(*) from public.players where dni=$1',['12345678']),0)
+      assert.equal((await db.query("update public.players set first_name='Intruso' where id=$1 returning id",[jnnPlayer])).rows.length,0)
+    })
     const jnnSession = await as(jnnAdmin,async () => (await row('insert into public.training_sessions(institution_id,category_id,session_date) values ($1,$2,current_date) returning id',[jnn,jnnCat])).id)
     await as(jnnAdmin,async () => {
       await denied(() => db.query("insert into public.categories(institution_id,name) values ($1,'Sub 16')",[jnn]))
@@ -182,6 +207,10 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     })
     await as(jnnAdmin,async () => denied(() => db.query('insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,$4)',[jnn,jnnSession,jnnOtherPlayer,'present'])))
     await as(jnnAdmin,async () => db.query('select public.pilot_add_professor($1,$2)',[jnn,'professor@example.test']))
+    await as(professor,async () => {
+      assert.equal((await db.query("update public.categories set active=false where id=$1 returning id",[jnnCat])).rows.length,0)
+      assert.equal((await row('select active from public.categories where id=$1',[jnnCat])).active,true)
+    })
     // Category deletion parity: empty own category only; FK protects used
     // categories even if another writer races the UI preflight check.
     const emptyCategory = await as(jnnAdmin, async () => (await row("insert into public.categories(institution_id,name) values ($1,'Vacía de ensayo') returning id",[jnn])).id)

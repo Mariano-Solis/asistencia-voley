@@ -28,11 +28,14 @@ function csvRows(rows) {
   return '\ufeff' + rows.map(row => row.map(escape).join(';')).join('\r\n')
 }
 
-export function playersCsv({ players, categories }) {
+export function playersCsv({ players, categories, detailed = false }) {
   const names = new Map(categories.map(category => [category.id, category.name]))
-  return csvRows([['Jugador','Categoría','Estado'], ...players.map(player => [
-    player.full_name, names.get(player.category_id) || 'Categoría no disponible', player.active ? 'Activo' : 'Inactivo'
-  ])])
+  const rows = players.map(player => detailed ? [
+    player.full_name, player.first_name, player.last_name, player.dni, player.birth_date,
+    { female:'Femenina', male:'Masculina' }[player.sex] || '', player.team,
+    names.get(player.category_id) || 'Categoría no disponible', player.active ? 'Activo' : 'Inactivo'
+  ] : [player.full_name, names.get(player.category_id) || 'Categoría no disponible', player.active ? 'Activo' : 'Inactivo'])
+  return csvRows([detailed ? ['Jugador','Nombre','Apellido','DNI','Nacimiento','Rama','Equipo','Categoría','Estado'] : ['Jugador','Categoría','Estado'], ...rows])
 }
 
 export function playersFilename(institutionName) {

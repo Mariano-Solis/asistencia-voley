@@ -18,6 +18,9 @@ import './pilot.css'
 // Deliberately independent of src/supabase.js (San Martín redirects and auth overrides).
 const url = import.meta.env.VITE_PILOT_SUPABASE_URL
 const key = import.meta.env.VITE_PILOT_SUPABASE_ANON_KEY
+// Enable only after migration 012 has been applied and checked on the isolated
+// commercial project. Existing Preview remains compatible with older schema.
+const playerParityEnabled = import.meta.env.VITE_PILOT_PLAYER_PARITY === '1'
 const client = url && key && /^https:\/\//.test(url) ? createClient(url, key) : null
 const emailOf = value => String(value || '').trim().toLowerCase()
 
@@ -204,7 +207,7 @@ function Pilot() {
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
   }
   function exportPlayers(shown) {
-    const blob = new Blob([playersCsv({ players: shown, categories })], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob([playersCsv({ players: shown, categories, detailed: playerParityEnabled })], { type: 'text/csv;charset=utf-8' })
     const anchor = document.createElement('a')
     anchor.href = URL.createObjectURL(blob); anchor.download = playersFilename(institution.name); anchor.click()
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
@@ -225,8 +228,8 @@ function Pilot() {
     : !institution ? <section><h2>Activación institucional</h2><p>Si sos propietario de la plataforma, tu acceso se habilita mediante verificación administrativa: no necesitás un código. Si sos administrador de una institución, ingresá el código personal que te entregó el propietario. Los profesores deben esperar la habilitación de su administrador.</p><button disabled={busy} onClick={() => run(async () => { await Promise.all([refreshMembership(),refreshOwner()]) })}>Comprobar acceso nuevamente</button><form onSubmit={event => { event.preventDefault(); const code = new FormData(event.currentTarget).get('code'); run(async () => { const { error } = await client.rpc('pilot_redeem_code', { p_code: String(code).trim() }); if (error) throw error; await refreshMembership() }) }}><label>Código de activación<input name="code" required autoComplete="off"/></label><button disabled={busy}>Canjear código</button></form></section>
     : <><nav aria-label="Secciones del club">{[['asistencia','Asistencia'],['jugadores','Jugadores'],['categorias','Categorías'],...(membership?.role === 'super_admin' ? [['profesores','Profesores']] : []),['historial','Historial'],['identidad','Identidad'],...(import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && membership?.role === 'super_admin' ? [['seguridad','Ensayo de aislamiento']] : [])].map(([id,label]) => <button className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} key={id} onClick={() => setSection(id)}>{label}</button>)}<button onClick={() => run(refreshData, { refresh:false })} disabled={busy}>Actualizar</button></nav>
       <p>Institución: {institution.name} · Rol: {membership?.role === 'super_admin' ? 'Administrador' : 'Profesor'}</p>
-      {section === 'categorias' && <CategoryManager client={client} institution={institution} categories={categories} canEdit={membership?.role === 'super_admin'} busy={busy} run={run} insert={insert} announce={setMessage} />}
-      {section === 'jugadores' && <PlayerManager client={client} institution={institution} categories={categories} players={players} attendance={attendance} busy={busy} run={run} insert={insert} announce={setMessage} onExport={exportPlayers} /> }
+      {section === 'categorias' && <CategoryManager client={client} institution={institution} categories={categories} canEdit={membership?.role === 'super_admin'} busy={busy} run={run} insert={insert} announce={setMessage} parityEnabled={playerParityEnabled} />}
+      {section === 'jugadores' && <PlayerManager client={client} institution={institution} categories={categories} players={players} attendance={attendance} busy={busy} run={run} insert={insert} announce={setMessage} onExport={exportPlayers} parityEnabled={playerParityEnabled} /> }
       {section === 'profesores' && <section><h2>Profesores</h2>{membership?.role === 'super_admin' ? <><form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, email = new FormData(form).get('email'); run(async () => { const { error } = await client.rpc('pilot_add_professor',{ p_institution: institution.id, p_email: emailOf(email) }); if (error) throw error; setMessage('Profesor habilitado.'); form.reset() }) }}><p>El profesor debe registrarse y verificar su correo antes de habilitarlo.</p><label>Correo<input name="email" type="email" required/></label><button disabled={busy}>Habilitar profesor</button></form><ul>{professors.map(p => <li key={p.user_id}>{p.email} · {p.status === 'active' ? 'Activo' : 'Suspendido'} <button disabled={busy} onClick={() => run(async () => { const { error } = await client.rpc('pilot_set_professor_status',{ p_institution: institution.id,p_user:p.user_id,p_active:p.status !== 'active' }); if (error) throw error })}>{p.status === 'active' ? 'Suspender' : 'Reactivar'}</button></li>)}</ul></> : <p>Solo el administrador habilita profesores.</p>}</section>}
       {section === 'identidad' && (membership?.role === 'super_admin'
         ? <IdentityEditor institution={institution} client={client} logoUrl={logoSrc} onSaved={refreshMembership} />

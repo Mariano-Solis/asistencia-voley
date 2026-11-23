@@ -1,5 +1,21 @@
 # C14 · Paridad funcional San Martín → Vóley Comercial
 
+## C15 · Categorías y jugadores, 23/11/2026
+
+La rama se sincronizó con `origin/feature/voley-comercial-junin-piloto` en `988d093` **antes de editar**. El árbol local divergente (`2d11aee`) era idéntico y quedó respaldado en `pilot/local-c14-equivalent-20261123`. No se tocó `main` ni la aplicación municipal.
+
+| Operación histórica | Desarrollo comercial C15 | Persistencia / permiso | Verificación y diferencia pendiente |
+|---|---|---|---|
+| Categoría: rama femenina/masculina, activa/inactiva | Formulario opcional detrás de `VITE_PILOT_PLAYER_PARITY=1`; desactivación conserva jugadores y jornadas | `012_category_player_parity.sql` añade campos; escritura restringida por RLS previo a superadministrador; trigger rechaza cambiar rama con jugadores | PGlite con dos identidades SQL simuladas: aprobado. Faltan migración y JWT/PostgREST reales; nombre sigue único por institución, incluso entre ramas. |
+| Jugador: nombre, apellido, DNI, nacimiento, sexo, equipo | Alta y edición ampliadas detrás de la misma bandera; registros anteriores mantienen nombre completo hasta edición explícita | Campos opcionales, validación de rama/fecha, FK y RLS previos; no se inventa DNI ni fecha | Formulario y validación probados en Node; reglas de base en PGlite. Falta persistencia remota y prueba con usuario Auth. |
+| Categoría automática/manual | Sugerencia optativa con edad por año calendario de Mendoza, rama y categoría activa; elección manual conserva prioridad y registra `category_override` | La selección final la valida el trigger; el bloqueo 009 conserva categoría de jugador con asistencia | Sugerencia unitaria aprobada; el cálculo no se recalcula por sí solo al cambiar el año y falta flujo MASTER/B y permiso de categoría por profesor. |
+| Exportación filtrada de jugadores | CSV opcional de 9 columnas, fechas y rama legible, neutralización de fórmulas | Se construye solo con filas visibles por la sesión y filtros; no hay endpoint público de archivo | Test local aprobado; falta XLSX histórico, planilla real y descarga Android de esta versión. |
+| Foto y autoservicio de jugador | Sin cambios | Requieren Storage privado por club, cuenta propia y políticas adicionales | Pendiente; no reutilizar `player-selfies` municipal ni habilitar edición sin JWT de jugador. |
+
+**Estado de la migración 012: preparada, NO aplicada.** El conector Supabase de esta sesión rechazó `get_project`, `list_tables`, asesores y consulta SQL con “You do not have permission to perform this action”. Por lo tanto no se confirmó el esquema ni el respaldo en el proyecto comercial. La bandera visual permanece desactivada por defecto; la Preview existente conserva el esquema y la interfaz previos. Antes de aplicar: verificar proyecto `savptjiwzaypisayulwp`, columnas/RLS/triggers/filas actuales, exportar respaldo apropiado de categorías y jugadores, probar recuperación, aplicar en transacción, repetir prueba propia/ajena con JWT reales y solo entonces activar la bandera en la Preview protegida. Para revertir 012, exportar valores nuevos y eliminar `pilot_category_branch_guard`, `pilot_player_branch_guard`, sus funciones y columnas añadidas en transacción; no eliminar filas actuales.
+
+`npm run test:pilot`: 34/34 (SQL local simulado y Node). `npm run build:pilot`, `npm run build` y `npm run test:pilot:http` pasaron. Esto no aprueba la paridad de módulos ni aumenta la aceptación 8/20 (40 %). El siguiente bloque tras completar migración/JWT es fotos privadas, permisos por categoría, MASTER y XLSX; luego asistencia e historial.
+
 Fecha: 23/11/2026. Comparación de **código** en `src/AppNew.jsx`, los componentes de `src/` y `supabase/schema.sql`/`supabase/migrations/` frente a `src/pilot/` y `supabase/pilot/001…010`. Se examinó la rama comercial `feature/voley-comercial-junin-piloto` en `090231f`; los archivos históricos se leyeron sin editarlos. La funcionalidad histórica observada en el código puede depender de servicios externos y de datos no disponibles en el entorno comercial: su presencia en el repositorio no constituye una prueba en producción.
 
 ## Inventario por módulo
