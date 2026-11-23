@@ -1,5 +1,13 @@
 # C14 · Paridad funcional San Martín → Vóley Comercial
 
+## C16 · Extracción compartida, 23/11/2026
+
+La arquitectura elegida es **compartir lógica/interfaz pura con adaptadores institucionales**, conforme a [VOLEY-COMERCIAL-C16-ARQUITECTURA.md](VOLEY-COMERCIAL-C16-ARQUITECTURA.md). La última referencia verificable del código original es `origin/main` `1df4ee7` del 04/11/2026; se desconoce el commit preciso mostrado al comprador.
+
+Se recuperó el resumen de jugadores por categoría en XLSX usando el generador original, pero con filas visibles y metadatos propios del club; falta el detalle histórico y la apertura en Android. La pizarra táctica completa se extrajo como componente compartido, con claves de almacenamiento local diferentes para San Martín y para cada par club/usuario comercial. Su persistencia entre dispositivos no está implementada ni existía como tal en la pizarra rápida original. Las 37 pruebas locales pasan y las dos compilaciones pasan. Los recorridos XLSX y pizarra pasaron en Chromium con backend **simulado** en CI `45222166018` y `45222923765`. No hubo migraciones C16. No se cambió la bandera `VITE_PILOT_PLAYER_PARITY` de la Preview vigente.
+
+**Paridad completa comprobada: 0/10 bloques históricos.** Se incrementaron operaciones recuperadas, no se alteraron los criterios de módulo completo ni la aceptación comercial de 8/20 (40 %). Persisten las pruebas cruzadas de dos JWT reales y Storage, la habilitación del núcleo de jugador ampliado y los bloques de competencia, entrenamiento persistente y pagos.
+
 ## C15 · Categorías y jugadores, 23/11/2026
 
 La rama se sincronizó con `origin/feature/voley-comercial-junin-piloto` en `988d093` **antes de editar**. El árbol local divergente (`2d11aee`) era idéntico y quedó respaldado en `pilot/local-c14-equivalent-20261123`. No se tocó `main` ni la aplicación municipal.
