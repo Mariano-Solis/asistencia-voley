@@ -23,6 +23,7 @@ const user = { id:userId, email:'admin@example.test', aud:'authenticated', role:
 const token = `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:userId,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.mock-signature`
 let role = 'super_admin'
 let playerReadOutage = false
+let accountSuspended = false
 const store = {
   categories:[], players:[], training_sessions:[], attendance:[],
   institution_memberships:[{institution_id:club,role:'super_admin',status:'active'}],
@@ -91,8 +92,10 @@ try {
   browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
   for (const viewport of [{width:390,height:844,role:'super_admin'},
     {width:1280,height:800,role:'super_admin'}, {width:390,height:844,role:'professor'},
-    {width:390,height:844,role:'super_admin',scenario:'read-outage'}]) {
+    {width:390,height:844,role:'super_admin',scenario:'read-outage'},
+    {width:390,height:844,role:'super_admin',scenario:'suspension'}]) {
     role = viewport.role
+    accountSuspended = false
     store.institution_memberships[0].role = role
     for (const table of ['categories','players','training_sessions','attendance']) store[table] = []
     const context = await browser.newContext({viewport,acceptDownloads:true})
@@ -109,7 +112,7 @@ try {
       else if (path==='/auth/v1/user') response=json(user)
       else if (path==='/auth/v1/logout') response=json({})
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
-      else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
+      else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:accountSuspended?'suspended':'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
       else if (playerReadOutage && path==='/rest/v1/players' && method==='GET') {
         response = json({message:'Temporary simulated read outage'},503)
@@ -146,6 +149,21 @@ try {
       assert.deepEqual(errors,[])
       await context.close()
       console.log('PASS mocked professor navigation 390x844')
+      continue
+    }
+
+    if (viewport.scenario === 'suspension') {
+      await page.getByRole('button',{name:'Categorías'}).click()
+      accountSuspended = true
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await page.getByRole('heading',{name:'Acceso institucional no disponible'}).waitFor()
+      assert.equal(await page.getByRole('button',{name:'Categorías'}).count(),0,'Suspended account must lose the club navigation')
+      accountSuspended = false
+      await page.getByRole('button',{name:'Comprobar nuevamente'}).click()
+      await page.getByRole('button',{name:'Categorías'}).waitFor()
+      assert.deepEqual(errors,[])
+      await context.close()
+      console.log('PASS mocked suspension/reactivation navigation 390x844')
       continue
     }
 
