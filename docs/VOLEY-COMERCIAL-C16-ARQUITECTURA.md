@@ -30,6 +30,10 @@ El editor de trazos, fichas, pelota, rotaciones, modos de cancha y controles se 
 
 La pestaña Pizarra está disponible solo en el contexto de una membresía/licencia activa, con una leyenda explícita de que el guardado es **local al dispositivo**. No se afirma sincronización entre dispositivos. La prueba unitaria comprueba separación de claves por club, usuario y versión original; [CI 45222923765](https://github.com/Mariano-Solis/asistencia-voley/actions/runs/45222923765) pasó el recorrido Chromium con **backend simulado**, incluido abrir, cerrar y ausencia de escritura municipal. Suite local 37/37 y ambas compilaciones pasan; **Android físico y el navegador con Auth real permanecen pendientes**. No se modificó Supabase ni producción municipal.
 
+Las claves separadas evitan cruces en la interfaz normal, pero `localStorage` pertenece al mismo origen web y **no constituye un límite de seguridad entre cuentas que comparten navegador**. No guardar información confidencial en tableros hasta migrar sus datos a almacenamiento privado por institución con autorización del servidor, o definir un mecanismo de cifrado y recuperación adecuado. La pizarra no se contabiliza como módulo con aislamiento real probado.
+
+El recorrido adicional [CI 45223698841](https://github.com/Mariano-Solis/asistencia-voley/actions/runs/45223698841) pasó con backend simulado: rotó fichas, guardó un preset y verificó su persistencia tras recargar. La Preview `dpl_36SvfhB5YUyMWoXXua6e5dfTY1p5` está READY en `https://voley-comercial-junin-piloto-fw5bvzfal-miga-mia.vercel.app/` para el commit de aplicación `7abd452`; la protección SSO de Vercel sigue habilitada para todos los despliegues. El proyecto conserva solo las variables Preview `VITE_PILOT_SUPABASE_URL` (URL comercial verificada) y la clave publicable; la bandera de campos nuevos sigue ausente. La revisión del bundle piloto no encontró la URL ni el ID de Supabase municipal.
+
 ## Continuación crítica
 
 1. Ejecutar el recorrido Chromium en CI y comprobar descarga XLSX en Android.
