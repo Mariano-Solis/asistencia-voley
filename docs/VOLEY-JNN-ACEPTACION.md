@@ -71,6 +71,8 @@ La integración local incorporó las políticas de la migración 008 sobre una t
 
 Los avisos amarillos y la tarjeta clara de selección Court Track ahora usan texto oscuro fijo, incluso cuando un club elige superficies oscuras. Ambas compilaciones pasaron. Falta inspección visual autenticada con paleta oscura en navegador y Android; no se modifica una fila de aceptación.
 
+Última Preview protegida `dpl_38E27qC6aoVFvbt4SjYwBRPpoo6C`, `READY`, código `da01e69`: la pantalla inicial anónima se abrió y se inspeccionó visualmente en escritorio. El recorrido autenticado de la fila 20 sigue pendiente. **Resultado estricto: 8/20 (40 %).**
+
 La siguiente revisión local amplió el profesor simulado, corrigió la selección de una membresía utilizable entre varias y reemplazó el caso irreal de CSV duplicado por tres jugadores distintos. `test:pilot`: **15/15**, `build:pilot`: 83 módulos, `build`: 183 módulos. No cambió la puntuación porque faltan sesiones reales y ensayo de interfaz.
 
 El panel de aislamiento y su limpieza fueron endurecidos para no marcar un error 500 o una eliminación vacía como éxito. `test:pilot`: **16/16**, `build:pilot`: 84 módulos, `build`: 184 módulos. Las filas 17 y 18 siguen pendientes hasta ejecutarlo con dos JWT reales y confirmar el borrado de los datos ficticios.
