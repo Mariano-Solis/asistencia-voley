@@ -1,12 +1,9 @@
 import React, { useState } from 'react'
+import { probeDenied, probeRows, probeZero } from './probeResults.js'
 
 // Diagnostic UI for the protected Preview only. It uses the current Supabase
 // Auth session and the ordinary publishable key; no elevated credentials.
 const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII='), c => c.charCodeAt(0))
-const rows = result => !result.error && Array.isArray(result.data) ? result.data : null
-const zero = result => rows(result)?.length === 0
-const denied = result => Boolean(result.error) || zero(result)
-
 export function IsolationProbe({ client, institution }) {
   const storageKey = `pilot-qa-${institution.id}`
   const [own, setOwn] = useState(() => {
@@ -16,7 +13,7 @@ export function IsolationProbe({ client, institution }) {
   const [report, setReport] = useState([])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
-  const expect = (label, result, predicate) => ({ label, result: predicate(result) ? 'PASS' : 'FAIL' })
+  const expect = (label, result, predicate) => ({ label, result: predicate(result) ? 'PASS' : 'FAIL', http:result?.status ?? result?.error?.status ?? null })
 
   async function prepare() {
     setBusy(true); setMessage(''); setReport([])
@@ -55,22 +52,22 @@ export function IsolationProbe({ client, institution }) {
     try {
       if (!own?.logo || Object.values(target).some(value => !value) || own.institution === target.institution) throw Error('Se requieren dos clubes y sus datos ficticios completos.')
       for (const [table,column] of [['institutions','id'],['institution_memberships','institution_id'],['institution_licenses','institution_id'],['categories','institution_id'],['players','institution_id'],['training_sessions','institution_id'],['attendance','institution_id']]) {
-        add(`Lectura ajena: ${table}`,await client.from(table).select('*').eq(column,target.institution),zero)
+        add(`Lectura ajena: ${table}`,await client.from(table).select('*').eq(column,target.institution),probeZero)
       }
-      add('Inserción ajena de categoría',await client.from('categories').insert({institution_id:target.institution,name:`Intruso ${crypto.randomUUID().slice(0,8)}`}).select('id'),denied)
-      add('Inserción ajena de jugador',await client.from('players').insert({institution_id:target.institution,category_id:target.category,full_name:'Intruso ficticio'}).select('id'),denied)
-      add('Edición ajena de jugador',await client.from('players').update({full_name:'Alteración indebida'}).eq('id',target.player).select('id'),denied)
-      add('Eliminación ajena de jugador',await client.from('players').delete().eq('id',target.player).select('id'),denied)
-      add('Cambio de institution_id',await client.from('players').update({institution_id:target.institution}).eq('id',own.player).select('id'),denied)
-      add('Cambio de rol',await client.from('institution_memberships').update({role:'super_admin'}).eq('institution_id',target.institution).select('user_id'),denied)
-      add('Cambio de licencia',await client.from('institution_licenses').update({status:'active'}).eq('institution_id',target.institution).select('institution_id'),denied)
-      add('Cambio directo de identidad ajena',await client.from('institutions').update({name:target.name}).eq('id',target.institution).select('id'),denied)
+      add('Inserción ajena de categoría',await client.from('categories').insert({institution_id:target.institution,name:`Intruso ${crypto.randomUUID().slice(0,8)}`}).select('id'),probeDenied)
+      add('Inserción ajena de jugador',await client.from('players').insert({institution_id:target.institution,category_id:target.category,full_name:'Intruso ficticio'}).select('id'),probeDenied)
+      add('Edición ajena de jugador',await client.from('players').update({full_name:'Alteración indebida'}).eq('id',target.player).select('id'),probeDenied)
+      add('Eliminación ajena de jugador',await client.from('players').delete().eq('id',target.player).select('id'),probeDenied)
+      add('Cambio de institution_id',await client.from('players').update({institution_id:target.institution}).eq('id',own.player).select('id'),probeDenied)
+      add('Cambio de rol',await client.from('institution_memberships').update({role:'super_admin'}).eq('institution_id',target.institution).select('user_id'),probeDenied)
+      add('Cambio de licencia',await client.from('institution_licenses').update({status:'active'}).eq('institution_id',target.institution).select('institution_id'),probeDenied)
+      add('Cambio directo de identidad ajena',await client.from('institutions').update({name:target.name}).eq('id',target.institution).select('id'),probeDenied)
       const bucket = client.storage.from('pilot-branding')
-      add('Descarga privada ajena',await bucket.download(target.logo),response => Boolean(response.error))
-      add('Firma URL privada ajena',await bucket.createSignedUrl(target.logo,60),response => Boolean(response.error))
-      add('Subida en ruta ajena',await bucket.upload(`${target.institution}/${crypto.randomUUID()}.png`,new Blob([png],{type:'image/png'}),{contentType:'image/png',upsert:false}),response => Boolean(response.error))
-      add('Modificación de escudo ajeno',await bucket.update(target.logo,new Blob([png],{type:'image/png'}),{contentType:'image/png'}),response => Boolean(response.error))
-      add('Jugador propio permanece',await client.from('players').select('id').eq('id',own.player),response => rows(response)?.length === 1)
+      add('Descarga privada ajena',await bucket.download(target.logo),probeDenied)
+      add('Firma URL privada ajena',await bucket.createSignedUrl(target.logo,60),probeDenied)
+      add('Subida en ruta ajena',await bucket.upload(`${target.institution}/${crypto.randomUUID()}.png`,new Blob([png],{type:'image/png'}),{contentType:'image/png',upsert:false}),probeDenied)
+      add('Modificación de escudo ajeno',await bucket.update(target.logo,new Blob([png],{type:'image/png'}),{contentType:'image/png'}),probeDenied)
+      add('Jugador propio permanece',await client.from('players').select('id').eq('id',own.player),response => probeRows(response)?.length === 1)
       setReport(result)
       setMessage(result.every(item => item.result === 'PASS') ? 'Todas las comprobaciones de esta sesión pasaron. Repetí desde el otro club antes de aprobar el aislamiento.' : 'Hay un fallo de seguridad o una prueba incompleta. No habilites usuarios reales.')
     } catch (error) { setReport(result); setMessage(error.message) }
@@ -81,12 +78,19 @@ export function IsolationProbe({ client, institution }) {
     if (!own) return
     setBusy(true); setMessage('')
     const errors = []
-    const attempt = async (label,action) => { try { const { error } = await action(); if (error) errors.push(label) } catch { errors.push(label) } }
-    if (own.logo) await attempt('escudo',() => client.storage.from('pilot-branding').remove([own.logo]))
+    const attempt = async (label,action,check = result => !result.error) => { try { if (!check(await action())) errors.push(label) } catch { errors.push(label) } }
+    if (own.logo) {
+      const bucket = client.storage.from('pilot-branding')
+      await attempt('escudo',async () => {
+        const removed = await bucket.remove([own.logo])
+        if (removed.error) throw removed.error
+        return bucket.download(own.logo)
+      },probeDenied)
+    }
     if (own.session && own.player) await attempt('asistencia',() => client.from('attendance').delete().eq('institution_id',institution.id).eq('session_id',own.session).eq('player_id',own.player))
-    if (own.session) await attempt('jornada',() => client.from('training_sessions').delete().eq('institution_id',institution.id).eq('id',own.session))
-    if (own.player) await attempt('jugador',() => client.from('players').delete().eq('institution_id',institution.id).eq('id',own.player))
-    if (own.category) await attempt('categoría',() => client.from('categories').delete().eq('institution_id',institution.id).eq('id',own.category))
+    if (own.session) await attempt('jornada',() => client.from('training_sessions').delete().eq('institution_id',institution.id).eq('id',own.session).select('id'),result => probeRows(result)?.length === 1)
+    if (own.player) await attempt('jugador',() => client.from('players').delete().eq('institution_id',institution.id).eq('id',own.player).select('id'),result => probeRows(result)?.length === 1)
+    if (own.category) await attempt('categoría',() => client.from('categories').delete().eq('institution_id',institution.id).eq('id',own.category).select('id'),result => probeRows(result)?.length === 1)
     if (!errors.length) { sessionStorage.removeItem(storageKey); setOwn(null) }
     setMessage(errors.length ? `Limpieza incompleta: ${errors.join(', ')}. Conservá los identificadores para revisar.` : 'Datos ficticios propios eliminados.')
     setBusy(false)
