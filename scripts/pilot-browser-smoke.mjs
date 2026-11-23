@@ -16,6 +16,7 @@ catch {
 }
 
 const origin = 'https://savptjiwzaypisayulwp.supabase.co'
+const parity = process.env.PILOT_BROWSER_PARITY === '1'
 const port = Number(process.env.PILOT_TEST_PORT || 4176)
 assert(Number.isInteger(port) && port >= 1024 && port <= 65535,'Choose a non-privileged local test port')
 const club = '10000000-0000-4000-8000-000000000001'
@@ -58,7 +59,7 @@ function respondRest(method, table, url, request) {
       const existing = upsert && table === 'attendance' && store.attendance.find(mark =>
         mark.institution_id===row.institution_id && mark.session_id===row.session_id && mark.player_id===row.player_id)
       if (existing) return Object.assign(existing,row)
-      const created={id:randomUUID(),...(table === 'players' ? {active:true} : {}),...row}
+      const created={id:randomUUID(),...(['players','categories'].includes(table) ? {active:true} : {}),...row}
       store[table].push(created)
       return created
     })
@@ -82,7 +83,7 @@ if (await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false)) {
 }
 const originalIndex = readFileSync('dist/index.html')
 const build = spawnSync(process.execPath,['scripts/build-pilot.mjs'],{
-  cwd:process.cwd(),stdio:'inherit',env:{...process.env,VITE_PILOT_SUPABASE_URL:origin,VITE_PILOT_SUPABASE_ANON_KEY:'sb_publishable_local_browser_test'},
+  cwd:process.cwd(),stdio:'inherit',env:{...process.env,VITE_PILOT_SUPABASE_URL:origin,VITE_PILOT_SUPABASE_ANON_KEY:'sb_publishable_local_browser_test',VITE_PILOT_PLAYER_PARITY:parity?'1':'0'},
 })
 if (build.status !== 0) { writeFileSync('dist/index.html',originalIndex); process.exit(build.status || 1) }
 const server = spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port',String(port),'--strictPort'],{stdio:'ignore'})
@@ -97,7 +98,7 @@ try {
   const bundled = chromium.executablePath()
   const executablePath = process.env.PILOT_CHROMIUM_PATH || (existsSync(bundled) ? bundled : existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : bundled)
   browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
-  for (const viewport of [{width:390,height:844,role:'super_admin'},
+  for (const viewport of parity ? [{width:390,height:844,role:'super_admin',scenario:'parity'}] : [{width:390,height:844,role:'super_admin'},
     {width:1280,height:800,role:'super_admin'}, {width:390,height:844,role:'professor'},
     {width:390,height:844,role:'super_admin',scenario:'read-outage'},
     {width:390,height:844,role:'super_admin',scenario:'suspension'}]) {
@@ -159,6 +160,40 @@ try {
       console.error('Mock journey stopped at:',(await page.locator('body').innerText()).slice(0,1500))
       console.error('Mock calls:',calls,'Unexpected mock endpoints:',unexpected,'Page errors:',errors)
       throw error
+    }
+
+    if (viewport.scenario === 'parity') {
+      await page.getByRole('button',{name:'Categorías'}).click()
+      await page.getByLabel('Nombre',{exact:true}).first().fill('Sub 16')
+      await page.getByLabel('Rama').first().selectOption('female')
+      await page.getByRole('button',{name:'Agregar categoría'}).click()
+      await page.getByText(/Sub 16 · Femenina · Activa/).waitFor()
+      await page.getByRole('button',{name:'Editar'}).click()
+      await page.getByLabel('Activa').uncheck()
+      await page.getByRole('button',{name:'Guardar cambios'}).click()
+      await page.getByText(/Sub 16 · Femenina · Inactiva/).waitFor()
+      await page.getByRole('button',{name:'Editar'}).click()
+      await page.getByLabel('Activa').check()
+      await page.getByRole('button',{name:'Guardar cambios'}).click()
+      await page.getByRole('button',{name:'Jugadores'}).click()
+      await page.getByLabel('Nombre',{exact:true}).fill('Ana María')
+      await page.getByLabel('Apellido').fill('Pérez')
+      await page.getByLabel('Rama').selectOption('female')
+      await page.getByLabel('DNI opcional').fill('12345678')
+      await page.getByLabel('Fecha de nacimiento').fill('2010-11-22')
+      await page.getByRole('button',{name:'Sugerir categoría por edad'}).click()
+      assert.equal(await page.getByLabel('Categoría').first().inputValue(),store.categories[0].id)
+      await page.getByRole('button',{name:'Agregar jugador'}).click()
+      await page.getByText(/PÉREZ Ana María · Sub 16/).waitFor()
+      const playerDownloadPromise=page.waitForEvent('download')
+      await page.getByRole('button',{name:'Exportar jugadores CSV (1)'}).click()
+      const playerDownload=await playerDownloadPromise
+      const csv=await (await import('node:fs/promises')).readFile(await playerDownload.path(),'utf8')
+      assert.match(csv,/"12345678";"2010-11-22";"Femenina"/)
+      assert.deepEqual(errors,[])
+      await context.close()
+      console.log('PASS mocked parity journey 390x844 (no Auth JWT, RLS or physical Android)')
+      continue
     }
 
     if (role === 'professor') {

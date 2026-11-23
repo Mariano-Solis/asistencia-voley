@@ -35,3 +35,7 @@ jobs:
         run: npm run build
       - name: Run isolated pilot browser journey with mock Supabase
         run: npm run test:pilot:browser
+      - name: Run staged category/player parity journey with mock Supabase
+        env:
+          PILOT_BROWSER_PARITY: '1'
+        run: npm run test:pilot:browser
