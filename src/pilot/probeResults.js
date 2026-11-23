@@ -6,3 +6,11 @@ export function probeDenied(result) {
   const status = Number(result.status ?? result.error.status)
   return [400,401,403,404].includes(status)
 }
+
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export function validForeignFixture(own, target) {
+  if (!own || !target || own.institution === target.institution) return false
+  if (!['institution','category','player','session'].every(field => uuid.test(target[field] || ''))) return false
+  return typeof target.name === 'string' && target.name.trim().length >= 2
+    && new RegExp(`^${target.institution}/${uuid.source.slice(1,-1)}[.]png$`,'i').test(target.logo || '')
+}

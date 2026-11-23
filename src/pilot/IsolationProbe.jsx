@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { probeDenied, probeRows, probeZero } from './probeResults.js'
+import { probeDenied, probeRows, probeZero, validForeignFixture } from './probeResults.js'
 
 // Diagnostic UI for the protected Preview only. It uses the current Supabase
 // Auth session and the ordinary publishable key; no elevated credentials.
@@ -50,7 +50,7 @@ export function IsolationProbe({ client, institution }) {
     const result = []
     const add = (label,response,predicate) => result.push(expect(label,response,predicate))
     try {
-      if (!own?.logo || Object.values(target).some(value => !value) || own.institution === target.institution) throw Error('Se requieren dos clubes y sus datos ficticios completos.')
+      if (!own?.logo || !validForeignFixture(own,target)) throw Error('Se requieren dos clubes y los identificadores ficticios exactos del otro ensayo.')
       for (const [table,column] of [['institutions','id'],['institution_memberships','institution_id'],['institution_licenses','institution_id'],['categories','institution_id'],['players','institution_id'],['training_sessions','institution_id'],['attendance','institution_id']]) {
         add(`Lectura ajena: ${table}`,await client.from(table).select('*').eq(column,target.institution),probeZero)
       }
@@ -103,7 +103,7 @@ export function IsolationProbe({ client, institution }) {
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
   }
 
-  return <section><h2>Ensayo de aislamiento con sesión real</h2><p>Solo para la Preview protegida. Ejecutá primero Preparar en cada club. Intercambiá únicamente los identificadores ficticios; nunca compartas enlaces de acceso, JWT ni contraseñas. Cada comprobación usa la sesión Auth actual y PostgREST/Storage reales.</p>
+  return <section><h2>Ensayo de aislamiento con sesión real</h2><p>Solo para la Preview protegida. Ejecutá primero Preparar en cada club. Intercambiá únicamente los identificadores ficticios; nunca compartas enlaces de acceso, JWT ni contraseñas. Copiá los identificadores exactamente: un ID inventado o un archivo inexistente puede producir una denegación engañosa. Cada comprobación usa la sesión Auth actual y PostgREST/Storage reales.</p>
     <button disabled={busy || Boolean(own)} onClick={prepare}>Preparar datos propios</button>
     {own && <><p>Datos propios de esta sesión (copiá los valores al otro ensayo):</p><dl>{Object.entries(own).map(([key,value]) => <React.Fragment key={key}><dt>{key}</dt><dd>{value}</dd></React.Fragment>)}</dl></>}
     <form onSubmit={event => { event.preventDefault(); check() }}><h3>Datos ficticios del otro club</h3>{Object.entries(target).map(([key,value]) => <label key={key}>{key}<input value={value} onChange={event => setTarget(current => ({...current,[key]:event.target.value.trim()}))} required autoComplete="off" /></label>)}<button disabled={busy || !own?.logo}>Ejecutar denegaciones cruzadas</button></form>

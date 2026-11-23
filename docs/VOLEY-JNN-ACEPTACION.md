@@ -49,6 +49,8 @@ La siguiente revisión local amplió el profesor simulado, corrigió la selecci�
 
 El panel de aislamiento y su limpieza fueron endurecidos para no marcar un error 500 o una eliminación vacía como éxito. `test:pilot`: **16/16**, `build:pilot`: 84 módulos, `build`: 184 módulos. Las filas 17 y 18 siguen pendientes hasta ejecutarlo con dos JWT reales y confirmar el borrado de los datos ficticios.
 
+La validación del panel exige ahora formato y ruta institucional coherentes para los datos ficticios del otro club. `test:pilot`: **17/17**; ambas compilaciones correctas. Un formato válido no prueba la existencia del objeto remoto: sigue faltando la comprobación real con dos JWT distintos. Puntuación **8/20 (40 %)**.
+
 - `npm run test:pilot`: 11/11 (PGlite local, parseo de script SQL, exportación, paleta, Court Track y validación de imagen). No usa dos JWT Auth reales.
 - `npm run build:pilot`: 80 módulos, con URL comercial y clave pública ficticia **solo local para compilar**. No es prueba del despliegue.
 - `npm run build`: 180 módulos, correcto. Incluye la aplicación histórica, sin desplegarla en San Martín.
