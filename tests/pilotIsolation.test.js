@@ -85,7 +85,23 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     const otherCat = await as(otherAdmin,async () => (await row("insert into public.categories(institution_id,name) values ($1,'Sub 18') returning id",[other])).id)
     const jnnPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Jugador ficticio') returning id",[jnn,jnnCat])).id)
     const jnnSession = await as(jnnAdmin,async () => (await row('insert into public.training_sessions(institution_id,category_id,session_date) values ($1,$2,current_date) returning id',[jnn,jnnCat])).id)
+    await as(jnnAdmin,async () => {
+      await denied(() => db.query("insert into public.categories(institution_id,name) values ($1,'Sub 16')",[jnn]))
+      await denied(() => db.query("insert into public.categories(institution_id,name) values ($1,'   ')",[jnn]))
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'  ')",[jnn,jnnCat]))
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Sin categoría')",[jnn,'ffffffff-ffff-4fff-8fff-ffffffffffff']))
+      await denied(() => db.query('insert into public.training_sessions(institution_id,category_id,session_date) values ($1,$2,current_date)',[jnn,jnnCat]))
+      assert.equal(await count('select count(*) from public.training_sessions where institution_id=$1 and category_id=$2',[jnn,jnnCat]),1)
+    })
     await as(jnnAdmin,async () => db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'present')",[jnn,jnnSession,jnnPlayer]))
+    await as(jnnAdmin,async () => {
+      await denied(() => db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'present')",[jnn,jnnSession,jnnPlayer]))
+      await denied(() => db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'justified')",[jnn,jnnSession,jnnPlayer]))
+      await denied(() => db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'present')",[jnn,'ffffffff-ffff-4fff-8fff-ffffffffffff',jnnPlayer]))
+      await db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'late') on conflict (institution_id,session_id,player_id) do update set status=excluded.status",[jnn,jnnSession,jnnPlayer])
+      assert.equal(await count('select count(*) from public.attendance where institution_id=$1 and session_id=$2',[jnn,jnnSession]),1)
+      assert.equal((await row('select status from public.attendance where session_id=$1',[jnnSession])).status,'late')
+    })
     await as(jnnAdmin, async () => {
       await db.query("update public.categories set name='Sub 16 ensayo' where id=$1",[jnnCat])
       assert.equal((await row('select name from public.categories where id=$1',[jnnCat])).name,'Sub 16 ensayo')

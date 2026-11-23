@@ -11,3 +11,7 @@ test('the email quota explains the separate password route without hiding the li
 test('a rejected password remains the original Auth error, without guessing the cause', () => {
   assert.equal(authErrorMessage({ status: 400, message: 'Invalid login credentials' }), 'Invalid login credentials')
 })
+
+test('a transport error asks for a read before repeating a potentially committed write', () => {
+  assert.match(authErrorMessage(new TypeError('Failed to fetch')),/Actualizar antes de repetir/)
+})

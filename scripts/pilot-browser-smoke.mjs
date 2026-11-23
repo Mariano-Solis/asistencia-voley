@@ -15,7 +15,8 @@ catch {
 }
 
 const origin = 'https://savptjiwzaypisayulwp.supabase.co'
-const port = 4176
+const port = Number(process.env.PILOT_TEST_PORT || 4176)
+assert(Number.isInteger(port) && port >= 1024 && port <= 65535,'Choose a non-privileged local test port')
 const club = '10000000-0000-4000-8000-000000000001'
 const userId = '20000000-0000-4000-8000-000000000002'
 const user = { id:userId, email:'admin@example.test', aud:'authenticated', role:'authenticated', app_metadata:{provider:'email',providers:['email']}, user_metadata:{}, created_at:new Date().toISOString() }
@@ -66,6 +67,9 @@ function respondRest(method, table, url, request) {
   return json({message:'Method not mocked'},405)
 }
 
+if (await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false)) {
+  throw new Error(`Local test port ${port} is already in use; refusing to test another server`)
+}
 const originalIndex = readFileSync('dist/index.html')
 const build = spawnSync(process.execPath,['scripts/build-pilot.mjs'],{
   cwd:process.cwd(),stdio:'inherit',env:{...process.env,VITE_PILOT_SUPABASE_URL:origin,VITE_PILOT_SUPABASE_ANON_KEY:'sb_publishable_local_browser_test'},
@@ -75,11 +79,14 @@ const server = spawn(process.execPath,['node_modules/vite/bin/vite.js','preview'
 let browser
 try {
   for (let i=0;i<50;i++) {
+    if (server.exitCode !== null) throw new Error('Local pilot server exited before it could serve the test')
     try { if ((await fetch(`http://127.0.0.1:${port}`)).ok) break } catch { /* starting */ }
     await new Promise(resolve => setTimeout(resolve,100))
     if (i===49) throw new Error('Local pilot server did not start')
   }
-  browser = await chromium.launch({headless:true,executablePath:process.env.PILOT_CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),args:['--no-sandbox']})
+  const bundled = chromium.executablePath()
+  const executablePath = process.env.PILOT_CHROMIUM_PATH || (existsSync(bundled) ? bundled : existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : bundled)
+  browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
   for (const viewport of [{width:390,height:844},{width:1280,height:800}]) {
     const context = await browser.newContext({viewport,acceptDownloads:true})
     const page = await context.newPage()

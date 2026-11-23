@@ -19,6 +19,7 @@ Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietar
 
 - «Acceso institucional no disponible»: pedí al propietario que revise membresía y vigencia de la licencia de ensayo. La licencia temporal vence al terminar el 24/11/2026 en Argentina.
 - Error al guardar: no repitas inmediatamente una emisión o canje de código. Actualizá los datos y comunicá el mensaje exacto al responsable.
+- «La operación terminó, pero no se pudieron actualizar los datos»: el guardado respondió correctamente y falló la lectura posterior. Tocá **Actualizar** antes de repetir el alta o la edición para evitar duplicados.
 - Court Track no disponible: seguí con la configuración manual. No se bloquea el uso deportivo.
 - Profesor: el administrador puede habilitar o suspender una cuenta verificada. En esta candidata el profesor autorizado ve las categorías de su institución; la asignación limitada a categorías individuales todavía está en desarrollo y no debe prometerse.
 - CSV no descargado: revisá los permisos de descargas del navegador Android y repetí el filtro. Registrá modelo, navegador y fecha; esta comprobación sobre la última candidata aún requiere prueba manual.

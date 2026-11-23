@@ -16,8 +16,12 @@ function claims(jwt) {
   catch { throw new Error('A user JWT is malformed') }
 }
 const a = claims(jwtA), b = claims(jwtB)
+let keyRole = ''
+try { keyRole = claims(apiKey).role } catch { /* new publishable keys are opaque */ }
+assert.notEqual(keyRole,'service_role','A service-role key must never be used for this test')
 assert(a.sub && b.sub && a.sub !== b.sub, 'Two distinct Auth users required')
 assert(a.role === 'authenticated' && b.role === 'authenticated', 'Use authenticated user sessions')
+assert(a.iss === `${origin}/auth/v1` && b.iss === `${origin}/auth/v1`, 'JWTs must belong to the isolated commercial project')
 assert(a.exp > Date.now()/1000 && b.exp > Date.now()/1000, 'Refresh expired user sessions')
 
 async function request(jwt, path, { method = 'GET', body, headers = {} } = {}) {
@@ -58,6 +62,11 @@ try {
     assert.equal(memberships[0].status,'active')
     account.institution = memberships[0].institution_id
     account.identity = rows(await rest(account.jwt,'institutions',`?select=id,slug,name,primary_color,secondary_color,accent_color,background_color,surface_color,logo_path,visual_mode&${eq('id',account.institution)}`),1,`${account.label} institution`)[0]
+    const ownerCheck = await request(account.jwt,'/rest/v1/rpc/pilot_is_owner',{method:'POST',body:{}})
+    assert(ownerCheck.ok && ownerCheck.data === false,`${account.label} must not have owner privileges`)
+    denied(await request(account.jwt,'/rest/v1/rpc/pilot_owner_events',{
+      method:'POST',body:{p_institution:account.institution,p_limit:1},
+    }),`${account.label} owner audit access`)
     pass(`${account.label}: verified own institution`)
   }
   assert.notEqual(accounts[0].institution, accounts[1].institution, 'Institutions must differ')

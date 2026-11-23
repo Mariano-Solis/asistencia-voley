@@ -32,5 +32,11 @@ test('live Supabase smoke script parses, asserts boundaries and rolls back fixtu
     assert.match(results.at(-1).rows[0].result,/^PASS:/)
     assert.equal((await db.query('select count(*) from auth.users')).rows[0].count,0)
     assert.equal((await db.query("select status from public.institutions where slug='jnn'")).rows[0].status,'pending')
+    await db.exec(readFileSync(new URL('../supabase/pilot/009_sports_tenant_and_history_guards.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/010_sports_history_delete_guards.sql',import.meta.url),'utf8'))
+    const integrity = readFileSync(new URL('../supabase/pilot/011_integrity_transaction_smoke.sql',import.meta.url),'utf8')
+    const integrityResults = await db.exec(integrity)
+    assert.equal(integrityResults.at(-1).rows[0].result,'PASS: commercial PostgreSQL integrity; transaction rolled back')
+    assert.equal((await db.query("select count(*) from public.institutions where slug='c12-integrity-smoke-20261123'")).rows[0].count,0)
   } finally { await db.close() }
 })

@@ -51,6 +51,10 @@ La Preview `dpl_EDhCPnSaX82W1hT8tbr5rJ5MVgdN` se abrió en navegador de escritor
 
 La revisión posterior añadió la respuesta CORS al simulador de Supabase y exige una fecha antes de crear una jornada, para evitar enviar una fecha vacía. Ambos cambios se compilaron y publicaron en la rama comercial; el recorrido del navegador continúa sin ejecutarse por la restricción de Chromium indicada arriba.
 
+**Iteración C12:** el flujo de guardado distingue escritura fallida de escritura exitosa seguida de un error de lectura. Cierre de sesión y botón Actualizar ya no duplican la recarga institucional. Pruebas nuevas de acción y regresión SQL local verifican reintento, duplicados, claves foráneas y tres estados válidos; la suite JWT valida el issuer comercial y privilegios comerciales antes de preparar fixtures. No hubo ensayo E2E completado ni dos JWT institucionales. **Las 20 definiciones y la puntuación 8/20 (40 %) permanecen intactas.**
+
+El ensayo SQL transaccional C12 pasó localmente, pero su preflight comercial quedó bloqueado por permisos del conector; no se atribuye al backend real. El arreglo de mensajes ante cortes de red y las 21 pruebas locales tampoco satisfacen por sí solos ninguna de las filas que exige navegador, Android físico o dos sesiones Auth.
+
 La siguiente revisión local amplió el profesor simulado, corrigió la selección de una membresía utilizable entre varias y reemplazó el caso irreal de CSV duplicado por tres jugadores distintos. `test:pilot`: **15/15**, `build:pilot`: 83 módulos, `build`: 183 módulos. No cambió la puntuación porque faltan sesiones reales y ensayo de interfaz.
 
 El panel de aislamiento y su limpieza fueron endurecidos para no marcar un error 500 o una eliminación vacía como éxito. `test:pilot`: **16/16**, `build:pilot`: 84 módulos, `build`: 184 módulos. Las filas 17 y 18 siguen pendientes hasta ejecutarlo con dos JWT reales y confirmar el borrado de los datos ficticios.
