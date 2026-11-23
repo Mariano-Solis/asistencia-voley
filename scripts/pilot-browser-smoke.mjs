@@ -136,6 +136,11 @@ try {
 
     await page.getByRole('button',{name:'Asistencia'}).click()
     await page.getByLabel('Categoría').selectOption(store.categories.at(-1).id)
+    const dateInput=page.getByLabel('Fecha')
+    const selectedDate=await dateInput.inputValue()
+    await dateInput.fill('')
+    assert.equal(await page.getByRole('button',{name:'Crear jornada'}).isEnabled(),false,'A session needs a date')
+    await dateInput.fill(selectedDate)
     await page.getByRole('button',{name:'Crear jornada'}).click()
     await page.getByRole('button',{name:'Presente'}).last().click()
     await page.getByRole('button',{name:'Tarde'}).last().click()
