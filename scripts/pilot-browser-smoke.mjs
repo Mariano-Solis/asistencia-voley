@@ -26,7 +26,12 @@ const store = {
   institutions:[{id:club,slug:'jnn',name:'Junín Vóley JNN',status:'active',primary_color:'#194b77',logo_path:null}],
   institution_licenses:[{institution_id:club,status:'active',expires_at:'2099-12-31T23:59:59Z'}],
 }
-const json = (body,status=200) => ({status,contentType:'application/json',body:JSON.stringify(body)})
+const corsHeaders = {
+  'access-control-allow-origin':'*',
+  'access-control-allow-headers':'authorization,apikey,content-type,x-client-info,prefer,accept-profile,content-profile',
+  'access-control-allow-methods':'GET,POST,PATCH,DELETE,OPTIONS',
+}
+const json = (body,status=200) => ({status,contentType:'application/json',headers:corsHeaders,body:JSON.stringify(body)})
 function filtered(table,url) {
   return store[table].filter(row => [...url.searchParams].every(([key,value]) =>
     !['select','order','limit'].includes(key) && (!value.startsWith('eq.') || String(row[key]) === value.slice(3))))
@@ -83,7 +88,8 @@ try {
     await page.route(`${origin}/**`,async route => {
       const request=route.request(),url=new URL(request.url()),path=url.pathname,method=request.method()
       let response
-      if (path==='/auth/v1/token' && method==='POST') response=json({access_token:token,refresh_token:'mock-refresh',token_type:'bearer',expires_in:3600,user})
+      if (method==='OPTIONS') response={status:204,headers:corsHeaders,body:''}
+      else if (path==='/auth/v1/token' && method==='POST') response=json({access_token:token,refresh_token:'mock-refresh',token_type:'bearer',expires_in:3600,user})
       else if (path==='/auth/v1/user') response=json(user)
       else if (path==='/auth/v1/logout') response=json({})
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
