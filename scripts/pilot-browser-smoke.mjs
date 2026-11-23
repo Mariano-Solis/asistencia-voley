@@ -180,10 +180,31 @@ try {
       await page.getByRole('button',{name:'Pizarra',exact:true}).click()
       await page.getByRole('button',{name:'Abrir pizarra táctica'}).click()
       await page.getByRole('dialog',{name:'Pizarra Rápida'}).waitFor()
+      await page.locator('[title="Rotar Una Posición Reglamentaria"]').click()
+      await page.waitForFunction(() => {
+        const key=Object.keys(localStorage).find(item => item.startsWith('voley-commercial-board:'))
+        return key && JSON.parse(localStorage.getItem(key)).tokens.find(token => token.id === 'home-1').slot === 6
+      })
+      await page.locator('[title="Guardar Esta Pizarra"]').click()
+      await page.getByPlaceholder('Ej.: Defensa Pelota Alta 4').fill('Rotación ensayo')
+      await page.getByRole('button',{name:'Guardar Actual'}).click()
+      assert.equal(await page.evaluate(() => {
+        const key=Object.keys(localStorage).find(item => item.startsWith('voley-commercial-board-presets:'))
+        return key && JSON.parse(localStorage.getItem(key))[0]?.name
+      }),'Rotación ensayo')
+      await page.getByRole('dialog',{name:'Pizarras Guardadas'}).getByRole('button',{name:'Cerrar'}).click()
       assert.equal(await page.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('mgsm-quick-tactical-board'))),false)
       assert.equal(await page.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('voley-commercial-board:'))),true)
       await page.getByRole('dialog',{name:'Pizarra Rápida'}).getByRole('button',{name:'Volver',exact:true}).click()
       await page.getByRole('dialog',{name:'Pizarra Rápida'}).waitFor({state:'hidden'})
+      await page.reload()
+      await page.getByRole('button',{name:'Pizarra',exact:true}).click()
+      await page.getByRole('button',{name:'Abrir pizarra táctica'}).click()
+      assert.equal(await page.evaluate(() => {
+        const key=Object.keys(localStorage).find(item => item.startsWith('voley-commercial-board:'))
+        return key && JSON.parse(localStorage.getItem(key)).tokens.find(token => token.id === 'home-1').slot
+      }),6)
+      await page.getByRole('dialog',{name:'Pizarra Rápida'}).getByRole('button',{name:'Volver',exact:true}).click()
     }
 
     if (viewport.scenario === 'parity') {
