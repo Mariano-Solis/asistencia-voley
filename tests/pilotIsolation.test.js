@@ -100,10 +100,14 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       await db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-branding',foreignLogo])
       assert.equal(await count('select count(*) from storage.objects where name=$1',[ownLogo]),0)
       await denied(() => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-branding',`${jnn}/33333333-3333-4333-8333-333333333333.webp`]))
+      assert.equal((await db.query('delete from storage.objects where name=$1',[ownLogo])).affectedRows,0)
+      assert.equal((await db.query('update storage.objects set name=$1 where name=$2',[foreignLogo,ownLogo])).affectedRows,0)
       await denied(() => db.query("select public.pilot_update_identity($1,'Nombre ajeno','#194b77','#e7eef5','#0c765b','#f1f5fa','#ffffff',$2,'manual')",[jnn,ownLogo]))
     })
     await as(jnnAdmin,async () => {
       assert.equal(await count('select count(*) from storage.objects where name=$1',[foreignLogo]),0)
+      await denied(() => db.query('update storage.objects set name=$1 where name=$2',[`${other}/44444444-4444-4444-8444-444444444444.webp`,ownLogo]))
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[ownLogo]),1)
       await denied(() => db.query("select public.pilot_update_identity($1,'JNN','#194b77','#e7eef5','#0c765b','#f1f5fa','#ffffff',$2,'manual')",[jnn,foreignLogo]))
       await db.query("select public.pilot_update_identity($1,'Junín Vóley JNN','#194b77','#e7eef5','#0c765b','#f1f5fa','#ffffff',$2,'manual')",[jnn,ownLogo])
       assert.equal((await row('select logo_path from public.institutions where id=$1',[jnn])).logo_path,ownLogo)
@@ -185,6 +189,8 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     let professorFixture
     await as(professor,async () => {
       assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),2)
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[ownLogo]),1)
+      await denied(() => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-branding',`${jnn}/55555555-5555-4555-8555-555555555555.webp`]))
       assert.equal(await count('select count(*) from public.players where institution_id=$1',[other]),0)
       await denied(() => db.query("insert into public.categories(institution_id,name) values ($1,'Forbidden')",[jnn]))
       await denied(() => db.query('select public.pilot_set_license($1,now(),false)',[jnn]))
