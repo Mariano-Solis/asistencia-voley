@@ -1,5 +1,11 @@
 # C14 · Paridad funcional San Martín → Vóley Comercial
 
+## C18 · Corte del 23/11/2026
+
+El cálculo de porcentajes de asistencia de la aplicación original se extrajo sin cambiar su fórmula a `src/attendanceStats.js` y ahora se utiliza también en el historial comercial **sobre registros ya visibles tras filtros y RLS**. La vista antigua de asistencia selecciona únicamente una jornada de entrenamiento cuando coexisten partido/torneo en la misma fecha y categoría. La suite local comprobó por separado ambas actividades y la exclusión de otra categoría; la rama histórica sigue compilando. Son mejoras parciales, no una equivalencia del módulo. La interfaz avanzada continúa apagada.
+
+El inventario tabulado bajo “Inventario por módulo” documenta el corte inicial C14 y puede describir como ausentes operaciones que C15–C18 prepararon después. Los cortes fechados al comienzo de este archivo y el dictamen de `VOLEY-JNN-CIERRE-20261123.md` son la lectura vigente. La paridad integral continúa en **0/10** bloques.
+
 ## C17 · Asistencia avanzada preparada (sin habilitar)
 
 La referencia original `AppNew.jsx` admite entrenamiento/partido/torneo, rival/lugar/observaciones, invitados autorizados, edición conjunta, conflictos de guardado, analíticas e informes. El piloto publicado sigue mostrando una jornada por fecha/categoría y marcas individuales. El incremento C17 incorpora `016_attendance_activity_and_atomic_save.sql` y una interfaz **protegida por `VITE_PILOT_ADVANCED_ATTENDANCE`**, que permanece apagada en Vercel.
