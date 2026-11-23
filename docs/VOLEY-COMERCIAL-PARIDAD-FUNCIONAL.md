@@ -6,6 +6,8 @@ El cálculo de porcentajes de asistencia de la aplicación original se extrajo s
 
 También se reutilizó `exportAttendanceWorkbook` del original para un informe XLSX comercial por categoría y período. El adaptador `src/pilot/attendanceWorkbook.js` vuelve a limitar institución/categoría/fechas/actividad/jugador sobre filas ya visibles, cuenta los tres estados, deja las cuotas explícitamente fuera del informe y escribe el nombre del club en los metadatos del archivo. El comportamiento municipal por defecto no cambió. 44/44 pruebas comerciales locales pasan, incluidas la generación de un XLSX real y la ausencia de nombres ajenos y metadatos municipales; falta la descarga con sesión Auth en Chromium/Android.
 
+Una revisión de permisos detectó que con las banderas ampliadas apagadas la UI podía mostrar controles de jugador/asistencia a un profesor sin `can_edit`/`can_attendance`; el servidor 014 igualmente los rechazaba. C18 consulta las asignaciones vigentes y aplica `categoryPermission` en ambos modos. Un profesor sin asignación no ve controles de escritura; un superadministrador mantiene su acceso. Prueba local nueva: **45/45**. Falta una sesión Auth de profesor para comprobar el flujo completo.
+
 El inventario tabulado bajo “Inventario por módulo” documenta el corte inicial C14 y puede describir como ausentes operaciones que C15–C18 prepararon después. Los cortes fechados al comienzo de este archivo y el dictamen de `VOLEY-JNN-CIERRE-20261123.md` son la lectura vigente. La paridad integral continúa en **0/10** bloques.
 
 ## C17 · Asistencia avanzada preparada (sin habilitar)
