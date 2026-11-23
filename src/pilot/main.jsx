@@ -16,6 +16,7 @@ import { IsolationProbe } from './IsolationProbe.jsx'
 import { authErrorMessage } from './authMessages.js'
 import { pilotAuthRedirect } from './authRedirect.js'
 import { matchingActiveMembership, unavailableAccountMessage, usableAccountStatus } from './accountAccess.js'
+import { categoryPermission } from './categoryAccess.js'
 import { performClubAction } from './actionFlow.js'
 import './pilot.css'
 
@@ -151,7 +152,8 @@ function Pilot() {
       query('attendance', '*', [['institution_id', id]]),
       playerParityEnabled && membership?.role === 'super_admin'
         ? query('player_private_details', '*', [['institution_id', id]]) : Promise.resolve([]),
-      playerParityEnabled || advancedAttendanceEnabled ? query('professor_category_permissions', '*', [['institution_id', id]]) : Promise.resolve([])
+      membership?.role === 'professor' || playerParityEnabled || advancedAttendanceEnabled
+        ? query('professor_category_permissions', '*', [['institution_id', id]]) : Promise.resolve([])
     ])
     const details = new Map(privateRows.map(row => [row.player_id,row]))
     setCategories(cats); setPlayers(members.map(player => ({...player,...(details.get(player.id) || {})}))); setSessions(dates); setAttendance(marks); setProfessorPermissions(scopeRows)
@@ -205,8 +207,8 @@ function Pilot() {
   }
   const currentSession = legacyTrainingSession(sessions,category,date)
   const ownScopes = professorPermissions.filter(p => p.user_id === session?.user?.id)
-  const canManagePlayers = membership?.role === 'super_admin' || !playerParityEnabled || ownScopes.some(p => p.can_edit)
-  const canAttendSelected = membership?.role === 'super_admin' || !playerParityEnabled || ownScopes.some(p => p.category_id === category && p.can_attendance)
+  const canManagePlayers = categoryPermission(membership?.role,ownScopes,'edit')
+  const canAttendSelected = categoryPermission(membership?.role,ownScopes,'attendance',category)
   const listedPlayers = players.filter(p => p.category_id === category && p.active).sort((a,b) => a.full_name.localeCompare(b.full_name))
   const markFor = player => attendance.find(a => a.session_id === currentSession?.id && a.player_id === player.id)?.status
   async function setMark(player, status) {
@@ -257,7 +259,7 @@ function Pilot() {
       {section === 'seguridad' && membership?.role === 'super_admin' && import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && <IsolationProbe client={client} institution={institution} />}
       {section === 'historial' && <AttendanceHistory institution={institution} attendance={attendance} sessions={sessions} categories={categories} players={players} onExport={exportCsv} advanced={advancedAttendanceEnabled} /> }
       {section === 'asistencia' && (advancedAttendanceEnabled
-        ? <AdvancedAttendance client={client} institution={institution} categories={categories} players={players} sessions={sessions} attendance={attendance} onRefresh={refreshData} canAttend={categoryId => membership?.role === 'super_admin' || ownScopes.some(scope => scope.category_id === categoryId && scope.can_attendance)} />
+        ? <AdvancedAttendance client={client} institution={institution} categories={categories} players={players} sessions={sessions} attendance={attendance} onRefresh={refreshData} canAttend={categoryId => categoryPermission(membership?.role,ownScopes,'attendance',categoryId)} />
         : <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !canAttendSelected && <p>Podés consultar esta categoría, pero no registrar asistencia.</p>}{category && !currentSession && canAttendSelected && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy || !canAttendSelected} onClick={() => run(() => setMark(p,value), { refresh:'attendance' })}>{label}</button>)}</div></li>)}</ul>}</section>)}
     </>}
     <footer>Versión piloto independiente · Los datos de San Martín no se utilizan aquí.</footer>
