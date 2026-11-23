@@ -55,6 +55,8 @@ La revisión posterior añadió la respuesta CORS al simulador de Supabase y exi
 
 El ensayo SQL transaccional C12 pasó localmente, pero su preflight comercial quedó bloqueado por permisos del conector; no se atribuye al backend real. El arreglo de mensajes ante cortes de red y las 21 pruebas locales tampoco satisfacen por sí solos ninguna de las filas que exige navegador, Android físico o dos sesiones Auth.
 
+**Continuación C12:** la misma consulta 011 pasó posteriormente en el SQL Editor del proyecto comercial `savptjiwzaypisayulwp`, con `ROLLBACK` y cero filas residuales de su institución ficticia. El panel devolvió `PASS: commercial PostgreSQL integrity; transaction rolled back`. La limitación del conector no impidió este ensayo mediante la sesión del panel. Es una prueba real de PostgreSQL e integridad secuencial; **no** aprueba las filas 4, 17 o 18 ni modifica la puntuación de **8/20 (40 %)**.
+
 La segunda tanda C12 pasó `test:pilot:http` sobre Vite local y amplió recorte y límite de tamaño de escudo en pruebas unitarias; `test:pilot` terminó **23/23**. La marca de asistencia actualiza solo las marcas de la institución en vez de repetir todas las lecturas del panel. No se midió una red móvil real. **Aceptación: 8/20 (40 %).**
 
 La siguiente revisión local amplió el profesor simulado, corrigió la selección de una membresía utilizable entre varias y reemplazó el caso irreal de CSV duplicado por tres jugadores distintos. `test:pilot`: **15/15**, `build:pilot`: 83 módulos, `build`: 183 módulos. No cambió la puntuación porque faltan sesiones reales y ensayo de interfaz.
