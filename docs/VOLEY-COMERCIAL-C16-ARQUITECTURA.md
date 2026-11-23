@@ -1,6 +1,6 @@
 # C16 · Recuperación funcional sin conectar la base municipal
 
-**Continuación C17:** el diseño de asistencia transaccional y la diferencia con el original están documentados en `VOLEY-COMERCIAL-PARIDAD-FUNCIONAL.md`. La migración 016 y su bandera siguen pendientes de validación remota; la Preview protegida conserva la asistencia anterior.
+**Continuación C17:** el diseño de asistencia transaccional y la diferencia con el original están documentados en `VOLEY-COMERCIAL-PARIDAD-FUNCIONAL.md`. La migración 016 se aplicó al proyecto comercial y se inspeccionaron su esquema, RLS, concesiones y recuentos preservados. La bandera visual permanece apagada hasta las pruebas PostgREST con JWT reales y Storage; la Preview protegida conserva la asistencia anterior.
 
 Fecha de revisión: 23/11/2026. Rama exclusiva: `feature/voley-comercial-junin-piloto`.
 
