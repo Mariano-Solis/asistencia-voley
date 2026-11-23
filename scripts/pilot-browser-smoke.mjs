@@ -48,7 +48,7 @@ function respondRest(method, table, url, request) {
       const existing = upsert && table === 'attendance' && store.attendance.find(mark =>
         mark.institution_id===row.institution_id && mark.session_id===row.session_id && mark.player_id===row.player_id)
       if (existing) return Object.assign(existing,row)
-      const created={id:randomUUID(),...row}
+      const created={id:randomUUID(),...(table === 'players' ? {active:true} : {}),...row}
       store[table].push(created)
       return created
     })
@@ -88,6 +88,7 @@ try {
   const executablePath = process.env.PILOT_CHROMIUM_PATH || (existsSync(bundled) ? bundled : existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : bundled)
   browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
   for (const viewport of [{width:390,height:844},{width:1280,height:800}]) {
+    for (const table of ['categories','players','training_sessions','attendance']) store[table] = []
     const context = await browser.newContext({viewport,acceptDownloads:true})
     const page = await context.newPage()
     const errors=[]
