@@ -1,0 +1,35 @@
+name: Pilot browser smoke (mock backend)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/voley-comercial-junin-piloto
+    paths:
+      - .github/workflows/pilot-browser-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/feature/voley-comercial-junin-piloto'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked project dependencies
+        run: npm ci
+      - name: Install browser runner without persisting dependencies
+        run: npm install --no-save --ignore-scripts playwright@1.65.1
+      - name: Install Chromium and its Linux dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Build historical app for the smoke script's restore point
+        run: npm run build
+      - name: Run isolated pilot browser journey with mock Supabase
+        run: npm run test:pilot:browser
