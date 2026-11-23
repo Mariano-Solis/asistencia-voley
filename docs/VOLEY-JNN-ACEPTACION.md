@@ -136,3 +136,7 @@ La búsqueda Court Track consulta un índice acotado FMV y exige selección expl
 ## Revisión C15 · 23/11/2026
 
 El proyecto Supabase comercial está accesible y ACTIVE_HEALTHY. Se respaldaron las cuatro tablas deportivas en `pilot_backups` sin acceso para `authenticated`, luego se aplicaron 012–015. RLS sigue activo en las seis tablas deportivas relevantes; `players`, `categories`, `training_sessions` y `attendance` conservan dos filas cada una, iguales al respaldo. Las políticas delegan categorías de profesor con comprobación del servidor y la función administrativa de evento RLS ya no es ejecutable por roles API. El CI de la interfaz del commit `2b2dfd9` pasó en Chromium con backend **simulado**; 34/34 pruebas locales y ambas compilaciones pasaron después de las migraciones. La nueva interfaz continúa apagada en la Preview protegida. No se dispuso de dos JWT de administradores ni de un profesor Auth para comprobar los requisitos 15, 17 y 18; ninguno cambia de estado. **Aceptación: 8/20 (40 %)**. Paridad histórica completa: 0/10 bloques.
+
+# C17 · Corte de aceptación, 23/11/2026
+
+La preparación de asistencia avanzada no cambia los 20 criterios originales: **8/20 (40 %) aprobados**, sin incrementar ningún requisito. La migración 016 no se aplicó (confirmación caducada y ausencia verificada de columnas/copia). La bandera `VITE_PILOT_ADVANCED_ATTENDANCE` está apagada y se requieren JWT/PostgREST reales y navegación antes de habilitarla. Véase `VOLEY-COMERCIAL-PARIDAD-FUNCIONAL.md` para la evidencia PGlite simulada y diferencias restantes.

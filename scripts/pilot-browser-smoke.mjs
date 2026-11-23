@@ -17,6 +17,7 @@ catch {
 
 const origin = 'https://savptjiwzaypisayulwp.supabase.co'
 const parity = process.env.PILOT_BROWSER_PARITY === '1'
+const advanced = process.env.PILOT_BROWSER_ADVANCED === '1'
 const port = Number(process.env.PILOT_TEST_PORT || 4176)
 assert(Number.isInteger(port) && port >= 1024 && port <= 65535,'Choose a non-privileged local test port')
 const club = '10000000-0000-4000-8000-000000000001'
@@ -83,7 +84,7 @@ if (await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false)) {
 }
 const originalIndex = readFileSync('dist/index.html')
 const build = spawnSync(process.execPath,['scripts/build-pilot.mjs'],{
-  cwd:process.cwd(),stdio:'inherit',env:{...process.env,VITE_PILOT_SUPABASE_URL:origin,VITE_PILOT_SUPABASE_ANON_KEY:'sb_publishable_local_browser_test',VITE_PILOT_PLAYER_PARITY:parity?'1':'0'},
+  cwd:process.cwd(),stdio:'inherit',env:{...process.env,VITE_PILOT_SUPABASE_URL:origin,VITE_PILOT_SUPABASE_ANON_KEY:'sb_publishable_local_browser_test',VITE_PILOT_PLAYER_PARITY:parity?'1':'0',VITE_PILOT_ADVANCED_ATTENDANCE:advanced?'1':'0'},
 })
 if (build.status !== 0) { writeFileSync('dist/index.html',originalIndex); process.exit(build.status || 1) }
 const server = spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port',String(port),'--strictPort'],{stdio:'ignore'})
@@ -98,7 +99,7 @@ try {
   const bundled = chromium.executablePath()
   const executablePath = process.env.PILOT_CHROMIUM_PATH || (existsSync(bundled) ? bundled : existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : bundled)
   browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
-  for (const viewport of parity ? [{width:390,height:844,role:'super_admin',scenario:'parity'},{width:390,height:844,role:'professor',scenario:'parity-professor'}] : [{width:390,height:844,role:'super_admin'},
+  for (const viewport of advanced ? [{width:390,height:844,role:'super_admin',scenario:'advanced'}] : parity ? [{width:390,height:844,role:'super_admin',scenario:'parity'},{width:390,height:844,role:'professor',scenario:'parity-professor'}] : [{width:390,height:844,role:'super_admin'},
     {width:1280,height:800,role:'super_admin'}, {width:390,height:844,role:'professor'},
     {width:390,height:844,role:'super_admin',scenario:'read-outage'},
     {width:390,height:844,role:'super_admin',scenario:'suspension'}]) {
@@ -129,6 +130,19 @@ try {
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
       else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:accountSuspended?'suspended':'active',institution_status:'active',license_status:'active',expires_at:licenseExpired?'2020-01-01T00:00:00Z':'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
+      else if (path==='/rest/v1/rpc/pilot_save_attendance' && advanced) {
+        const input=JSON.parse(request.postData() || '{}')
+        const current=store.training_sessions.find(row=>row.institution_id===input.p_institution && row.category_id===input.p_category && row.session_date===input.p_date && row.activity_type===input.p_type)
+        if ((current?.revision || 0)!==input.p_expected_revision) response=json({message:'La asistencia cambió. Actualizá antes de guardar'},409)
+        else {
+          const session=current || {id:randomUUID(),institution_id:club,category_id:input.p_category,session_date:input.p_date,activity_type:input.p_type,revision:0}
+          if (!current) store.training_sessions.push(session)
+          Object.assign(session,{opponent:input.p_opponent,event_location:input.p_location,observation:input.p_observation,revision:session.revision+1})
+          store.attendance=store.attendance.filter(row=>row.session_id!==session.id)
+          store.attendance.push(...input.p_marks.map(row=>({...row,institution_id:club,session_id:session.id})))
+          response=json([{session_id:session.id,revision:session.revision}])
+        }
+      }
       else if (path==='/rest/v1/rpc/pilot_save_player') {
         const input=JSON.parse(request.postData() || '{}')
         const id=input.p_player || randomUUID()
@@ -207,6 +221,34 @@ try {
       await page.getByRole('dialog',{name:'Pizarra Rápida'}).getByRole('button',{name:'Volver',exact:true}).click()
     }
 
+    if (viewport.scenario === 'advanced') {
+      await page.getByRole('button',{name:'Categorías'}).click()
+      await page.getByLabel('Nombre',{exact:true}).fill('Sub 16')
+      await page.getByRole('button',{name:'Agregar categoría'}).click()
+      await page.getByRole('button',{name:'Jugadores'}).click()
+      await page.getByLabel('Nombre completo').fill('Jugadora ensayo')
+      await page.getByLabel('Categoría').first().selectOption(store.categories[0].id)
+      await page.getByRole('button',{name:'Agregar jugador'}).click()
+      await page.getByRole('button',{name:'Asistencia'}).click()
+      await page.getByLabel('Categoría').first().selectOption(store.categories[0].id)
+      await page.getByLabel('Actividad').selectOption('match')
+      await page.getByLabel('Rival').fill('Rival ficticio')
+      await page.getByRole('button',{name:'Presente'}).click()
+      await page.getByRole('button',{name:'Guardar jornada',exact:true}).click()
+      await page.getByRole('status').getByText(/Jornada guardada/).waitFor()
+      assert.equal(store.training_sessions[0].activity_type,'match')
+      assert.equal(store.attendance[0].status,'present')
+      await page.getByRole('button',{name:'Tarde'}).click()
+      page.once('dialog',dialog=>dialog.accept())
+      await page.getByRole('button',{name:'Guardar cambios de la jornada'}).click()
+      await page.getByRole('status').getByText(/Jornada guardada/).waitFor()
+      assert.equal(store.attendance[0].status,'late')
+      assert.deepEqual(errors,[])
+      assert.deepEqual(unexpected,[])
+      await context.close()
+      console.log('PASS mocked advanced attendance activity and atomic edit 390x844 (no real JWT)')
+      continue
+    }
     if (viewport.scenario === 'parity') {
       await page.getByRole('button',{name:'Categorías'}).click()
       await page.getByLabel('Nombre',{exact:true}).first().fill('Sub 16')

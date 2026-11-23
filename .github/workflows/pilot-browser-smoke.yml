@@ -39,3 +39,7 @@ jobs:
         env:
           PILOT_BROWSER_PARITY: '1'
         run: npm run test:pilot:browser
+      - name: Run staged advanced attendance journey with mock Supabase
+        env:
+          PILOT_BROWSER_ADVANCED: '1'
+        run: npm run test:pilot:browser

@@ -9,6 +9,7 @@ import QuickTacticalBoard from '../QuickTacticalBoard.jsx'
 import { ProfessorCategoryPermissions } from './ProfessorCategoryPermissions.jsx'
 import { CategoryManager } from './CategoryManager.jsx'
 import { AttendanceHistory } from './AttendanceHistory.jsx'
+import { AdvancedAttendance } from './AdvancedAttendance.jsx'
 import { CourtTrackFinder } from './CourtTrackFinder.jsx'
 import { IdentityEditor } from './IdentityEditor.jsx'
 import { IsolationProbe } from './IsolationProbe.jsx'
@@ -24,6 +25,8 @@ const key = import.meta.env.VITE_PILOT_SUPABASE_ANON_KEY
 // Enable only after migrations 012–014 have been applied and checked on the isolated
 // commercial project. Existing Preview remains compatible with older schema.
 const playerParityEnabled = import.meta.env.VITE_PILOT_PLAYER_PARITY === '1'
+// Requires migration 016 plus real permission/isolation checks before Preview.
+const advancedAttendanceEnabled = import.meta.env.VITE_PILOT_ADVANCED_ATTENDANCE === '1'
 const client = url && key && /^https:\/\//.test(url) ? createClient(url, key) : null
 const emailOf = value => String(value || '').trim().toLowerCase()
 
@@ -148,7 +151,7 @@ function Pilot() {
       query('attendance', '*', [['institution_id', id]]),
       playerParityEnabled && membership?.role === 'super_admin'
         ? query('player_private_details', '*', [['institution_id', id]]) : Promise.resolve([]),
-      playerParityEnabled ? query('professor_category_permissions', '*', [['institution_id', id]]) : Promise.resolve([])
+      playerParityEnabled || advancedAttendanceEnabled ? query('professor_category_permissions', '*', [['institution_id', id]]) : Promise.resolve([])
     ])
     const details = new Map(privateRows.map(row => [row.player_id,row]))
     setCategories(cats); setPlayers(members.map(player => ({...player,...(details.get(player.id) || {})}))); setSessions(dates); setAttendance(marks); setProfessorPermissions(scopeRows)
@@ -253,7 +256,9 @@ function Pilot() {
         : <section><h2>Identidad institucional</h2><p>La identidad de {institution.name} la configura el administrador del club.</p></section>) }
       {section === 'seguridad' && membership?.role === 'super_admin' && import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && <IsolationProbe client={client} institution={institution} />}
       {section === 'historial' && <AttendanceHistory attendance={attendance} sessions={sessions} categories={categories} players={players} onExport={exportCsv} /> }
-      {section === 'asistencia' && <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !canAttendSelected && <p>Podés consultar esta categoría, pero no registrar asistencia.</p>}{category && !currentSession && canAttendSelected && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy || !canAttendSelected} onClick={() => run(() => setMark(p,value), { refresh:'attendance' })}>{label}</button>)}</div></li>)}</ul>}</section>}
+      {section === 'asistencia' && (advancedAttendanceEnabled
+        ? <AdvancedAttendance client={client} institution={institution} categories={categories} players={players} sessions={sessions} attendance={attendance} onRefresh={refreshData} canAttend={categoryId => membership?.role === 'super_admin' || ownScopes.some(scope => scope.category_id === categoryId && scope.can_attendance)} />
+        : <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !canAttendSelected && <p>Podés consultar esta categoría, pero no registrar asistencia.</p>}{category && !currentSession && canAttendSelected && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy || !canAttendSelected} onClick={() => run(() => setMark(p,value), { refresh:'attendance' })}>{label}</button>)}</div></li>)}</ul>}</section>)}
     </>}
     <footer>Versión piloto independiente · Los datos de San Martín no se utilizan aquí.</footer>
   </main>
