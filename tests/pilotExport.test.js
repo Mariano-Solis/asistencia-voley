@@ -1,6 +1,30 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { attendanceCsv,attendanceFilename,filteredAttendance,playersCsv,playersFilename } from '../src/pilot/exportAttendance.js'
+import { attendanceCsv,attendanceFilename,filteredAttendance,legacyTrainingSession,playersCsv,playersFilename } from '../src/pilot/exportAttendance.js'
+import { attendanceStats } from '../src/attendanceStats.js'
+
+test('original attendance percentages follow exactly the visible filtered records', () => {
+  const sessions=[
+    {id:'match',category_id:'a',session_date:'2026-11-23',activity_type:'match'},
+    {id:'training',category_id:'a',session_date:'2026-11-23',activity_type:'training'},
+    {id:'foreign',category_id:'b',session_date:'2026-11-23',activity_type:'training'},
+  ]
+  const attendance=[
+    {session_id:'match',player_id:'p1',status:'late'},
+    {session_id:'training',player_id:'p1',status:'present'},
+    {session_id:'training',player_id:'p2',status:'absent'},
+    {session_id:'foreign',player_id:'p3',status:'present'},
+    {session_id:'training',player_id:'unknown',status:'invalid'},
+  ]
+  assert.equal(legacyTrainingSession(sessions,'a','2026-11-23').id,'training')
+  assert.deepEqual(attendanceStats(filteredAttendance({attendance,sessions,categoryId:'a',activity:'training'})),{
+    total:2,present:1,late:0,absent:1,presentPct:50,latePct:0,absentPct:50,
+  })
+  assert.deepEqual(attendanceStats(filteredAttendance({attendance,sessions,categoryId:'a',activity:'match'})),{
+    total:1,present:0,late:1,absent:0,presentPct:0,latePct:100,absentPct:0,
+  })
+  assert.equal(legacyTrainingSession(sessions,'b','2026-11-24'),undefined)
+})
 
 test('player CSV exports only selected rows with Spanish states, UTF-8 and formula protection', () => {
   const csv = playersCsv({ players:[

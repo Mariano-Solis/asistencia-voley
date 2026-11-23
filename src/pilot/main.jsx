@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
-import { attendanceCsv, attendanceFilename, playersCsv, playersFilename } from './exportAttendance.js'
+import { attendanceCsv, attendanceFilename, legacyTrainingSession, playersCsv, playersFilename } from './exportAttendance.js'
 import { brandColors } from './brand.js'
 import { PlayerManager } from './PlayerManager.jsx'
 import { downloadCategorySummary } from './categoryWorkbook.js'
@@ -203,7 +203,7 @@ function Pilot() {
       if (mode === 'recover') setMessage('Si la cuenta existe, recibirás un enlace para recuperar el acceso.')
     })
   }
-  const currentSession = sessions.find(s => s.category_id === category && s.session_date === date)
+  const currentSession = legacyTrainingSession(sessions,category,date)
   const ownScopes = professorPermissions.filter(p => p.user_id === session?.user?.id)
   const canManagePlayers = membership?.role === 'super_admin' || !playerParityEnabled || ownScopes.some(p => p.can_edit)
   const canAttendSelected = membership?.role === 'super_admin' || !playerParityEnabled || ownScopes.some(p => p.category_id === category && p.can_attendance)

@@ -29,3 +29,8 @@ main section,main form{background:var(--club-surface,#fff);color:var(--club-on-s
 .professor-scope fieldset{border:1px solid #dce4ec;border-radius:10px;margin:10px 0;padding:10px;display:flex;flex-wrap:wrap;gap:8px}
 .professor-scope legend{font-weight:700}.professor-scope label{display:flex;align-items:center;gap:7px;margin:0;padding:5px}
 .professor-scope input[type="checkbox"]{width:auto;margin:0}
+.pilot-attendance-summary{margin:14px 0;padding:12px;border:1px solid #cbd5df;border-radius:12px}
+.pilot-attendance-summary p{margin:0 0 10px;font-weight:600}
+.pilot-attendance-summary dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:0}
+.pilot-attendance-summary dl>div{padding:8px;border-radius:8px;background:var(--club-background,#f1f5fa);color:var(--club-on-background,#13283b)}
+.pilot-attendance-summary dt{font-size:.9rem}.pilot-attendance-summary dd{margin:4px 0 0;font-weight:700}

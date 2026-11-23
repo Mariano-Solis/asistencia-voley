@@ -1,3 +1,10 @@
+// The legacy attendance screen edits training only. With migration 016 a
+// match or tournament may coexist on the same category and date.
+export function legacyTrainingSession(sessions, categoryId, date) {
+  return sessions.find(day => day.category_id === categoryId && day.session_date === date
+    && (day.activity_type || 'training') === 'training')
+}
+
 export function filteredAttendance({ attendance, sessions, categoryId = '', date = '', playerId = '', activity = '' }) {
   const days = new Map(sessions.map(item => [item.id, item]))
   return attendance.filter(mark => {

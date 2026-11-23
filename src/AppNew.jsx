@@ -14,6 +14,7 @@ import QuickTacticalBoard from "./QuickTacticalBoard";
 import officialLogo from "../Logo.jpg";
 import { playerPhotoPath, preparePlayerPhoto, savePendingPlayerPhoto } from "./playerPhoto";
 import { exportAttendanceWorkbook, exportCategoryWorkbook, exportInstitutionAttendanceWorkbook } from "./xlsxCategoryExport";
+import { attendanceStats } from "./attendanceStats";
 
 const APP_NAME = "Municipalidad De San Martín - VOLEY";
 const TAGLINE = "#VamosElPoli";
@@ -157,24 +158,6 @@ function Login({ onAdmin, onPlayer, onAuthStart, onAuthEnd }) {
 
 function StatusButtons({ value, onChange, disabled = false }) { return <div className="status-picker">{Object.entries(STATUS).map(([k, v]) => <button disabled={disabled} type="button" key={k} className={`status ${k} ${value === k ? "active" : ""}`} onClick={() => onChange(value === k ? null : k)}><b>{v[0]}</b><span>{v[1]}</span></button>)}</div>; }
 
-
-function attendanceStats(rows = []) {
-  const valid = rows.filter(row => ["present","late","absent"].includes(row?.status));
-  const total = valid.length;
-  const present = valid.filter(row => row.status === "present").length;
-  const late = valid.filter(row => row.status === "late").length;
-  const absent = valid.filter(row => row.status === "absent").length;
-  const pct = value => total ? Math.round((value / total) * 1000) / 10 : 0;
-  return {
-    total,
-    present,
-    late,
-    absent,
-    presentPct: pct(present),
-    latePct: pct(late),
-    absentPct: pct(absent),
-  };
-}
 
 function AttendanceAnalytics({ title, subtitle, rows = [], sessionsCount = 0, playersCount = null, compact = false }) {
   const stats = attendanceStats(rows);

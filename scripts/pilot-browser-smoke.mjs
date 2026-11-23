@@ -246,6 +246,8 @@ try {
       await page.getByRole('button',{name:'Historial'}).click()
       await page.getByLabel('Actividad').selectOption('match')
       await page.getByText(/Partido · 0 presentes \/ 1 registrados/).waitFor()
+      await page.getByLabel('Resumen de los resultados visibles').getByText('1 jornada · 1 registro').waitFor()
+      await page.getByLabel('Resumen de los resultados visibles').getByText('1 · 100%').waitFor()
       const downloadPromise=page.waitForEvent('download')
       await page.getByRole('button',{name:'Exportar CSV (1)'}).click()
       const download=await downloadPromise
