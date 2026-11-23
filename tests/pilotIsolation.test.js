@@ -277,6 +277,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_status($1,$2,false)',[jnn,professor]))
     await as(professor,async () => {
       assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0)
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[photoPath]),0)
       assert.equal((await row('select membership_status from public.pilot_account_status()')).membership_status,'suspended')
       await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Suspendido')",[jnn,jnnCat]))
       await denied(() => db.query('select public.pilot_set_professor_status($1,$2,true)',[jnn,professor]))
@@ -291,6 +292,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(owner,async () => db.query('select public.pilot_set_license($1,null,false)',[jnn]))
     await as(jnnAdmin,async () => {
       assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0)
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[photoPath]),0)
       await denied(() => db.query("insert into public.categories(institution_id,name) values ($1,'Blocked')",[jnn]))
       assert.equal((await row('select license_status from public.pilot_account_status()')).license_status,'suspended')
     })
@@ -299,6 +301,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await db.query("update public.institution_licenses set expires_at=now()-interval '1 second' where institution_id=$1",[jnn])
     await as(jnnAdmin,async () => {
       assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),0)
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[photoPath]),0)
       assert.ok(new Date((await row('select expires_at from public.pilot_account_status()')).expires_at)<new Date())
     })
     await db.query("update public.institution_licenses set expires_at=now()+interval '3 days' where institution_id=$1",[jnn])
