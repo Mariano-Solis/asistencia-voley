@@ -2,6 +2,14 @@
 
 Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietario, autenticación de Vercel para el equipo de prueba y después cuenta propia de la aplicación (Supabase Auth). El comprador final no necesitará una cuenta Vercel cuando se habilite un entorno de entrega, previa revisión de seguridad. No compartir códigos de activación ni contraseñas.
 
+## Demostración controlada de 10–15 minutos
+
+Reservá 2 minutos para ingresar y verificar Junín JNN, 3 para crear y editar una categoría y un jugador ficticios, 3 para registrar Presente/Tarde/Ausente, 3 para filtrar Historial y abrir el CSV, y 2 para mostrar Identidad y cerrar sesión. No uses datos reales ni un escudo no autorizado. La Preview requiere primero el acceso del equipo de pruebas por Vercel; el acceso comercial definitivo será independiente de Vercel después de aprobar las pruebas de seguridad.
+
+## Administrador y profesor
+
+El administrador habilita un profesor **después** de que éste cree su cuenta y confirme su correo; lo hace desde Profesores con el correo verificado. Puede suspenderlo o reactivarlo allí. El profesor consulta categorías, jugadores, asistencia, historial e identidad de su institución y puede registrar actividad deportiva. La edición de categorías e identidad y la gestión de otros profesores corresponden al administrador. La asignación limitada a categorías individuales aún no existe: no ofrezcas ese alcance en la demostración. El recorrido de profesor con una cuenta Auth propia sigue sin prueba real; las restricciones del servidor se ensayaron con identidades SQL simuladas.
+
 ## Recorrido
 
 1. Abrí la Preview protegida e iniciá sesión en la aplicación con la identidad temporal autorizada. Si cambiaste de navegador, seguí el acceso por correo; no reutilices el enlace anterior.

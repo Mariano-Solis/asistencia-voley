@@ -24,6 +24,7 @@ const token = `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('
 let role = 'super_admin'
 let playerReadOutage = false
 let accountSuspended = false
+let licenseExpired = false
 const store = {
   categories:[], players:[], training_sessions:[], attendance:[],
   institution_memberships:[{institution_id:club,role:'super_admin',status:'active'}],
@@ -96,6 +97,7 @@ try {
     {width:390,height:844,role:'super_admin',scenario:'suspension'}]) {
     role = viewport.role
     accountSuspended = false
+    licenseExpired = false
     store.institution_memberships[0].role = role
     for (const table of ['categories','players','training_sessions','attendance']) store[table] = []
     const context = await browser.newContext({viewport,acceptDownloads:true})
@@ -112,7 +114,7 @@ try {
       else if (path==='/auth/v1/user') response=json(user)
       else if (path==='/auth/v1/logout') response=json({})
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
-      else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:accountSuspended?'suspended':'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
+      else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:accountSuspended?'suspended':'active',institution_status:'active',license_status:'active',expires_at:licenseExpired?'2020-01-01T00:00:00Z':'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
       else if (playerReadOutage && path==='/rest/v1/players' && method==='GET') {
         response = json({message:'Temporary simulated read outage'},503)
@@ -161,9 +163,16 @@ try {
       accountSuspended = false
       await page.getByRole('button',{name:'Comprobar nuevamente'}).click()
       await page.getByRole('button',{name:'Categorías'}).waitFor()
+      licenseExpired = true
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await page.getByText('La licencia institucional está vencida.').waitFor()
+      assert.equal(await page.getByRole('button',{name:'Categorías'}).count(),0,'Expired license must lose club navigation')
+      licenseExpired = false
+      await page.getByRole('button',{name:'Comprobar nuevamente'}).click()
+      await page.getByRole('button',{name:'Categorías'}).waitFor()
       assert.deepEqual(errors,[])
       await context.close()
-      console.log('PASS mocked suspension/reactivation navigation 390x844')
+      console.log('PASS mocked suspension/expiration/reactivation navigation 390x844')
       continue
     }
 
