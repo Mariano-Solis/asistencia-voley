@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { playerDetailsFromForm, suggestedCategory } from './playerDetails.js'
+import { PlayerPhoto } from './PlayerPhoto.jsx'
 
-export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce, onExport, parityEnabled = false }) {
+export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce, onExport, parityEnabled = false, canEditPhotos = false }) {
   const [editing, setEditing] = useState(null)
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -36,6 +37,7 @@ export function PlayerManager({ client, institution, categories, players, attend
           if (error) throw error
           announce(p.active ? 'Jugador desactivado. Su historial se conserva.' : 'Jugador reactivado.')
         })}>{p.active ? 'Desactivar' : 'Reactivar'}</button></div>
+      {parityEnabled && editing === p.id && <PlayerPhoto client={client} institutionId={institution.id} player={p} canEdit={canEditPhotos} busy={busy} run={run} announce={announce} />}
       {editing === p.id && <form className="inline-editor" onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); if (!data.has('category')) data.set('category', p.category_id); run(async () => {
         const values = parityEnabled ? playerDetailsFromForm(data, categories) : { full_name: String(data.get('name')).trim(), category_id: String(data.get('category') || p.category_id) }
         const { error } = await client.from('players').update(values)

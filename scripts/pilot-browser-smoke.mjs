@@ -128,6 +128,8 @@ try {
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
       else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:accountSuspended?'suspended':'active',institution_status:'active',license_status:'active',expires_at:licenseExpired?'2020-01-01T00:00:00Z':'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
+      else if (path.startsWith('/storage/v1/object/pilot-player-photos/') && method==='POST') response=json({Key:path})
+      else if (path.startsWith('/storage/v1/object/sign/pilot-player-photos/') && method==='POST') response=json({signedURL:'/object/sign/pilot-player-photos/mock.webp?token=mock'})
       else if (playerReadOutage && path==='/rest/v1/players' && method==='GET') {
         response = json({message:'Temporary simulated read outage'},503)
       }
@@ -185,6 +187,17 @@ try {
       assert.equal(await page.getByLabel('Categoría').first().inputValue(),store.categories[0].id)
       await page.getByRole('button',{name:'Agregar jugador'}).click()
       await page.getByText(/PÉREZ Ana María · Sub 16/).waitFor()
+      await page.getByRole('button',{name:'Editar'}).click()
+      const png = await page.evaluate(async () => {
+        const canvas=document.createElement('canvas'); canvas.width=canvas.height=64
+        canvas.getContext('2d').fillRect(0,0,64,64)
+        const blob=await new Promise(resolve => canvas.toBlob(resolve,'image/png'))
+        return Array.from(new Uint8Array(await blob.arrayBuffer()))
+      })
+      await page.getByLabel('Foto del jugador').setInputFiles({name:'ensayo.png',mimeType:'image/png',buffer:Buffer.from(png)})
+      await page.getByRole('button',{name:'Guardar foto privada'}).click()
+      await page.getByRole('status').getByText(/Foto privada guardada/).waitFor()
+      assert.match(store.players[0].photo_path,new RegExp(`^${club}/${store.players[0].id}/[0-9a-f-]+\\.webp$`))
       const playerDownloadPromise=page.waitForEvent('download')
       await page.getByRole('button',{name:'Exportar jugadores CSV (1)'}).click()
       const playerDownload=await playerDownloadPromise

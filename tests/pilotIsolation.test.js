@@ -56,6 +56,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     // Staged C15 schema is exercised locally; it has not been applied to the
     // connected commercial database or asserted with real JWTs.
     await db.exec(readFileSync(new URL('../supabase/pilot/012_category_player_parity.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/013_private_player_photos.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
       [owner,'owner@example.test'], [jnnAdmin,'jnn@example.test'],
       [otherAdmin,'other@example.test'], [professor,'professor@example.test'],
@@ -124,6 +125,20 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       await denied(() => db.query("insert into public.players(institution_id,category_id,full_name,sex) values ($1,$2,'Categoría ajena','male')",[jnn,otherCat]))
     })
     const jnnPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Jugador ficticio') returning id",[jnn,jnnCat])).id)
+    const photoPath = `${jnn}/${jnnPlayer}/44444444-4444-4444-8444-444444444444.webp`
+    await as(jnnAdmin,async () => {
+      await denied(() => db.query('update public.players set photo_path=$1 where id=$2',[photoPath,jnnPlayer]))
+      await denied(() => db.query('insert into public.players(institution_id,category_id,full_name,photo_path) values ($1,$2,$3,$4)',[jnn,jnnCat,'Vínculo falsificado',photoPath]))
+      await db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-player-photos',photoPath])
+      await db.query('update public.players set photo_path=$1 where id=$2',[photoPath,jnnPlayer])
+      assert.equal((await row('select photo_path from public.players where id=$1',[jnnPlayer])).photo_path,photoPath)
+    })
+    await as(otherAdmin,async () => {
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[photoPath]),0)
+      await denied(() => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-player-photos',`${jnn}/${jnnPlayer}/55555555-5555-4555-8555-555555555555.webp`]))
+      assert.equal((await db.query('delete from storage.objects where name=$1',[photoPath])).affectedRows,0)
+      assert.equal((await db.query('update public.players set photo_path=null where id=$1 returning id',[jnnPlayer])).rows.length,0)
+    })
     await as(jnnAdmin,async () => {
       await db.query("update public.players set first_name='Ana María',last_name='Prueba',sex='female',dni='12345678',birth_date='2010-11-22',team='A' where id=$1",[jnnPlayer])
       assert.equal((await row('select first_name from public.players where id=$1',[jnnPlayer])).first_name,'Ana María')
@@ -210,6 +225,9 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(professor,async () => {
       assert.equal((await db.query("update public.categories set active=false where id=$1 returning id",[jnnCat])).rows.length,0)
       assert.equal((await row('select active from public.categories where id=$1',[jnnCat])).active,true)
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[photoPath]),1)
+      await denied(() => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-player-photos',`${jnn}/${jnnPlayer}/66666666-6666-4666-8666-666666666666.webp`]))
+      await denied(() => db.query('update public.players set photo_path=null where id=$1',[jnnPlayer]))
     })
     // Category deletion parity: empty own category only; FK protects used
     // categories even if another writer races the UI preflight check.
