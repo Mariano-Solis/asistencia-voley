@@ -51,6 +51,7 @@ function respondRest(method, table, url, request) {
   }
   const input = JSON.parse(request.postData() || '{}')
   const representation = (request.headers().prefer || '').includes('return=representation')
+  const singular = (request.headers().accept || '').includes('application/vnd.pgrst.object+json')
   if (method === 'POST') {
     const upsert = (request.headers().prefer || '').includes('resolution=merge-duplicates')
     const items = (Array.isArray(input) ? input : [input]).map(row => {
@@ -66,12 +67,12 @@ function respondRest(method, table, url, request) {
   if (method === 'PATCH') {
     const rows = filtered(table,url)
     rows.forEach(row => Object.assign(row,input))
-    return json(representation ? rows : [])
+    return json(representation ? (singular ? rows[0] || null : rows) : [], singular && !rows.length ? 406 : 200)
   }
   if (method === 'DELETE') {
     const rows = filtered(table,url)
     store[table] = store[table].filter(row => !rows.includes(row))
-    return json(representation ? rows : [])
+    return json(representation ? (singular ? rows[0] || null : rows) : [], singular && !rows.length ? 406 : 200)
   }
   return json({message:'Method not mocked'},405)
 }
