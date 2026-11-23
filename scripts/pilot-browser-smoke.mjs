@@ -216,6 +216,11 @@ try {
       const playerDownload=await playerDownloadPromise
       const csv=await (await import('node:fs/promises')).readFile(await playerDownload.path(),'utf8')
       assert.match(csv,/"12345678";"2010-11-22";"Femenina"/)
+      const xlsxPromise=page.waitForEvent('download')
+      await page.getByRole('button',{name:'Resumen por categoría XLSX (1)'}).click()
+      const xlsx=await xlsxPromise
+      assert.match(xlsx.suggestedFilename(),/resumen-jugadores-.*\.xlsx$/)
+      assert.equal((await (await import('node:fs/promises')).readFile(await xlsx.path())).readUInt32LE(0),0x04034b50)
       assert.deepEqual(errors,[])
       await context.close()
       console.log('PASS mocked parity journey 390x844 (no Auth JWT, RLS or physical Android)')
@@ -349,6 +354,11 @@ try {
     const playerCsv=await (await import('node:fs/promises')).readFile(await playerDownload.path(),'utf8')
     assert.match(playerCsv,new RegExp(`Ángela Pérez ${viewport.width}`))
     assert.match(playerCsv,/"Activo"/)
+    const xlsxPromise=page.waitForEvent('download')
+    await page.getByRole('button',{name:'Resumen por categoría XLSX (1)'}).click()
+    const xlsx=await xlsxPromise
+    assert.match(xlsx.suggestedFilename(),/resumen-jugadores-.*\.xlsx$/)
+    assert.equal((await (await import('node:fs/promises')).readFile(await xlsx.path())).readUInt32LE(0),0x04034b50)
     assert.equal(store.players.length,1,'Export must not modify stored players')
     await page.getByRole('button',{name:'Editar'}).first().click()
     await page.getByLabel('Nombre completo').last().fill(`Ángela María Pérez ${viewport.width}`)

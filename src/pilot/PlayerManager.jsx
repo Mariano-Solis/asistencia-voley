@@ -8,7 +8,7 @@ function privateSaveParams(values, institutionId, playerId = null) {
     p_birth:values.birth_date,p_team:values.team,p_override:values.category_override }
 }
 
-export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce, onExport, parityEnabled = false, canEditPhotos = false, editableCategoryIds = null }) {
+export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce, onExport, onExportXlsx, parityEnabled = false, canEditPhotos = false, editableCategoryIds = null }) {
   const privateEdit = parityEnabled && canEditPhotos
   const editableCategories = categories.filter(c => (!editableCategoryIds || editableCategoryIds.includes(c.id)) && (!parityEnabled || c.active))
   const canEditPlayer = player => !editableCategoryIds || editableCategoryIds.includes(player.category_id)
@@ -41,6 +41,7 @@ export function PlayerManager({ client, institution, categories, players, attend
       <label>Filtrar categoría<select value={categoryId} onChange={event => setCategoryId(event.target.value)}><option value="">Todas</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
       <label>Estado<select value={status} onChange={event => setStatus(event.target.value)}><option value="active">Activos</option><option value="inactive">Inactivos</option><option value="all">Todos</option></select></label></div>
     <button type="button" disabled={!shown.length || busy} onClick={() => onExport(shown)}>Exportar jugadores CSV ({shown.length})</button>
+    <button type="button" disabled={!categories.length || busy} onClick={() => onExportXlsx(shown,categoryId)}>Resumen por categoría XLSX ({shown.length})</button>
     <ul>{shown.map(p => <li key={p.id}>
       <span>{p.full_name} · {categories.find(c => c.id === p.category_id)?.name} · {p.active ? 'Activo' : 'Inactivo'}</span>
       {canEditPlayer(p) && <div><button disabled={busy} onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? 'Cancelar' : 'Editar'}</button>
