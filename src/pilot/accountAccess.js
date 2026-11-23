@@ -12,3 +12,10 @@ export function matchingActiveMembership(status, memberships) {
   return (memberships || []).find(m => m.status === 'active'
     && m.institution_id === status.institution_id && m.role === status.role) || null
 }
+
+export function unavailableAccountMessage(status, now = Date.now()) {
+  if (status.membership_status !== 'active') return 'Tu membresía está suspendida.'
+  if (status.institution_status !== 'active' || status.license_status !== 'active') return 'La licencia institucional está suspendida.'
+  if (!status.expires_at || new Date(status.expires_at).getTime() <= now) return 'La licencia institucional está vencida.'
+  return 'No se pudo comprobar tu membresía activa. Tocá Comprobar nuevamente o avisá al administrador.'
+}

@@ -160,7 +160,12 @@ try {
       await page.getByLabel('Categoría').first().selectOption(store.categories[0].id)
       failNextPlayerRead = true
       await page.getByRole('button',{name:'Agregar jugador'}).click()
-      await page.getByRole('status').getByText(/La operación terminó, pero no se pudieron actualizar/).waitFor()
+      try { await page.getByRole('status').getByText(/La operación terminó, pero no se pudieron actualizar/).waitFor({timeout:10000}) }
+      catch (error) {
+        console.error('Read-outage screen:',(await page.locator('body').innerText()).slice(0,1500))
+        console.error('Mock calls:',calls,'Page errors:',errors)
+        throw error
+      }
       assert.equal(store.players.length,1,'The successful write must not be retried')
       await page.getByRole('button',{name:'Actualizar'}).click()
       await page.getByText(/Jugador ficticio recuperación/).waitFor()
