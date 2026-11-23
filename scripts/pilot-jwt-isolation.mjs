@@ -110,6 +110,14 @@ try {
     fixture.get(account.label).logo = path
     const downloaded = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${path}`)
     assert(downloaded.ok && Buffer.from(downloaded.bytes).equals(Buffer.from(png)),`${account.label} own Storage content mismatch (${downloaded.status})`)
+    // Prove that this exact update endpoint works for an authorized tenant;
+    // otherwise a foreign PUT returning 400/404 could be an API-shape error.
+    const updated = await request(account.jwt,`/storage/v1/object/pilot-branding/${path}`,{
+      method:'PUT',body:png,headers:{'Content-Type':'image/png'},
+    })
+    assert(updated.ok,`${account.label} own Storage update failed (${updated.status})`)
+    const afterUpdate = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${path}`)
+    assert(afterUpdate.ok && Buffer.from(afterUpdate.bytes).equals(Buffer.from(png)),`${account.label} own Storage update content mismatch (${afterUpdate.status})`)
     const signed = await request(account.jwt,`/storage/v1/object/sign/pilot-branding/${path}`,{
       method:'POST',body:{expiresIn:60},
     })
