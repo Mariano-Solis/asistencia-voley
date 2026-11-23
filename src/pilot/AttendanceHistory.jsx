@@ -1,12 +1,16 @@
 import React, { useState } from 'react'
 import { filteredAttendance } from './exportAttendance.js'
 import { attendanceStats } from '../attendanceStats.js'
+import { downloadAttendanceReport } from './attendanceWorkbook.js'
 
-export function AttendanceHistory({ attendance, sessions, categories, players, onExport, advanced = false }) {
+export function AttendanceHistory({ attendance, sessions, categories, players, institution, onExport, advanced = false }) {
   const [categoryId, setCategoryId] = useState('')
   const [date, setDate] = useState('')
   const [playerId, setPlayerId] = useState('')
   const [activity, setActivity] = useState('')
+  const [reportFrom, setReportFrom] = useState('')
+  const [reportTo, setReportTo] = useState('')
+  const [reportMessage, setReportMessage] = useState('')
   const types = {training:'Entrenamiento',match:'Partido',tournament:'Torneo'}
   const visible = sessions.filter(day => (!categoryId || day.category_id === categoryId) && (!date || day.session_date === date)
     && (!activity || (day.activity_type || 'training') === activity))
@@ -30,6 +34,20 @@ export function AttendanceHistory({ attendance, sessions, categories, players, o
       </dl>
     </div>
     <button disabled={!rows.length} onClick={() => onExport({ categoryId, date, playerId, activity })}>Exportar CSV ({rows.length})</button>
+    <fieldset className="pilot-report">
+      <legend>Informe XLSX por categoría (sin pagos)</legend>
+      <p>Seleccioná una categoría y un período. Solo se incluyen las asistencias visibles para tu cuenta.</p>
+      <label>Desde<input type="date" value={reportFrom} onChange={event => setReportFrom(event.target.value)} /></label>
+      <label>Hasta<input type="date" value={reportTo} min={reportFrom || undefined} onChange={event => setReportTo(event.target.value)} /></label>
+      <button type="button" disabled={!categoryId || !reportFrom || !reportTo} onClick={() => {
+        try {
+          downloadAttendanceReport({institution,categories,sessions,attendance,players,categoryId,
+            from:reportFrom,to:reportTo,playerId,activity})
+          setReportMessage('Informe XLSX descargado con las asistencias visibles.')
+        } catch (error) { setReportMessage(error.message) }
+      }}>Descargar informe XLSX</button>
+      {reportMessage && <p role="status">{reportMessage}</p>}
+    </fieldset>
     <ul>{visible.filter(day => rows.some(mark => mark.session_id === day.id)).map(day => <li key={day.id}>{day.session_date} · {categories.find(c => c.id === day.category_id)?.name}{advanced ? ` · ${types[day.activity_type || 'training']}` : ''} · {rows.filter(a => a.session_id === day.id && a.status === 'present').length} presentes / {rows.filter(a => a.session_id === day.id).length} registrados</li>)}</ul>
     {!rows.length && <p>No hay asistencias para este filtro.</p>}
   </section>
