@@ -77,16 +77,20 @@ try {
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,name:`Ensayo JWT ${stamp} ${account.label}`},
     }),1,`${account.label} own category`)[0].id
     fixture.set(account.label,{category})
-    rows(await rest(account.jwt,'categories',`?select=id,name&${eq('id',category)}`,{
-      method:'PATCH',headers:{Prefer:'return=representation'},body:{name:`Ensayo JWT editado ${stamp} ${account.label}`},
-    }),1,`${account.label} own category edit`)
+    const categoryName = `Ensayo JWT editado ${stamp} ${account.label}`
+    const editedCategory = rows(await rest(account.jwt,'categories',`?select=id,name&${eq('id',category)}`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{name:categoryName},
+    }),1,`${account.label} own category edit`)[0]
+    assert.equal(editedCategory.name,categoryName,`${account.label} own category edit did not persist`)
     const player = rows(await rest(account.jwt,'players','?select=id',{
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,category_id:category,full_name:`Jugador ficticio JWT ${stamp}`},
     }),1,`${account.label} own player`)[0].id
     fixture.get(account.label).player = player
-    rows(await rest(account.jwt,'players',`?select=id,full_name&${eq('id',player)}`,{
-      method:'PATCH',headers:{Prefer:'return=representation'},body:{full_name:`Jugador ficticio JWT ${stamp} ${account.label}`},
-    }),1,`${account.label} own player edit`)
+    const playerName = `Jugador ficticio JWT ${stamp} ${account.label}`
+    const editedPlayer = rows(await rest(account.jwt,'players',`?select=id,full_name&${eq('id',player)}`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{full_name:playerName},
+    }),1,`${account.label} own player edit`)[0]
+    assert.equal(editedPlayer.full_name,playerName,`${account.label} own player edit did not persist`)
     const date = new Date().toISOString().slice(0,10)
     const session = rows(await rest(account.jwt,'training_sessions','?select=id',{
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,category_id:category,session_date:date},
@@ -105,7 +109,7 @@ try {
     assert(uploaded.ok,`${account.label} own Storage upload failed (${uploaded.status})`)
     fixture.get(account.label).logo = path
     const downloaded = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${path}`)
-    assert(downloaded.ok && downloaded.bytes.length === png.length,`${account.label} own Storage download failed (${downloaded.status})`)
+    assert(downloaded.ok && Buffer.from(downloaded.bytes).equals(Buffer.from(png)),`${account.label} own Storage content mismatch (${downloaded.status})`)
     const signed = await request(account.jwt,`/storage/v1/object/sign/pilot-branding/${path}`,{
       method:'POST',body:{expiresIn:60},
     })
