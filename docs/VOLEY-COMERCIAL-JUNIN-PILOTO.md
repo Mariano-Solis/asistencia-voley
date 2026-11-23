@@ -57,3 +57,12 @@
 
 ## Criterio de ejecución
 Implementar por dependencias, no fusionar con main ni desplegar producción sin autorización y pruebas. Cada cierre requiere evidencia, resultado reproducible y rollback.
+
+## Punto de retorno C11 (23/11/2026, hora de Argentina)
+
+El apartado «Estado del piloto aislado (21/11/2026)» conserva una fotografía histórica; sus afirmaciones sobre cero usuarios Auth y JNN pendiente ya no describen el estado actual. La cuenta temporal de JNN está confirmada y tiene acceso institucional de ensayo; el propietario conserva su autorización vinculada al UID original, pero su ingreso con contraseña aún no se revalidó. Club Ficticio B tiene licencia temporal de ensayo y una cuenta Auth confirmada, pero **no** tiene código canjeado ni membresía. Juan Pablo no está activado.
+
+- Rama publicada: `feature/voley-comercial-junin-piloto`, commit `b025375`. Preview protegida `dpl_6zBCD3Bd9xaAimGWGTru8Z82sgEL`, estado `READY`: https://voley-comercial-junin-piloto-5kro7kz77-miga-mia.vercel.app/ . El proyecto comercial conserva SSO de Vercel para todos los despliegues y sus variables Preview solo nombran el Supabase comercial y la clave pública.
+- C11: confirmaciones visibles tras guardar jugadores y asistencia; prevención de jornada sin fecha. Suite `test:pilot:browser` preparada con datos simulados, pero no ejecutada exitosamente: el Chromium de este entorno no pudo iniciar por denegación de sockets. La Preview `READY` tampoco prueba navegación autenticada.
+- Verificaciones de esta revisión: 17/17 tests locales; compilación piloto de 84 módulos; compilación general de 184 módulos; `node --check` del simulador. No se solicitaron correos ni se usaron credenciales del propietario. No se modificó San Martín, `main` ni el proyecto Supabase.
+- Matriz estricta: **8/20 (40 %)**. Permanecen bloqueantes las filas 17 y 18 de aislamiento PostgREST y Storage con dos JWT institucionales reales. Para habilitar Club B, el propietario debe recuperar acceso legítimo y emitir el código desde su panel, seguido del canje por su destinatario. Después se ejecuta `scripts/pilot-jwt-isolation.mjs` o el panel `?qa=1` en ambos sentidos. No sustituir ese recorrido con service_role ni con claims SQL simulados.
