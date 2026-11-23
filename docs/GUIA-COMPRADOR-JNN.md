@@ -22,6 +22,7 @@ Versión de ensayo protegida. Acceso: URL de Preview facilitada por el propietar
 - «La operación terminó, pero no se pudieron actualizar los datos»: el guardado respondió correctamente y falló la lectura posterior. Tocá **Actualizar** antes de repetir el alta o la edición para evitar duplicados.
 - Court Track no disponible: seguí con la configuración manual. No se bloquea el uso deportivo.
 - Profesor: el administrador puede habilitar o suspender una cuenta verificada. En esta candidata el profesor autorizado ve las categorías de su institución; la asignación limitada a categorías individuales todavía está en desarrollo y no debe prometerse.
+- Un profesor puede consultar la identidad institucional, pero solo un administrador del club puede editarla. La prueba automatizada de ese menú usa respuestas de servidor simuladas; todavía falta el recorrido con una cuenta Auth propia de profesor.
 - CSV no descargado: revisá los permisos de descargas del navegador Android y repetí el filtro. Registrá modelo, navegador y fecha; esta comprobación sobre la última candidata aún requiere prueba manual.
 
 ## Comprobación breve en Android de la candidata actual
