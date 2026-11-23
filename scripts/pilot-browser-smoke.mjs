@@ -35,7 +35,7 @@ const corsHeaders = {
 const json = (body,status=200) => ({status,contentType:'application/json',headers:corsHeaders,body:JSON.stringify(body)})
 function filtered(table,url) {
   return store[table].filter(row => [...url.searchParams].every(([key,value]) =>
-    !['select','order','limit'].includes(key) && (!value.startsWith('eq.') || String(row[key]) === value.slice(3))))
+    ['select','order','limit'].includes(key) || !value.startsWith('eq.') || String(row[key]) === value.slice(3)))
 }
 function respondRest(method, table, url, request) {
   if (!Object.hasOwn(store,table)) return json({message:'Unknown table'},404)
