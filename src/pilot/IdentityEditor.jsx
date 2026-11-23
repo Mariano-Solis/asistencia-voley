@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { brandColors, paletteFromPrimary } from './brand.js'
 import { validatedLogo, renderCrop, croppedBlob } from './logoUpload.js'
+import { performClubAction } from './actionFlow.js'
 
 export function IdentityEditor({ institution, client, logoUrl, onSaved }) {
   const canvas = useRef(null)
@@ -44,6 +45,7 @@ export function IdentityEditor({ institution, client, logoUrl, onSaved }) {
   async function save(event) {
     event.preventDefault(); setBusy(true); setMessage('')
     let uploaded = null
+    let uploadedConfirmed = false
     try {
       let logoPath = institution.logo_path || null
       if (bitmap) {
@@ -51,22 +53,35 @@ export function IdentityEditor({ institution, client, logoUrl, onSaved }) {
         uploaded = `${institution.id}/${crypto.randomUUID()}.webp`
         const { error } = await client.storage.from('pilot-branding').upload(uploaded,blob,{ contentType:'image/webp',upsert:false })
         if (error) throw error
+        uploadedConfirmed = true
         logoPath = uploaded
       }
       const data = new FormData(event.currentTarget)
-      const { error } = await client.rpc('pilot_update_identity', {
-        p_institution:institution.id,p_name:name.trim(),p_primary:primary,p_secondary:secondary,p_accent:accent,
-        p_background:background,p_surface:surface,p_logo_path:logoPath,p_mode:mode,
-        p_country:String(data.get('country') || '').trim(),p_region:String(data.get('region') || '').trim(),
-        p_city:String(data.get('city') || '').trim(),p_federation:String(data.get('federation') || '').trim(),
-        p_sport:String(data.get('sport') || '').trim(),
-      })
-      if (error) throw error
-      await onSaved()
-      setMessage('Identidad guardada para esta institución.')
+      const result = await performClubAction(async () => {
+        const { error } = await client.rpc('pilot_update_identity', {
+          p_institution:institution.id,p_name:name.trim(),p_primary:primary,p_secondary:secondary,p_accent:accent,
+          p_background:background,p_surface:surface,p_logo_path:logoPath,p_mode:mode,
+          p_country:String(data.get('country') || '').trim(),p_region:String(data.get('region') || '').trim(),
+          p_city:String(data.get('city') || '').trim(),p_federation:String(data.get('federation') || '').trim(),
+          p_sport:String(data.get('sport') || '').trim(),
+        })
+        if (error) throw error
+      }, onSaved)
+      setBitmap(null)
+      setMessage(result.refreshed
+        ? 'Identidad guardada para esta institución.'
+        : 'La identidad se guardó, pero no se pudo actualizar la pantalla. Tocá Actualizar antes de repetir el guardado.')
     } catch (error) {
-      if (uploaded) await client.storage.from('pilot-branding').remove([uploaded])
-      setMessage(error.message || 'No se pudo guardar la identidad.')
+      let cleanupFailed = false
+      if (uploadedConfirmed) {
+        try {
+          const { error: removalError } = await client.storage.from('pilot-branding').remove([uploaded])
+          cleanupFailed = Boolean(removalError)
+        } catch { cleanupFailed = true }
+      }
+      setMessage(cleanupFailed
+        ? 'No se pudo guardar la identidad ni limpiar el escudo temporal. Avisá al soporte antes de volver a subirlo.'
+        : error.message || 'No se pudo guardar la identidad.')
     } finally { setBusy(false) }
   }
   return <section><h2>Identidad institucional</h2><p>Podés completar la identidad sin usar Court Track. Los datos y el escudo quedan asociados solamente a este club.</p>
