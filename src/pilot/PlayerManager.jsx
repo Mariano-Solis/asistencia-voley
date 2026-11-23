@@ -8,8 +8,10 @@ function privateSaveParams(values, institutionId, playerId = null) {
     p_birth:values.birth_date,p_team:values.team,p_override:values.category_override }
 }
 
-export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce, onExport, parityEnabled = false, canEditPhotos = false }) {
+export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce, onExport, parityEnabled = false, canEditPhotos = false, editableCategoryIds = null }) {
   const privateEdit = parityEnabled && canEditPhotos
+  const editableCategories = categories.filter(c => (!editableCategoryIds || editableCategoryIds.includes(c.id)) && (!parityEnabled || c.active))
+  const canEditPlayer = player => !editableCategoryIds || editableCategoryIds.includes(player.category_id)
   const [editing, setEditing] = useState(null)
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -31,9 +33,9 @@ export function PlayerManager({ client, institution, categories, players, attend
         <label>DNI opcional<input name="dni" inputMode="numeric" pattern="[0-9]{6,12}" /></label>
         <label>Fecha de nacimiento<input name="birth_date" type="date" max={new Date().toISOString().slice(0, 10)} /></label>
         <label>Equipo opcional<input name="team" maxLength="40" /></label></> : <label>Nombre completo<input name="name" minLength="2" maxLength="120" required /></label>}
-      <label>Categoría<select name="category" required value={privateEdit ? suggestion : undefined} defaultValue={privateEdit ? undefined : ''} onChange={privateEdit ? event => setSuggestion(event.target.value) : undefined}><option value="" disabled>Elegí una categoría</option>{categories.filter(c => !parityEnabled || c.active).map(c => <option key={c.id} value={c.id}>{c.name}{parityEnabled && c.gender ? ` · ${c.gender === 'female' ? 'Femenina' : 'Masculina'}` : ''}</option>)}</select></label>
+      <label>Categoría<select name="category" required value={privateEdit ? suggestion : undefined} defaultValue={privateEdit ? undefined : ''} onChange={privateEdit ? event => setSuggestion(event.target.value) : undefined}><option value="" disabled>Elegí una categoría</option>{editableCategories.map(c => <option key={c.id} value={c.id}>{c.name}{parityEnabled && c.gender ? ` · ${c.gender === 'female' ? 'Femenina' : 'Masculina'}` : ''}</option>)}</select></label>
       {privateEdit && <button type="button" onClick={event => { const data = new FormData(event.currentTarget.form), match = suggestedCategory(categories, data.get('birth_date'), data.get('sex')); if (match) { setSuggestion(match.id); announce(`Categoría sugerida: ${match.name}. Podés elegir otra.`) } else announce('No hay categoría activa compatible. Elegila manualmente.') }}>Sugerir categoría por edad</button>}
-      <button disabled={busy || !categories.some(c => !parityEnabled || c.active)}>Agregar jugador</button>
+      <button disabled={busy || !editableCategories.length}>Agregar jugador</button>
     </form>
     <div className="history-filters"><label>Buscar jugador<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nombre" /></label>
       <label>Filtrar categoría<select value={categoryId} onChange={event => setCategoryId(event.target.value)}><option value="">Todas</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -41,14 +43,14 @@ export function PlayerManager({ client, institution, categories, players, attend
     <button type="button" disabled={!shown.length || busy} onClick={() => onExport(shown)}>Exportar jugadores CSV ({shown.length})</button>
     <ul>{shown.map(p => <li key={p.id}>
       <span>{p.full_name} · {categories.find(c => c.id === p.category_id)?.name} · {p.active ? 'Activo' : 'Inactivo'}</span>
-      <div><button disabled={busy} onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? 'Cancelar' : 'Editar'}</button>
+      {canEditPlayer(p) && <div><button disabled={busy} onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? 'Cancelar' : 'Editar'}</button>
         <button disabled={busy} onClick={() => run(async () => {
           const { error } = await client.from('players').update({ active: !p.active }).eq('institution_id', institution.id).eq('id', p.id).select('id').single()
           if (error) throw error
           announce(p.active ? 'Jugador desactivado. Su historial se conserva.' : 'Jugador reactivado.')
-        })}>{p.active ? 'Desactivar' : 'Reactivar'}</button></div>
+        })}>{p.active ? 'Desactivar' : 'Reactivar'}</button></div>}
       {privateEdit && editing === p.id && <PlayerPhoto client={client} institutionId={institution.id} player={p} canEdit busy={busy} run={run} announce={announce} />}
-      {editing === p.id && <form className="inline-editor" onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); if (!data.has('category')) data.set('category', p.category_id); run(async () => {
+      {editing === p.id && canEditPlayer(p) && <form className="inline-editor" onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); if (!data.has('category')) data.set('category', p.category_id); run(async () => {
         if (privateEdit) {
           const values = playerDetailsFromForm(data,categories)
           const { data: saved, error } = await client.rpc('pilot_save_player',privateSaveParams(values,institution.id,p.id))
@@ -66,7 +68,7 @@ export function PlayerManager({ client, institution, categories, players, attend
           <label>Rama<select name="sex" defaultValue={p.sex || ''}><option value="">Sin especificar</option><option value="female">Femenina</option><option value="male">Masculina</option></select></label>
           <label>DNI opcional<input name="dni" inputMode="numeric" pattern="[0-9]{6,12}" defaultValue={p.dni || ''} /></label><label>Nacimiento<input name="birth_date" type="date" defaultValue={p.birth_date || ''} /></label><label>Equipo<input name="team" maxLength="40" defaultValue={p.team || ''} /></label></> : <label>Nombre completo<input name="name" defaultValue={p.full_name} minLength="2" maxLength="120" required /></label>}
         <label>Categoría<select name="category" defaultValue={p.category_id} disabled={attendance.some(a => a.player_id === p.id)}>
-          {categories.filter(c => !parityEnabled || c.active || c.id === p.category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          {categories.filter(c => (!editableCategoryIds || editableCategoryIds.includes(c.id)) && (!parityEnabled || c.active || c.id === p.category_id)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         {attendance.some(a => a.player_id === p.id) && <p>La categoría se conserva para proteger el historial de asistencia.</p>}
         <button disabled={busy}>Guardar cambios</button>
       </form>}

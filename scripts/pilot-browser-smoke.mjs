@@ -28,7 +28,7 @@ let playerReadOutage = false
 let accountSuspended = false
 let licenseExpired = false
 const store = {
-  categories:[], players:[], player_private_details:[], training_sessions:[], attendance:[],
+  categories:[], players:[], player_private_details:[], professor_category_permissions:[], training_sessions:[], attendance:[],
   institution_memberships:[{institution_id:club,role:'super_admin',status:'active'}],
   institutions:[{id:club,slug:'jnn',name:'Junín Vóley JNN',status:'active',primary_color:'#194b77',logo_path:null}],
   institution_licenses:[{institution_id:club,status:'active',expires_at:'2099-12-31T23:59:59Z'}],
@@ -98,7 +98,7 @@ try {
   const bundled = chromium.executablePath()
   const executablePath = process.env.PILOT_CHROMIUM_PATH || (existsSync(bundled) ? bundled : existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : bundled)
   browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
-  for (const viewport of parity ? [{width:390,height:844,role:'super_admin',scenario:'parity'}] : [{width:390,height:844,role:'super_admin'},
+  for (const viewport of parity ? [{width:390,height:844,role:'super_admin',scenario:'parity'},{width:390,height:844,role:'professor',scenario:'parity-professor'}] : [{width:390,height:844,role:'super_admin'},
     {width:1280,height:800,role:'super_admin'}, {width:390,height:844,role:'professor'},
     {width:390,height:844,role:'super_admin',scenario:'read-outage'},
     {width:390,height:844,role:'super_admin',scenario:'suspension'}]) {
@@ -106,7 +106,8 @@ try {
     accountSuspended = false
     licenseExpired = false
     store.institution_memberships[0].role = role
-    for (const table of ['categories','players','player_private_details','training_sessions','attendance']) store[table] = []
+    for (const table of ['categories','players','player_private_details','professor_category_permissions','training_sessions','attendance']) store[table] = []
+    if (viewport.scenario === 'parity-professor') store.categories.push({id:randomUUID(),institution_id:club,name:'Sub 16',gender:'female',active:true})
     const context = await browser.newContext({viewport,acceptDownloads:true})
     const page = await context.newPage()
     const errors=[]
@@ -218,6 +219,23 @@ try {
       assert.deepEqual(errors,[])
       await context.close()
       console.log('PASS mocked parity journey 390x844 (no Auth JWT, RLS or physical Android)')
+      continue
+    }
+
+    if (viewport.scenario === 'parity-professor') {
+      assert.equal(await page.getByRole('button',{name:'Jugadores'}).count(),0)
+      store.professor_category_permissions.push({institution_id:club,user_id:userId,category_id:store.categories[0].id,can_view:true,can_edit:true,can_attendance:true})
+      await page.getByRole('button',{name:'Actualizar'}).click()
+      await page.getByRole('button',{name:'Jugadores'}).waitFor()
+      await page.getByRole('button',{name:'Jugadores'}).click()
+      assert.equal(await page.getByLabel('DNI opcional').count(),0,'Professor cannot read or edit private details')
+      await page.getByLabel('Nombre completo').fill('Jugador del profesor')
+      await page.getByLabel('Categoría').first().selectOption(store.categories[0].id)
+      await page.getByRole('button',{name:'Agregar jugador'}).click()
+      await page.getByText(/Jugador del profesor · Sub 16/).waitFor()
+      assert.deepEqual(errors,[])
+      await context.close()
+      console.log('PASS mocked scoped professor journey 390x844')
       continue
     }
 

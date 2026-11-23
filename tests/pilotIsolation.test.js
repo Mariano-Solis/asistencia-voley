@@ -57,6 +57,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     // connected commercial database or asserted with real JWTs.
     await db.exec(readFileSync(new URL('../supabase/pilot/012_category_player_parity.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/013_private_player_photos.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/014_professor_category_scope.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
       [owner,'owner@example.test'], [jnnAdmin,'jnn@example.test'],
       [otherAdmin,'other@example.test'], [professor,'professor@example.test'],
@@ -238,6 +239,36 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(jnnAdmin,async () => denied(() => db.query('insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,$4)',[jnn,jnnSession,jnnOtherPlayer,'present'])))
     await as(jnnAdmin,async () => db.query('select public.pilot_add_professor($1,$2)',[jnn,'professor@example.test']))
     await as(professor,async () => {
+      assert.equal(await count('select count(*) from public.categories where id=$1',[jnnCat]),0)
+      assert.equal(await count('select count(*) from public.players where id=$1',[jnnPlayer]),0)
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Sin asignación')",[jnn,jnnCat]))
+      await denied(() => db.query("select public.pilot_set_professor_category_permission($1,$2,$3,true,true,true)",[jnn,professor,jnnCat]))
+      await denied(() => db.query('insert into public.professor_category_permissions(institution_id,user_id,category_id,can_view) values ($1,$2,$3,true)',[jnn,professor,jnnCat]))
+    })
+    await as(jnnAdmin,async () => {
+      await denied(() => db.query('select public.pilot_set_professor_category_permission($1,$2,$3,true,true,true)',[jnn,professor,otherCat]))
+      await db.query('select public.pilot_set_professor_category_permission($1,$2,$3,true,false,false)',[jnn,professor,jnnCat])
+    })
+    await as(professor,async () => {
+      assert.equal(await count('select count(*) from public.players where id=$1',[jnnPlayer]),1)
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Solo lectura')",[jnn,jnnCat]))
+      await denied(() => db.query("insert into public.training_sessions(institution_id,category_id,session_date) values ($1,$2,current_date+5)",[jnn,jnnCat]))
+    })
+    await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_category_permission($1,$2,$3,false,false,true)',[jnn,professor,jnnCat]))
+    await as(professor,async () => {
+      assert.equal(await count('select count(*) from public.players where id=$1',[jnnPlayer]),1)
+      assert.equal(await count('select count(*) from public.player_private_details where player_id=$1',[jnnPlayer]),0)
+      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Solo asistencia')",[jnn,jnnCat]))
+      await db.query("update public.attendance set status='present' where institution_id=$1 and session_id=$2 and player_id=$3",[jnn,jnnSession,jnnPlayer])
+    })
+    await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_category_permission($1,$2,$3,false,false,false)',[jnn,professor,jnnCat]))
+    await as(professor,async () => {
+      assert.equal(await count('select count(*) from public.players where id=$1',[jnnPlayer]),0)
+      assert.equal(await count('select count(*) from public.attendance where session_id=$1',[jnnSession]),0)
+      assert.equal((await db.query("update public.attendance set status='late' where institution_id=$1 and session_id=$2 and player_id=$3",[jnn,jnnSession,jnnPlayer])).affectedRows,0)
+    })
+    await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_category_permission($1,$2,$3,true,true,true)',[jnn,professor,jnnCat]))
+    await as(professor,async () => {
       assert.equal((await db.query("update public.categories set active=false where id=$1 returning id",[jnnCat])).rows.length,0)
       assert.equal((await row('select active from public.categories where id=$1',[jnnCat])).active,true)
       assert.equal(await count('select count(*) from public.player_private_details where player_id=$1',[jnnPlayer]),0)
@@ -262,7 +293,8 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(jnnAdmin,async () => assert.equal(await count('select count(*) from public.pilot_list_professors($1)',[jnn]),1))
     let professorFixture
     await as(professor,async () => {
-      assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),2)
+      assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),1)
+      assert.equal(await count('select count(*) from public.players where id=$1',[jnnOtherPlayer]),0)
       assert.equal(await count('select count(*) from storage.objects where name=$1',[ownLogo]),1)
       await denied(() => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-branding',`${jnn}/55555555-5555-4555-8555-555555555555.webp`]))
       assert.equal(await count('select count(*) from public.players where institution_id=$1',[other]),0)
@@ -301,7 +333,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       await denied(() => db.query('select public.pilot_set_professor_status($1,$2,true)',[jnn,professor]))
     })
     await as(jnnAdmin,async () => db.query('select public.pilot_set_professor_status($1,$2,true)',[jnn,professor]))
-    await as(professor,async () => assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),2))
+    await as(professor,async () => assert.equal(await count('select count(*) from public.players where institution_id=$1',[jnn]),1))
     await as(jnnAdmin,async () => {
       await db.query('update public.players set active=false where id=$1',[jnnPlayer])
       await denied(() => db.query('update public.attendance set status=$1 where institution_id=$2 and session_id=$3 and player_id=$4',['late',jnn,jnnSession,jnnPlayer]))

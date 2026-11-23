@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { attendanceCsv, attendanceFilename, playersCsv, playersFilename } from './exportAttendance.js'
 import { brandColors } from './brand.js'
 import { PlayerManager } from './PlayerManager.jsx'
+import { ProfessorCategoryPermissions } from './ProfessorCategoryPermissions.jsx'
 import { CategoryManager } from './CategoryManager.jsx'
 import { AttendanceHistory } from './AttendanceHistory.jsx'
 import { CourtTrackFinder } from './CourtTrackFinder.jsx'
@@ -18,7 +19,7 @@ import './pilot.css'
 // Deliberately independent of src/supabase.js (San Martín redirects and auth overrides).
 const url = import.meta.env.VITE_PILOT_SUPABASE_URL
 const key = import.meta.env.VITE_PILOT_SUPABASE_ANON_KEY
-// Enable only after migrations 012 and 013 have been applied and checked on the isolated
+// Enable only after migrations 012–014 have been applied and checked on the isolated
 // commercial project. Existing Preview remains compatible with older schema.
 const playerParityEnabled = import.meta.env.VITE_PILOT_PLAYER_PARITY === '1'
 const client = url && key && /^https:\/\//.test(url) ? createClient(url, key) : null
@@ -41,6 +42,7 @@ function Pilot() {
   const [categories, setCategories] = useState([])
   const [players, setPlayers] = useState([])
   const [professors, setProfessors] = useState([])
+  const [professorPermissions, setProfessorPermissions] = useState([])
   const [sessions, setSessions] = useState([])
   const [attendance, setAttendance] = useState([])
   const [section, setSection] = useState('asistencia')
@@ -72,7 +74,7 @@ function Pilot() {
     return () => { active = false; subscription.unsubscribe(); window.removeEventListener('focus', onFocus) }
   }, [])
   useEffect(() => {
-    setMembership(null); setInstitution(null); setAccountStatus(null); setIsOwner(false); setIssuedCode(''); setCategories([]); setPlayers([]); setProfessors([]); setSessions([]); setAttendance([])
+    setMembership(null); setInstitution(null); setAccountStatus(null); setIsOwner(false); setIssuedCode(''); setCategories([]); setPlayers([]); setProfessors([]); setProfessorPermissions([]); setSessions([]); setAttendance([])
     if (session) {
       setContextLoading(true)
       Promise.allSettled([refreshMembership(),refreshOwner()]).then(results => {
@@ -136,16 +138,17 @@ function Pilot() {
   }
   async function refreshData() {
     const id = institution.id
-    const [cats, members, dates, marks, privateRows] = await Promise.all([
+    const [cats, members, dates, marks, privateRows, scopeRows] = await Promise.all([
       query('categories', '*', [['institution_id', id]]),
       query('players', '*', [['institution_id', id]]),
       query('training_sessions', '*', [['institution_id', id]]),
       query('attendance', '*', [['institution_id', id]]),
       playerParityEnabled && membership?.role === 'super_admin'
-        ? query('player_private_details', '*', [['institution_id', id]]) : Promise.resolve([])
+        ? query('player_private_details', '*', [['institution_id', id]]) : Promise.resolve([]),
+      playerParityEnabled ? query('professor_category_permissions', '*', [['institution_id', id]]) : Promise.resolve([])
     ])
     const details = new Map(privateRows.map(row => [row.player_id,row]))
-    setCategories(cats); setPlayers(members.map(player => ({...player,...(details.get(player.id) || {})}))); setSessions(dates); setAttendance(marks)
+    setCategories(cats); setPlayers(members.map(player => ({...player,...(details.get(player.id) || {})}))); setSessions(dates); setAttendance(marks); setProfessorPermissions(scopeRows)
     if (membership?.role === 'super_admin') {
       const { data, error } = await client.rpc('pilot_list_professors',{ p_institution: id })
       if (error) throw error
@@ -195,6 +198,9 @@ function Pilot() {
     })
   }
   const currentSession = sessions.find(s => s.category_id === category && s.session_date === date)
+  const ownScopes = professorPermissions.filter(p => p.user_id === session?.user?.id)
+  const canManagePlayers = membership?.role === 'super_admin' || !playerParityEnabled || ownScopes.some(p => p.can_edit)
+  const canAttendSelected = membership?.role === 'super_admin' || !playerParityEnabled || ownScopes.some(p => p.category_id === category && p.can_attendance)
   const listedPlayers = players.filter(p => p.category_id === category && p.active).sort((a,b) => a.full_name.localeCompare(b.full_name))
   const markFor = player => attendance.find(a => a.session_id === currentSession?.id && a.player_id === player.id)?.status
   async function setMark(player, status) {
@@ -229,17 +235,17 @@ function Pilot() {
     </div> : isOwner && !institution ? <section><h2>Propietario de plataforma</h2><p>El control de licencias y códigos se ejerce únicamente desde esta cuenta. El código aparecerá una sola vez: entregalo por un canal privado al correo designado.</p><form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, data = new FormData(form); run(async () => { const { error } = await client.rpc('pilot_create_institution',{ p_slug:String(data.get('slug')).trim(),p_name:String(data.get('name')).trim() }); if (error) throw error; form.reset(); setMessage('Institución creada en estado pendiente.') }, { refresh:'owner' }) }}><h3>Agregar institución</h3><label>Identificador<input name="slug" pattern="[a-z0-9-]{2,40}" required placeholder="nuevo-club"/></label><label>Nombre<input name="name" minLength="2" maxLength="100" required/></label><button disabled={busy}>Crear institución pendiente</button></form>{ownerInstitutions.map(item => <div key={item.id}><h3>{item.name}</h3><p>Estado: {item.status} · Licencia: {ownerLicenses.find(l => l.institution_id === item.id)?.status || 'pendiente'} · Vigencia: {ownerLicenses.find(l => l.institution_id === item.id)?.expires_at ? new Date(ownerLicenses.find(l => l.institution_id === item.id).expires_at).toLocaleDateString('es-AR') : '—'}</p><form onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); run(async () => { const { error } = await client.rpc('pilot_set_license',{ p_institution: item.id,p_expires: new Date(`${data.get('expires')}T23:59:59-03:00`).toISOString(),p_active: true }); if (error) throw error; setMessage('Licencia activada.') }, { refresh:'owner' }) }}><label>Vigencia hasta<input name="expires" type="date" required/></label><button disabled={busy}>Activar o renovar licencia</button></form><button disabled={busy || item.status !== 'active'} onClick={() => run(async () => { const { error } = await client.rpc('pilot_set_license',{ p_institution: item.id,p_expires: null,p_active: false }); if (error) throw error; setIssuedCode(''); setMessage('Licencia suspendida.') }, { refresh:'owner' })}>Suspender licencia</button><form onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); run(async () => { const { data: code,error } = await client.rpc('pilot_issue_code',{ p_institution: item.id,p_email: emailOf(data.get('email')) }); if (error) throw error; setIssuedCode(code) }, { refresh:'owner' }) }}><label>Correo del administrador<input name="email" type="email" required/></label><button disabled={busy || item.status !== 'active'}>Emitir código personal</button></form><details><summary>Historial de operaciones ({ownerEvents[item.id]?.length || 0})</summary><ul>{(ownerEvents[item.id] || []).map((event,index) => <li key={index}>{new Date(event.created_at).toLocaleString('es-AR')} · {event.event} · {event.actor_id?.slice(0,8) || 'sistema'}</li>)}</ul></details><CourtTrackFinder institution={item} client={client} onSaved={refreshOwner} /></div>)}{issuedCode && <p className="notice">Código emitido (se muestra solo ahora): <strong>{issuedCode}</strong> <button onClick={() => setIssuedCode('')}>Ocultar</button></p>}</section>
     : accountStatus && !institution ? <section className="auth-card"><h2>Acceso institucional no disponible</h2><p>{unavailableAccountMessage(accountStatus)}</p><button onClick={() => run(refreshMembership)} disabled={busy}>Comprobar nuevamente</button></section>
     : !institution ? <section><h2>Activación institucional</h2><p>Si sos propietario de la plataforma, tu acceso se habilita mediante verificación administrativa: no necesitás un código. Si sos administrador de una institución, ingresá el código personal que te entregó el propietario. Los profesores deben esperar la habilitación de su administrador.</p><button disabled={busy} onClick={() => run(async () => { await Promise.all([refreshMembership(),refreshOwner()]) })}>Comprobar acceso nuevamente</button><form onSubmit={event => { event.preventDefault(); const code = new FormData(event.currentTarget).get('code'); run(async () => { const { error } = await client.rpc('pilot_redeem_code', { p_code: String(code).trim() }); if (error) throw error; await refreshMembership() }) }}><label>Código de activación<input name="code" required autoComplete="off"/></label><button disabled={busy}>Canjear código</button></form></section>
-    : <><nav aria-label="Secciones del club">{[['asistencia','Asistencia'],['jugadores','Jugadores'],['categorias','Categorías'],...(membership?.role === 'super_admin' ? [['profesores','Profesores']] : []),['historial','Historial'],['identidad','Identidad'],...(import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && membership?.role === 'super_admin' ? [['seguridad','Ensayo de aislamiento']] : [])].map(([id,label]) => <button className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} key={id} onClick={() => setSection(id)}>{label}</button>)}<button onClick={() => run(refreshData, { refresh:false })} disabled={busy}>Actualizar</button></nav>
+    : <><nav aria-label="Secciones del club">{[['asistencia','Asistencia'],...(canManagePlayers ? [['jugadores','Jugadores']] : []),['categorias','Categorías'],...(membership?.role === 'super_admin' ? [['profesores','Profesores']] : []),['historial','Historial'],['identidad','Identidad'],...(import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && membership?.role === 'super_admin' ? [['seguridad','Ensayo de aislamiento']] : [])].map(([id,label]) => <button className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} key={id} onClick={() => setSection(id)}>{label}</button>)}<button onClick={() => run(refreshData, { refresh:false })} disabled={busy}>Actualizar</button></nav>
       <p>Institución: {institution.name} · Rol: {membership?.role === 'super_admin' ? 'Administrador' : 'Profesor'}</p>
       {section === 'categorias' && <CategoryManager client={client} institution={institution} categories={categories} canEdit={membership?.role === 'super_admin'} busy={busy} run={run} insert={insert} announce={setMessage} parityEnabled={playerParityEnabled} />}
-      {section === 'jugadores' && <PlayerManager client={client} institution={institution} categories={categories} players={players} attendance={attendance} busy={busy} run={run} insert={insert} announce={setMessage} onExport={exportPlayers} parityEnabled={playerParityEnabled} canEditPhotos={membership?.role === 'super_admin'} /> }
-      {section === 'profesores' && <section><h2>Profesores</h2>{membership?.role === 'super_admin' ? <><form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, email = new FormData(form).get('email'); run(async () => { const { error } = await client.rpc('pilot_add_professor',{ p_institution: institution.id, p_email: emailOf(email) }); if (error) throw error; setMessage('Profesor habilitado.'); form.reset() }) }}><p>El profesor debe registrarse y verificar su correo antes de habilitarlo.</p><label>Correo<input name="email" type="email" required/></label><button disabled={busy}>Habilitar profesor</button></form><ul>{professors.map(p => <li key={p.user_id}>{p.email} · {p.status === 'active' ? 'Activo' : 'Suspendido'} <button disabled={busy} onClick={() => run(async () => { const { error } = await client.rpc('pilot_set_professor_status',{ p_institution: institution.id,p_user:p.user_id,p_active:p.status !== 'active' }); if (error) throw error })}>{p.status === 'active' ? 'Suspender' : 'Reactivar'}</button></li>)}</ul></> : <p>Solo el administrador habilita profesores.</p>}</section>}
+      {section === 'jugadores' && (canManagePlayers ? <PlayerManager client={client} institution={institution} categories={categories} players={players} attendance={attendance} busy={busy} run={run} insert={insert} announce={setMessage} onExport={exportPlayers} parityEnabled={playerParityEnabled} canEditPhotos={membership?.role === 'super_admin'} editableCategoryIds={membership?.role === 'super_admin' || !playerParityEnabled ? null : ownScopes.filter(p => p.can_edit).map(p => p.category_id)} /> : <section><p>No tenés permiso para editar jugadores.</p></section>)}
+      {section === 'profesores' && <section><h2>Profesores</h2>{membership?.role === 'super_admin' ? <><form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, email = new FormData(form).get('email'); run(async () => { const { error } = await client.rpc('pilot_add_professor',{ p_institution: institution.id, p_email: emailOf(email) }); if (error) throw error; setMessage('Profesor habilitado.'); form.reset() }) }}><p>El profesor debe registrarse y verificar su correo antes de habilitarlo.</p><label>Correo<input name="email" type="email" required/></label><button disabled={busy}>Habilitar profesor</button></form><ul>{professors.map(p => <li key={p.user_id}>{p.email} · {p.status === 'active' ? 'Activo' : 'Suspendido'} <button disabled={busy} onClick={() => run(async () => { const { error } = await client.rpc('pilot_set_professor_status',{ p_institution: institution.id,p_user:p.user_id,p_active:p.status !== 'active' }); if (error) throw error })}>{p.status === 'active' ? 'Suspender' : 'Reactivar'}</button></li>)}</ul>{playerParityEnabled && <ProfessorCategoryPermissions client={client} institutionId={institution.id} professors={professors} categories={categories} permissions={professorPermissions} busy={busy} run={run} announce={setMessage} />}</> : <p>Solo el administrador habilita profesores.</p>}</section>}
       {section === 'identidad' && (membership?.role === 'super_admin'
         ? <IdentityEditor institution={institution} client={client} logoUrl={logoSrc} onSaved={refreshMembership} />
         : <section><h2>Identidad institucional</h2><p>La identidad de {institution.name} la configura el administrador del club.</p></section>) }
       {section === 'seguridad' && membership?.role === 'super_admin' && import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && <IsolationProbe client={client} institution={institution} />}
       {section === 'historial' && <AttendanceHistory attendance={attendance} sessions={sessions} categories={categories} players={players} onExport={exportCsv} /> }
-      {section === 'asistencia' && <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !currentSession && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy} onClick={() => run(() => setMark(p,value), { refresh:'attendance' })}>{label}</button>)}</div></li>)}</ul>}</section>}
+      {section === 'asistencia' && <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !canAttendSelected && <p>Podés consultar esta categoría, pero no registrar asistencia.</p>}{category && !currentSession && canAttendSelected && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy || !canAttendSelected} onClick={() => run(() => setMark(p,value), { refresh:'attendance' })}>{label}</button>)}</div></li>)}</ul>}</section>}
     </>}
     <footer>Versión piloto independiente · Los datos de San Martín no se utilizan aquí.</footer>
   </main>

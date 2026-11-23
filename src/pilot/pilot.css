@@ -25,3 +25,7 @@ main section,main form{background:var(--club-surface,#fff);color:var(--club-on-s
 .player-photo-editor{flex:1 1 100%;min-width:0;border:1px solid #dce4ec;border-radius:12px;padding:12px}
 .player-photo-editor img{display:block;object-fit:cover;border-radius:10px;margin:8px 0}
 .player-photo-editor label{flex:1 1 180px}
+.professor-scope{border-top:1px solid #dce4ec;padding:12px 0}
+.professor-scope fieldset{border:1px solid #dce4ec;border-radius:10px;margin:10px 0;padding:10px;display:flex;flex-wrap:wrap;gap:8px}
+.professor-scope legend{font-weight:700}.professor-scope label{display:flex;align-items:center;gap:7px;margin:0;padding:5px}
+.professor-scope input[type="checkbox"]{width:auto;margin:0}
