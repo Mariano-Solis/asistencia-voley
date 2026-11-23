@@ -11,17 +11,32 @@ export function attendanceCsv({ attendance, sessions, categories, players, categ
   const days = new Map(sessions.map(item => [item.id, item]))
   const categoryNames = new Map(categories.map(item => [item.id, item.name]))
   const playerNames = new Map(players.map(item => [item.id, item.full_name]))
+  const rows = [['Fecha','Categoría','Jugador','Estado'],...filteredAttendance({ attendance, sessions, categoryId, date, playerId }).map(mark => {
+    const day = days.get(mark.session_id)
+    return [day?.session_date,categoryNames.get(day?.category_id),playerNames.get(mark.player_id),statusNames[mark.status] ?? mark.status]
+  })]
+  return csvRows(rows)
+}
+
+function csvRows(rows) {
   const escape = value => {
     let text = String(value ?? '')
     // Spreadsheet apps can evaluate formulas after leading whitespace. Keep data literal.
     if (/^[\s\uFEFF]*[=+@-]/u.test(text)) text = `'${text}`
     return `"${text.replaceAll('"','""')}"`
   }
-  const rows = [['Fecha','Categoría','Jugador','Estado'],...filteredAttendance({ attendance, sessions, categoryId, date, playerId }).map(mark => {
-    const day = days.get(mark.session_id)
-    return [day?.session_date,categoryNames.get(day?.category_id),playerNames.get(mark.player_id),statusNames[mark.status] ?? mark.status]
-  })]
   return '\ufeff' + rows.map(row => row.map(escape).join(';')).join('\r\n')
+}
+
+export function playersCsv({ players, categories }) {
+  const names = new Map(categories.map(category => [category.id, category.name]))
+  return csvRows([['Jugador','Categoría','Estado'], ...players.map(player => [
+    player.full_name, names.get(player.category_id) || 'Categoría no disponible', player.active ? 'Activo' : 'Inactivo'
+  ])])
+}
+
+export function playersFilename(institutionName) {
+  return attendanceFilename(institutionName, 'listado').replace(/^asistencia-/, 'jugadores-').replace(/-listado\.csv$/, '.csv')
 }
 
 export function attendanceFilename(institutionName, date) {

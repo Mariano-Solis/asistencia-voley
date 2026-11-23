@@ -1,6 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { attendanceCsv,attendanceFilename,filteredAttendance } from '../src/pilot/exportAttendance.js'
+import { attendanceCsv,attendanceFilename,filteredAttendance,playersCsv,playersFilename } from '../src/pilot/exportAttendance.js'
+
+test('player CSV exports only selected rows with Spanish states, UTF-8 and formula protection', () => {
+  const csv = playersCsv({ players:[
+    { full_name:'María José Núñez', category_id:'a', active:true },
+    { full_name:' =HYPERLINK("malicioso")', category_id:'b', active:false }
+  ],categories:[{id:'a',name:'Sub 16; A'},{id:'b',name:'Sub 18'}] })
+  assert.equal(csv,'\ufeff"Jugador";"Categoría";"Estado"\r\n"María José Núñez";"Sub 16; A";"Activo"\r\n"\' =HYPERLINK(""malicioso"")";"Sub 18";"Inactivo"')
+  assert.equal(playersFilename('Junín Vóley JNN'),'jugadores-Junin-Voley-JNN.csv')
+})
 
 test('attendance CSV preserves data and neutralizes spreadsheet formulas', () => {
   const csv = attendanceCsv({

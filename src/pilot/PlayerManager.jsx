@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce }) {
+export function PlayerManager({ client, institution, categories, players, attendance, busy, run, insert, announce, onExport }) {
   const [editing, setEditing] = useState(null)
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -19,6 +19,7 @@ export function PlayerManager({ client, institution, categories, players, attend
     <div className="history-filters"><label>Buscar jugador<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nombre" /></label>
       <label>Filtrar categoría<select value={categoryId} onChange={event => setCategoryId(event.target.value)}><option value="">Todas</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
       <label>Estado<select value={status} onChange={event => setStatus(event.target.value)}><option value="active">Activos</option><option value="inactive">Inactivos</option><option value="all">Todos</option></select></label></div>
+    <button type="button" disabled={!shown.length || busy} onClick={() => onExport(shown)}>Exportar jugadores CSV ({shown.length})</button>
     <ul>{shown.map(p => <li key={p.id}>
       <span>{p.full_name} · {categories.find(c => c.id === p.category_id)?.name} · {p.active ? 'Activo' : 'Inactivo'}</span>
       <div><button disabled={busy} onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? 'Cancelar' : 'Editar'}</button>

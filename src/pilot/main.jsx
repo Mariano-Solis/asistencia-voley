@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
-import { attendanceCsv, attendanceFilename } from './exportAttendance.js'
+import { attendanceCsv, attendanceFilename, playersCsv, playersFilename } from './exportAttendance.js'
 import { brandColors } from './brand.js'
 import { PlayerManager } from './PlayerManager.jsx'
 import { CategoryManager } from './CategoryManager.jsx'
@@ -203,6 +203,12 @@ function Pilot() {
     anchor.href = URL.createObjectURL(blob); anchor.download = attendanceFilename(institution.name,filterDate || 'todas-las-fechas'); anchor.click()
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
   }
+  function exportPlayers(shown) {
+    const blob = new Blob([playersCsv({ players: shown, categories })], { type: 'text/csv;charset=utf-8' })
+    const anchor = document.createElement('a')
+    anchor.href = URL.createObjectURL(blob); anchor.download = playersFilename(institution.name); anchor.click()
+    setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
+  }
 
   if (!client) return <main><h1>Piloto Junín JNN</h1><p>Falta conectar una base de prueba separada. Configurá VITE_PILOT_SUPABASE_URL y VITE_PILOT_SUPABASE_ANON_KEY.</p></main>
   return <main style={{...brandColors(institution?.primary_color), '--club-secondary':institution?.secondary_color || '#e7eef5', '--club-accent':institution?.accent_color || '#0c765b', '--club-on-accent':brandColors(institution?.accent_color || '#0c765b')['--club-on-primary'], '--club-background':institution?.background_color || '#f1f5fa', '--club-surface':institution?.surface_color || '#ffffff', '--club-on-surface':brandColors(institution?.surface_color || '#ffffff')['--club-on-primary'], '--club-on-background':brandColors(institution?.background_color || '#f1f5fa')['--club-on-primary']}}>
@@ -220,7 +226,7 @@ function Pilot() {
     : <><nav aria-label="Secciones del club">{[['asistencia','Asistencia'],['jugadores','Jugadores'],['categorias','Categorías'],...(membership?.role === 'super_admin' ? [['profesores','Profesores']] : []),['historial','Historial'],['identidad','Identidad'],...(import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && membership?.role === 'super_admin' ? [['seguridad','Ensayo de aislamiento']] : [])].map(([id,label]) => <button className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} key={id} onClick={() => setSection(id)}>{label}</button>)}<button onClick={() => run(refreshData, { refresh:false })} disabled={busy}>Actualizar</button></nav>
       <p>Institución: {institution.name} · Rol: {membership?.role === 'super_admin' ? 'Administrador' : 'Profesor'}</p>
       {section === 'categorias' && <CategoryManager client={client} institution={institution} categories={categories} canEdit={membership?.role === 'super_admin'} busy={busy} run={run} insert={insert} announce={setMessage} />}
-      {section === 'jugadores' && <PlayerManager client={client} institution={institution} categories={categories} players={players} attendance={attendance} busy={busy} run={run} insert={insert} announce={setMessage} /> }
+      {section === 'jugadores' && <PlayerManager client={client} institution={institution} categories={categories} players={players} attendance={attendance} busy={busy} run={run} insert={insert} announce={setMessage} onExport={exportPlayers} /> }
       {section === 'profesores' && <section><h2>Profesores</h2>{membership?.role === 'super_admin' ? <><form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, email = new FormData(form).get('email'); run(async () => { const { error } = await client.rpc('pilot_add_professor',{ p_institution: institution.id, p_email: emailOf(email) }); if (error) throw error; setMessage('Profesor habilitado.'); form.reset() }) }}><p>El profesor debe registrarse y verificar su correo antes de habilitarlo.</p><label>Correo<input name="email" type="email" required/></label><button disabled={busy}>Habilitar profesor</button></form><ul>{professors.map(p => <li key={p.user_id}>{p.email} · {p.status === 'active' ? 'Activo' : 'Suspendido'} <button disabled={busy} onClick={() => run(async () => { const { error } = await client.rpc('pilot_set_professor_status',{ p_institution: institution.id,p_user:p.user_id,p_active:p.status !== 'active' }); if (error) throw error })}>{p.status === 'active' ? 'Suspender' : 'Reactivar'}</button></li>)}</ul></> : <p>Solo el administrador habilita profesores.</p>}</section>}
       {section === 'identidad' && (membership?.role === 'super_admin'
         ? <IdentityEditor institution={institution} client={client} logoUrl={logoSrc} onSaved={refreshMembership} />
