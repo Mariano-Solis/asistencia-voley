@@ -39,6 +39,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await db.exec(readFileSync(new URL('../supabase/pilot/003_account_status_and_audit.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/004_owner_institution_creation.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/005_owner_activation_hardening.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/009_sports_tenant_and_history_guards.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
       [owner,'owner@example.test'], [jnnAdmin,'jnn@example.test'],
       [otherAdmin,'other@example.test'], [professor,'professor@example.test'],
@@ -84,6 +85,22 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     const jnnPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Jugador ficticio') returning id",[jnn,jnnCat])).id)
     const jnnSession = await as(jnnAdmin,async () => (await row('insert into public.training_sessions(institution_id,category_id,session_date) values ($1,$2,current_date) returning id',[jnn,jnnCat])).id)
     await as(jnnAdmin,async () => db.query("insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,'present')",[jnn,jnnSession,jnnPlayer]))
+    await as(jnnAdmin, async () => {
+      await db.query("update public.categories set name='Sub 16 ensayo' where id=$1",[jnnCat])
+      assert.equal((await row('select name from public.categories where id=$1',[jnnCat])).name,'Sub 16 ensayo')
+      await db.query("update public.players set full_name='Jugador de Prueba editado' where id=$1",[jnnPlayer])
+      assert.equal(await count("select count(*) from public.players where full_name ilike '%prueba editado%' and institution_id=$1",[jnn]),1)
+      await db.query("update public.attendance set status='late' where institution_id=$1 and session_id=$2 and player_id=$3",[jnn,jnnSession,jnnPlayer])
+      assert.equal((await row('select status from public.attendance where session_id=$1',[jnnSession])).status,'late')
+      await db.query("update public.attendance set status='absent' where institution_id=$1 and session_id=$2 and player_id=$3",[jnn,jnnSession,jnnPlayer])
+      assert.equal((await row('select status from public.attendance where session_id=$1',[jnnSession])).status,'absent')
+      assert.equal(await count('select count(*) from public.attendance a join public.training_sessions s on s.id=a.session_id where s.category_id=$1 and a.player_id=$2',[jnnCat,jnnPlayer]),1)
+      await denied(() => db.query('update public.players set category_id=$1 where id=$2',[otherCat,jnnPlayer]))
+      await denied(() => db.query('update public.players set institution_id=$1 where id=$2',[other,jnnPlayer]))
+      await denied(() => db.query('update public.categories set institution_id=$1 where id=$2',[other,jnnCat]))
+      await denied(() => db.query('update public.training_sessions set institution_id=$1 where id=$2',[other,jnnSession]))
+      await denied(() => db.query('update public.attendance set institution_id=$1 where session_id=$2',[other,jnnSession]))
+    })
 
     await as(otherAdmin, async () => {
       for (const table of ['categories','players','training_sessions','attendance']) {
@@ -102,7 +119,16 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       assert.equal((await db.query('delete from public.categories where id=$1',[otherCat])).affectedRows,0)
     })
     const jnnOtherCat = await as(jnnAdmin,async () => (await row("insert into public.categories(institution_id,name) values ($1,'Sub 20') returning id",[jnn])).id)
+    await as(jnnAdmin,async () => {
+      await denied(() => db.query('update public.players set category_id=$1 where id=$2',[jnnOtherCat,jnnPlayer]))
+      await denied(() => db.query('update public.training_sessions set category_id=$1 where id=$2',[jnnOtherCat,jnnSession]))
+    })
     const jnnOtherPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Otro ficticio') returning id",[jnn,jnnOtherCat])).id)
+    await as(jnnAdmin,async () => {
+      await db.query('update public.players set category_id=$1 where id=$2',[jnnCat,jnnOtherPlayer])
+      assert.equal((await row('select category_id from public.players where id=$1',[jnnOtherPlayer])).category_id,jnnCat)
+      await db.query('update public.players set category_id=$1 where id=$2',[jnnOtherCat,jnnOtherPlayer])
+    })
     await as(jnnAdmin,async () => denied(() => db.query('insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,$4)',[jnn,jnnSession,jnnOtherPlayer,'present'])))
     await as(jnnAdmin,async () => db.query('select public.pilot_add_professor($1,$2)',[jnn,'professor@example.test']))
     await as(jnnAdmin,async () => denied(() => db.query('select * from public.pilot_owner_events($1)',[jnn])))
