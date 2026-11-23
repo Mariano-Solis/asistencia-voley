@@ -25,3 +25,9 @@ Para revertir **solo si una regresión comprobada lo exige**, en el comercial y 
 - Club Ficticio B mantiene licencia temporal, sin código ni membresía. Su usuario confirmó correo, pero no posee aún acceso institucional. No se emitió código mediante SQL administrativo.
 - `scripts/pilot-jwt-isolation.mjs` requiere los dos JWT de administradores **autenticados y vigentes**. No se ejecutó con `service_role`. El panel `?qa=1` también está preparado, sin ensayo cruzado ejecutado. Por tanto PostgREST/Storage entre instituciones no están aprobados.
 - Falta profesor con identidad Auth propia, ensayo físico Android de escudo/CSV, recuperación de sesión y recorrido de escritorio autenticado. No presentar la candidata como apta para usuarios reales.
+
+## Pruebas independientes posteriores
+
+La integración local amplió el rol `professor`: lee su club, crea/edita jugador, registra asistencia, no lee el club ajeno, no administra categorías, profesores, identidad, licencias, códigos, instituciones o roles; su suspensión niega lecturas y escrituras. Es evidencia con `auth.uid()` simulado dentro de PGlite, no una sesión Auth de profesor. El selector de acceso de la interfaz ahora prioriza una membresía activa con licencia válida cuando una cuenta tiene varias, sin modificar la autorización RLS. Un test unitario cubre una membresía suspendida y otra vencida antes de una activa. La asignación de profesor a categorías individuales sigue sin implementarse.
+
+La prueba de CSV usa tres jugadores ficticios diferentes para Presente, Tarde y Ausente, preserva acentos y separa columnas con punto y coma; su versión anterior duplicaba una combinación jugador/jornada imposible por clave primaria. La descarga física Android y apertura en planilla continúan pendientes.

@@ -45,6 +45,8 @@ La Preview `dpl_EDhCPnSaX82W1hT8tbr5rJ5MVgdN` se abrió en navegador de escritor
 
 **Puntuación sin cambios: 8/20 (40 %).** Mejoró la integridad y la preparación de pruebas, pero las filas pendientes exigen el recorrido concreto indicado en la tabla.
 
+La siguiente revisión local amplió el profesor simulado, corrigió la selección de una membresía utilizable entre varias y reemplazó el caso irreal de CSV duplicado por tres jugadores distintos. `test:pilot`: **15/15**, `build:pilot`: 83 módulos, `build`: 183 módulos. No cambió la puntuación porque faltan sesiones reales y ensayo de interfaz.
+
 - `npm run test:pilot`: 11/11 (PGlite local, parseo de script SQL, exportación, paleta, Court Track y validación de imagen). No usa dos JWT Auth reales.
 - `npm run build:pilot`: 80 módulos, con URL comercial y clave pública ficticia **solo local para compilar**. No es prueba del despliegue.
 - `npm run build`: 180 módulos, correcto. Incluye la aplicación histórica, sin desplegarla en San Martín.
