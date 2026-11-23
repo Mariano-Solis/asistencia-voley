@@ -176,6 +176,15 @@ try {
       console.error('Mock calls:',calls,'Unexpected mock endpoints:',unexpected,'Page errors:',errors)
       throw error
     }
+    if (role === 'super_admin' && !viewport.scenario) {
+      await page.getByRole('button',{name:'Pizarra',exact:true}).click()
+      await page.getByRole('button',{name:'Abrir pizarra táctica'}).click()
+      await page.getByRole('dialog',{name:'Pizarra Rápida'}).waitFor()
+      assert.equal(await page.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('mgsm-quick-tactical-board'))),false)
+      assert.equal(await page.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('voley-commercial-board:'))),true)
+      await page.getByRole('dialog',{name:'Pizarra Rápida'}).getByRole('button',{name:'Volver',exact:true}).click()
+      await page.getByRole('dialog',{name:'Pizarra Rápida'}).waitFor({state:'hidden'})
+    }
 
     if (viewport.scenario === 'parity') {
       await page.getByRole('button',{name:'Categorías'}).click()

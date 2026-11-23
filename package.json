@@ -10,7 +10,7 @@
     "test:pilot:browser": "node scripts/pilot-browser-smoke.mjs",
     "test:pilot:http": "node scripts/pilot-http-smoke.mjs",
     "preview": "vite preview",
-    "test:pilot": "node --test tests/pilotIsolation.test.js tests/pilotLiveScript.test.js tests/pilotExport.test.js tests/pilotBrand.test.js tests/pilotCourtTrack.test.js tests/pilotUpload.test.js tests/pilotAuthMessages.test.js tests/pilotAuthRedirect.test.js tests/pilotAuditAssertions.test.js tests/pilotAccountAccess.test.js tests/pilotProbeResults.test.js tests/pilotActionFlow.test.js tests/pilotCategoryActions.test.js tests/pilotPlayerDetails.test.js tests/pilotCategoryWorkbook.test.js"
+    "test:pilot": "node --test tests/pilotIsolation.test.js tests/pilotLiveScript.test.js tests/pilotExport.test.js tests/pilotBrand.test.js tests/pilotCourtTrack.test.js tests/pilotUpload.test.js tests/pilotAuthMessages.test.js tests/pilotAuthRedirect.test.js tests/pilotAuditAssertions.test.js tests/pilotAccountAccess.test.js tests/pilotProbeResults.test.js tests/pilotActionFlow.test.js tests/pilotCategoryActions.test.js tests/pilotPlayerDetails.test.js tests/pilotCategoryWorkbook.test.js tests/pilotBoardScope.test.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

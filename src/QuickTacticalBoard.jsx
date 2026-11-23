@@ -1,44 +1,43 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { TacticalBoardEditor, normalizeBoardData } from "./PlanningHub";
+import { TacticalBoardEditor, normalizeBoardData } from "./TacticalBoardCore";
+import { boardStorageKeys } from "./boardStorageKeys";
 import "./quick-board.css";
 
-const STORAGE_KEY="mgsm-quick-tactical-board:v1";
-const PRESETS_KEY="mgsm-quick-tactical-board-presets:v1";
-
-function readBoard(){
+function readBoard(key){
   try{
-    const parsed=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
+    const parsed=JSON.parse(localStorage.getItem(key)||"null");
     return normalizeBoardData(parsed);
   }catch{
     return normalizeBoardData(null);
   }
 }
-function readPresets(){
+function readPresets(key){
   try{
-    const parsed=JSON.parse(localStorage.getItem(PRESETS_KEY)||"[]");
+    const parsed=JSON.parse(localStorage.getItem(key)||"[]");
     return Array.isArray(parsed)?parsed:[];
   }catch{
     return [];
   }
 }
 
-export default function QuickTacticalBoard({open,onClose}){
-  const [board,setBoard]=useState(readBoard);
+export default function QuickTacticalBoard({open,onClose,institutionId=null,userId=null}){
+  const {board:boardKey,presets:presetsKey}=boardStorageKeys(institutionId,userId);
+  const [board,setBoard]=useState(()=>readBoard(boardKey));
   const [portraitMode,setPortraitMode]=useState(()=>window.matchMedia?.("(orientation: portrait)")?.matches??true);
-  const [presets,setPresets]=useState(readPresets);
+  const [presets,setPresets]=useState(()=>readPresets(presetsKey));
   const [libraryOpen,setLibraryOpen]=useState(false);
   const [savingPreset,setSavingPreset]=useState(false);
   const [presetName,setPresetName]=useState("");
   const overlayRef=useRef(null);
 
   useEffect(()=>{
-    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(board))}catch{}
-  },[board]);
+    try{localStorage.setItem(boardKey,JSON.stringify(board))}catch{}
+  },[board,boardKey]);
 
   useEffect(()=>{
-    try{localStorage.setItem(PRESETS_KEY,JSON.stringify(presets))}catch{}
-  },[presets]);
+    try{localStorage.setItem(presetsKey,JSON.stringify(presets))}catch{}
+  },[presets,presetsKey]);
 
   useEffect(()=>{
     const media=window.matchMedia?.("(orientation: portrait)");
