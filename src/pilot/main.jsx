@@ -56,6 +56,7 @@ function Pilot() {
     const { data: { subscription } } = client.auth.onAuthStateChange((event, current) => {
       if (!active) return
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
+      if (event === 'SIGNED_OUT') setRecovery(false)
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'PASSWORD_RECOVERY') setMessage('')
       setSession(current)
       setChecking(false)
@@ -95,7 +96,10 @@ function Pilot() {
   }
   async function refreshMembership() {
     const { data: userData, error: userError } = await client.auth.getUser()
-    if (userError || !userData?.user) { await client.auth.signOut(); return }
+    // A network/Auth outage is not evidence that the password or session is
+    // invalid. Leave the session alone; server RLS still gates every query.
+    if (userError) throw userError
+    if (!userData?.user) throw new Error('No se pudo verificar la sesión. Intentá actualizar.')
     const { data: statuses, error: statusError } = await client.rpc('pilot_account_status')
     if (statusError) throw statusError
     const usable = usableAccountStatus(statuses)
@@ -156,7 +160,9 @@ function Pilot() {
     const data = new FormData(event.currentTarget)
     await run(async () => {
       const email = emailOf(data.get('email')), password = String(data.get('password'))
-      if (['signup','login'].includes(mode) && password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
+      // Minimum length applies to new passwords; existing Auth accounts may
+      // have been created under a different policy. Let Auth verify logins.
+      if (mode === 'signup' && password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
       const redirectTo = location.origin + (import.meta.env.VITE_PILOT_BUILD === '1' ? '/' : '/pilot.html')
       const result = mode === 'magic'
         ? await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo, shouldCreateUser: false } })
@@ -189,7 +195,7 @@ function Pilot() {
   if (!client) return <main><h1>Piloto Junín JNN</h1><p>Falta conectar una base de prueba separada. Configurá VITE_PILOT_SUPABASE_URL y VITE_PILOT_SUPABASE_ANON_KEY.</p></main>
   return <main style={{...brandColors(institution?.primary_color), '--club-secondary':institution?.secondary_color || '#e7eef5', '--club-accent':institution?.accent_color || '#0c765b', '--club-on-accent':brandColors(institution?.accent_color || '#0c765b')['--club-on-primary'], '--club-background':institution?.background_color || '#f1f5fa', '--club-surface':institution?.surface_color || '#ffffff', '--club-on-surface':brandColors(institution?.surface_color || '#ffffff')['--club-on-primary'], '--club-on-background':brandColors(institution?.background_color || '#f1f5fa')['--club-on-primary']}}>
     <header>{logoSrc && <img className="header-crest" src={logoSrc} alt={`Escudo de ${institution.name}`} onError={event => { event.currentTarget.hidden = true }} />}<div><small>VÓLEY COMERCIAL · PILOTO JNN</small><h1>{institution?.name || 'Una plataforma para tu club'}</h1><p>Gestión de categorías, jugadores y asistencia</p></div>
-      {session && <div><p>Sesión: {session.user.email}</p><button onClick={() => client.auth.signOut()}>Cerrar sesión</button></div>}</header>
+      {session && <div><p>Sesión: {session.user.email}</p><button disabled={busy} onClick={() => run(async () => { const { error } = await client.auth.signOut(); if (error) throw error })}>Cerrar sesión</button></div>}</header>
     {message && <p className="notice" role="status">{message}</p>}
     {checking || contextLoading ? <section><p>Comprobando acceso y permisos…</p></section> : recovery ? <section className="auth-card"><h2>Elegí una contraseña nueva</h2><form onSubmit={event => { event.preventDefault(); const form = event.currentTarget, password = String(new FormData(form).get('password')); run(async () => { if (password.length < 8) throw new Error('Usá una contraseña de al menos 8 caracteres.'); const { error } = await client.auth.updateUser({ password }); if (error) throw error; setRecovery(false); form.reset(); setMessage('Contraseña actualizada.') }) }}><label>Nueva contraseña<input name="password" type="password" minLength="8" autoComplete="new-password" required /></label><button disabled={busy}>Guardar contraseña</button></form></section> : !session ? <div className="grid">
       <form onSubmit={event => auth(event,'login')}><h2>Ingresar</h2><label>Correo<input name="email" type="email" required autoComplete="email"/></label><label>Contraseña<input name="password" type="password" required autoComplete="current-password"/></label><button disabled={busy}>Iniciar sesión</button></form>

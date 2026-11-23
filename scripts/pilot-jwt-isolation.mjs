@@ -68,10 +68,16 @@ try {
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,name:`Ensayo JWT ${stamp} ${account.label}`},
     }),1,`${account.label} own category`)[0].id
     fixture.set(account.label,{category})
+    rows(await rest(account.jwt,'categories',`?select=id,name&${eq('id',category)}`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{name:`Ensayo JWT editado ${stamp} ${account.label}`},
+    }),1,`${account.label} own category edit`)
     const player = rows(await rest(account.jwt,'players','?select=id',{
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,category_id:category,full_name:`Jugador ficticio JWT ${stamp}`},
     }),1,`${account.label} own player`)[0].id
     fixture.get(account.label).player = player
+    rows(await rest(account.jwt,'players',`?select=id,full_name&${eq('id',player)}`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{full_name:`Jugador ficticio JWT ${stamp} ${account.label}`},
+    }),1,`${account.label} own player edit`)
     const date = new Date().toISOString().slice(0,10)
     const session = rows(await rest(account.jwt,'training_sessions','?select=id',{
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,category_id:category,session_date:date},
@@ -80,6 +86,9 @@ try {
     rows(await rest(account.jwt,'attendance','?select=session_id',{
       method:'POST',headers:{Prefer:'return=representation'},body:{institution_id,session_id:session,player_id:player,status:'present'},
     }),1,`${account.label} own attendance`)
+    rows(await rest(account.jwt,'attendance',`?select=player_id,status&${eq('session_id',session)}`,{
+      method:'PATCH',headers:{Prefer:'return=representation'},body:{status:'late'},
+    }),1,`${account.label} own attendance update`)
     const path = `${institution_id}/${randomUUID()}.png`
     const uploaded = await request(account.jwt,`/storage/v1/object/pilot-branding/${path}`,{
       method:'POST',body:png,headers:{'Content-Type':'image/png','x-upsert':'false'},
@@ -88,7 +97,11 @@ try {
     fixture.get(account.label).logo = path
     const downloaded = await request(account.jwt,`/storage/v1/object/authenticated/pilot-branding/${path}`)
     assert(downloaded.ok && downloaded.bytes.length === png.length,`${account.label} own Storage download failed (${downloaded.status})`)
-    pass(`${account.label}: own category, player, attendance and private file`)
+    const signed = await request(account.jwt,`/storage/v1/object/sign/pilot-branding/${path}`,{
+      method:'POST',body:{expiresIn:60},
+    })
+    assert(signed.ok && signed.data?.signedURL,`${account.label} own Storage signed URL failed (${signed.status})`)
+    pass(`${account.label}: own category/player create and edit, attendance create and edit, private file`)
   }
 
   for (const account of accounts) {
@@ -144,7 +157,7 @@ try {
       method:'PUT',body:png,headers:{'Content-Type':'image/png'},
     }),`${account.label} foreign file update`)
     const intact = rows(await rest(other.jwt,'players',`?select=id,full_name&${eq('id',target.player)}`),1,`${other.label} own player still exists`)
-    assert.equal(intact[0].full_name,`Jugador ficticio JWT ${stamp}`,`${other.label} player changed across institutions`)
+    assert.equal(intact[0].full_name,`Jugador ficticio JWT ${stamp} ${other.label}`,`${other.label} player changed across institutions`)
     pass(`${account.label}: foreign writes, role, license, identity and Storage denied`)
   }
 } finally {
@@ -154,18 +167,27 @@ try {
     const f = fixture.get(account.label)
     if (!f) continue
     const own = account.jwt
-    const remove = async (label,action) => {
-      try { if (!(await action()).ok) cleanupWarnings.push(`${account.label} ${label}`) }
+    const remove = async (label,action, expectedRows) => {
+      try {
+        const response = await action()
+        if (!response.ok || (expectedRows && (!Array.isArray(response.data) || response.data.length !== expectedRows))) cleanupWarnings.push(`${account.label} ${label}`)
+      }
       catch { cleanupWarnings.push(`${account.label} ${label}`) }
     }
     for (const path of f.unexpectedLogos || []) await remove('unexpected foreign logo',() => request(own,'/storage/v1/object/pilot-branding',{method:'DELETE',body:{prefixes:[path]}}))
     for (const id of f.unexpectedPlayers || []) await remove('unexpected foreign player',() => rest(own,'players',`?${eq('id',id)}`,{method:'DELETE'}))
     for (const id of f.unexpectedCategories || []) await remove('unexpected foreign category',() => rest(own,'categories',`?${eq('id',id)}`,{method:'DELETE'}))
-    if (f.logo) await remove('logo',() => request(own,'/storage/v1/object/pilot-branding',{method:'DELETE',body:{prefixes:[f.logo]}}))
-    if (f.session && f.player) await remove('attendance',() => rest(own,'attendance',`?${eq('session_id',f.session)}&${eq('player_id',f.player)}`,{method:'DELETE'}))
-    if (f.session) await remove('session',() => rest(own,'training_sessions',`?${eq('id',f.session)}`,{method:'DELETE'}))
-    if (f.player) await remove('player',() => rest(own,'players',`?${eq('id',f.player)}`,{method:'DELETE'}))
-    if (f.category) await remove('category',() => rest(own,'categories',`?${eq('id',f.category)}`,{method:'DELETE'}))
+    if (f.logo) {
+      await remove('logo',() => request(own,'/storage/v1/object/pilot-branding',{method:'DELETE',body:{prefixes:[f.logo]}}))
+      try {
+        const check = await request(own,`/storage/v1/object/authenticated/pilot-branding/${f.logo}`)
+        if (check.status !== 404) cleanupWarnings.push(`${account.label} logo still accessible (${check.status})`)
+      } catch { cleanupWarnings.push(`${account.label} logo cleanup could not be checked`) }
+    }
+    if (f.session && f.player) await remove('attendance',() => rest(own,'attendance',`?select=player_id&${eq('session_id',f.session)}&${eq('player_id',f.player)}`,{method:'DELETE',headers:{Prefer:'return=representation'}}),1)
+    if (f.session) await remove('session',() => rest(own,'training_sessions',`?select=id&${eq('id',f.session)}`,{method:'DELETE',headers:{Prefer:'return=representation'}}),1)
+    if (f.player) await remove('player',() => rest(own,'players',`?select=id&${eq('id',f.player)}`,{method:'DELETE',headers:{Prefer:'return=representation'}}),1)
+    if (f.category) await remove('category',() => rest(own,'categories',`?select=id&${eq('id',f.category)}`,{method:'DELETE',headers:{Prefer:'return=representation'}}),1)
   }
   if (cleanupWarnings.length) console.error('CLEANUP_PENDING',cleanupWarnings.join(', '))
 }

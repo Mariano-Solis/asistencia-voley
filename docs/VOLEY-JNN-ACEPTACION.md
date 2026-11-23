@@ -27,6 +27,8 @@ Fecha: 22/11/2026. Criterio estricto: una fila solo se aprueba cuando el recorri
 
 **Resultado estricto actual: 8/20 = 40 %.** El resultado anterior era 9/20 (45 %); el acceso del propietario dejó de estar demostrado para esta candidata y la fila 1 pasó a pendiente. No se alcanzó la meta del 90 %. La ausencia de los controles 17 y 18 impide declarar la entrega segura aunque aumente el porcentaje. El dato compara requisitos de la demostración, no módulos históricos migrados.
 
+**Iteración C10:** se añadió la migración `010` exclusivamente al proyecto comercial. El catálogo real mostró 2 triggers y 3 políticas restrictivas nuevas, sin alterar la única asistencia ya registrada; una transacción ficticia comprobó los dos rechazos de borrado y terminó en `ROLLBACK`, con 0 clubes residuales. PGlite local comprobó que un profesor no borra asistencias, jornadas ni jugadores; un administrador puede limpiar una jornada ficticia después de retirar su asistencia. Esto mejora la integridad, pero no sustituye las pruebas con JWT reales de las filas 15, 17 y 18. **Puntuación: 8/20 (40 %).**
+
 ## Incidencia de acceso del propietario (22/11, noche)
 
 Consulta de solo lectura en `auth.users`, `auth.identities` y `platform_owners` del proyecto comercial, **sin consultar ni registrar el verificador**: un único usuario del correo del propietario; correo confirmado; una identidad `email`; verificador de contraseña presente; UID original conservado; un registro de autorización de propietario vinculado a ese UID. La existencia del verificador no demuestra que una contraseña concreta coincida con él ni cuándo se estableció.
