@@ -11,9 +11,10 @@ main header button{border:1px solid currentColor}
 .crest-large{display:block;width:120px;height:120px;object-fit:contain;margin:12px 0;background:white}
 .court-finder{border-top:1px solid #dce4ec;margin-top:20px;padding-top:10px}
 .court-finder form{box-shadow:none;padding:0}.court-finder li span{display:flex;align-items:center}
-.candidate{background:#f1f5fa;border-radius:12px;padding:16px}
+.candidate{background:#f1f5fa;color:#13283b;border-radius:12px;padding:16px}
 main{background:var(--club-background,#f1f5fa);color:var(--club-on-background,#13283b)}
 main section,main form{background:var(--club-surface,#fff);color:var(--club-on-surface,#13283b)}
+.notice{color:#13283b}
 .crop-preview{display:block;width:min(100%,256px);height:auto;aspect-ratio:1;background:#e7eef5;border:1px solid #b0bfd0;border-radius:12px}
 .crop-tools{border:1px solid #dce4ec;border-radius:12px;padding:12px}
 .identity-preview{border:1px solid #cbd5df;border-radius:12px;padding:12px;max-width:420px}
