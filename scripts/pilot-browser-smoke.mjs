@@ -103,6 +103,7 @@ try {
       else if (path==='/auth/v1/logout') response=json({})
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
       else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role:'super_admin',membership_status:'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
+      else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
       else if (path.startsWith('/rest/v1/')) response=respondRest(method,path.split('/')[3],url,request)
       else { unexpected.push(`${method} ${path}`); response=json({message:'Unexpected mocked endpoint'},404) }
       calls.push(`${method} ${path} => ${response.status}`)
@@ -136,7 +137,12 @@ try {
     await page.getByLabel('Nombre completo').first().fill(`Ángela Pérez ${viewport.width}`)
     await page.getByLabel('Categoría').first().selectOption(store.categories.at(-1).id)
     await page.getByRole('button',{name:'Agregar jugador'}).click()
-    await page.getByRole('status').getByText('Jugador agregado.').waitFor()
+    try { await page.getByRole('status').getByText('Jugador agregado.').waitFor({timeout:10000}) }
+    catch (error) {
+      console.error('Player add screen:',(await page.locator('body').innerText()).slice(0,1500))
+      console.error('Mock calls:',calls,'Page errors:',errors)
+      throw error
+    }
     await page.getByText(new RegExp(`Ángela Pérez ${viewport.width}`)).waitFor()
     await page.getByLabel('Buscar jugador').fill('NO EXISTE')
     await page.getByText('No hay jugadores que coincidan con los filtros.').waitFor()

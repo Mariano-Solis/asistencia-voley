@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { probeDenied,probeZero,validForeignFixture } from '../src/pilot/probeResults.js'
+import { identicalBytes,probeDenied,probeZero,validForeignFixture } from '../src/pilot/probeResults.js'
 
 test('the browser isolation panel never counts a server failure as a RLS pass', () => {
   assert.equal(probeDenied({ data:null,error:{message:'server failure'},status:500 }),false)
@@ -10,6 +10,12 @@ test('the browser isolation panel never counts a server failure as a RLS pass', 
   assert.equal(probeDenied({ data:[],error:null,status:200 }),true)
   assert.equal(probeDenied({ data:null,error:{message:'forbidden'},status:403 }),true)
   assert.equal(probeDenied({ data:null,error:{message:'missing',status:404} }),true)
+})
+
+test('the browser isolation probe compares private file bytes, not only file size', () => {
+  assert.equal(identicalBytes(new Uint8Array([1,2,3]),new Uint8Array([1,2,3])),true)
+  assert.equal(identicalBytes(new Uint8Array([1,4,3]),new Uint8Array([1,2,3])),false)
+  assert.equal(identicalBytes(new Uint8Array([1,2]),new Uint8Array([1,2,3])),false)
 })
 
 test('the browser probe rejects malformed or mismatched foreign fixture paths', () => {

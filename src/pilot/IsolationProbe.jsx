@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { probeDenied, probeRows, probeZero, validForeignFixture } from './probeResults.js'
+import { identicalBytes, probeDenied, probeRows, probeZero, validForeignFixture } from './probeResults.js'
 
 // Diagnostic UI for the protected Preview only. It uses the current Supabase
 // Auth session and the ordinary publishable key; no elevated credentials.
@@ -36,7 +36,8 @@ export function IsolationProbe({ client, institution }) {
       const { error:uploadError } = await client.storage.from('pilot-branding').upload(fixture.logo,new Blob([png],{type:'image/png'}),{contentType:'image/png',upsert:false})
       if (uploadError) throw uploadError
       const { data:download,error:downloadError } = await client.storage.from('pilot-branding').download(fixture.logo)
-      if (downloadError || download.size !== png.length) throw downloadError || Error('No se pudo descargar el escudo propio')
+      if (downloadError || !download || !identicalBytes(new Uint8Array(await download.arrayBuffer()),png))
+        throw downloadError || Error('El escudo descargado no coincide con el archivo subido')
       sessionStorage.setItem(storageKey,JSON.stringify(fixture)); setOwn(fixture)
       setMessage('Datos ficticios propios preparados. Copiá solo los identificadores y el nombre del club al otro administrador de prueba.')
     } catch (error) {

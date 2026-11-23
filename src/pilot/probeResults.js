@@ -1,6 +1,11 @@
 export const probeRows = result => !result?.error && Array.isArray(result?.data) ? result.data : null
 export const probeZero = result => probeRows(result)?.length === 0
 
+export function identicalBytes(actual, expected) {
+  return actual instanceof Uint8Array && expected instanceof Uint8Array
+    && actual.length === expected.length && actual.every((byte,index) => byte === expected[index])
+}
+
 export function probeDenied(result) {
   if (!result?.error) return probeZero(result)
   const status = Number(result.status ?? result.error.status)
