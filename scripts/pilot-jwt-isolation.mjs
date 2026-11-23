@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { assertDenied } from './pilotAuditAssertions.mjs'
 
 // Execute only with two real, email-verified Supabase Auth sessions. This file
 // has no owner/admin key and never prints JWTs, activation codes or emails.
@@ -41,9 +42,7 @@ function rows(result, expected, label) {
   assert(result.ok && Array.isArray(result.data) && result.data.length === expected, `${label}: unexpected status or row count (${result.status})`)
   return result.data
 }
-function denied(result, label) {
-  assert(!result.ok || (Array.isArray(result.data) && result.data.length === 0), `${label}: foreign operation succeeded`)
-}
+const denied = assertDenied
 const results = []
 function pass(label) { results.push(label) }
 const accounts = [{label:'JNN',jwt:jwtA},{label:'B',jwt:jwtB}]
