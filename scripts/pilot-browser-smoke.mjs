@@ -22,6 +22,7 @@ const userId = '20000000-0000-4000-8000-000000000002'
 const user = { id:userId, email:'admin@example.test', aud:'authenticated', role:'authenticated', app_metadata:{provider:'email',providers:['email']}, user_metadata:{}, created_at:new Date().toISOString() }
 const token = `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:userId,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.mock-signature`
 let role = 'super_admin'
+let failNextPlayerRead = false
 const store = {
   categories:[], players:[], training_sessions:[], attendance:[],
   institution_memberships:[{institution_id:club,role:'super_admin',status:'active'}],
@@ -89,7 +90,8 @@ try {
   const executablePath = process.env.PILOT_CHROMIUM_PATH || (existsSync(bundled) ? bundled : existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : bundled)
   browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
   for (const viewport of [{width:390,height:844,role:'super_admin'},
-    {width:1280,height:800,role:'super_admin'}, {width:390,height:844,role:'professor'}]) {
+    {width:1280,height:800,role:'super_admin'}, {width:390,height:844,role:'professor'},
+    {width:390,height:844,role:'super_admin',scenario:'read-outage'}]) {
     role = viewport.role
     store.institution_memberships[0].role = role
     for (const table of ['categories','players','training_sessions','attendance']) store[table] = []
@@ -109,6 +111,10 @@ try {
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
       else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
+      else if (failNextPlayerRead && path==='/rest/v1/players' && method==='GET') {
+        failNextPlayerRead = false
+        response = json({message:'Temporary simulated read outage'},503)
+      }
       else if (path.startsWith('/rest/v1/')) response=respondRest(method,path.split('/')[3],url,request)
       else { unexpected.push(`${method} ${path}`); response=json({message:'Unexpected mocked endpoint'},404) }
       calls.push(`${method} ${path} => ${response.status}`)
@@ -141,6 +147,31 @@ try {
       assert.deepEqual(errors,[])
       await context.close()
       console.log('PASS mocked professor navigation 390x844')
+      continue
+    }
+
+    if (viewport.scenario === 'read-outage') {
+      await page.getByRole('button',{name:'Categorías'}).click()
+      await page.getByLabel('Nombre',{exact:true}).fill('Sub18 recuperación')
+      await page.getByRole('button',{name:'Agregar categoría'}).click()
+      await page.getByText('Sub18 recuperación').waitFor()
+      await page.getByRole('button',{name:'Jugadores'}).click()
+      await page.getByLabel('Nombre completo').fill('Jugador ficticio recuperación')
+      await page.getByLabel('Categoría').selectOption(store.categories[0].id)
+      failNextPlayerRead = true
+      await page.getByRole('button',{name:'Agregar jugador'}).click()
+      await page.getByRole('status').getByText(/La operación terminó, pero no se pudieron actualizar/).waitFor()
+      assert.equal(store.players.length,1,'The successful write must not be retried')
+      await page.getByRole('button',{name:'Actualizar'}).click()
+      await page.getByText(/Jugador ficticio recuperación/).waitFor()
+      assert.equal(store.players.length,1,'Manual refresh must not repeat the write')
+      await page.reload()
+      await page.getByRole('heading',{name:'Asistencia'}).waitFor()
+      await page.getByRole('button',{name:'Jugadores'}).click()
+      await page.getByText(/Jugador ficticio recuperación/).waitFor()
+      assert.deepEqual(errors,[])
+      await context.close()
+      console.log('PASS mocked saved-write/read-outage recovery 390x844')
       continue
     }
 
