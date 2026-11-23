@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { deleteEmptyCategory } from './categoryActions.js'
 
 export function CategoryManager({ client, institution, categories, canEdit, busy, run, insert, announce }) {
   const [editing, setEditing] = useState(null)
@@ -9,7 +10,11 @@ export function CategoryManager({ client, institution, categories, canEdit, busy
     }) }}><label>Nombre<input name="name" minLength="2" maxLength="80" required /></label><button disabled={busy}>Agregar categoría</button></form>}
     <ul>{categories.map(item => <li key={item.id}>
       <span>{item.name}</span>
-      {canEdit && <button disabled={busy} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancelar' : 'Editar'}</button>}
+      {canEdit && <div><button disabled={busy} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancelar' : 'Editar'}</button>
+        <button type="button" disabled={busy} onClick={() => run(async () => {
+          const removed = await deleteEmptyCategory({ client, institutionId: institution.id, category: item, confirm: text => window.confirm(text) })
+          if (removed) { setEditing(null); announce('Categoría vacía eliminada.') }
+        })}>Eliminar</button></div>}
       {editing === item.id && canEdit && <form className="inline-editor" onSubmit={event => { event.preventDefault(); const name = String(new FormData(event.currentTarget).get('name')).trim(); run(async () => {
         const { error } = await client.from('categories').update({ name }).eq('institution_id', institution.id).eq('id', item.id).select('id').single()
         if (error) throw error

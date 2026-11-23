@@ -182,6 +182,15 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     })
     await as(jnnAdmin,async () => denied(() => db.query('insert into public.attendance(institution_id,session_id,player_id,status) values ($1,$2,$3,$4)',[jnn,jnnSession,jnnOtherPlayer,'present'])))
     await as(jnnAdmin,async () => db.query('select public.pilot_add_professor($1,$2)',[jnn,'professor@example.test']))
+    // Category deletion parity: empty own category only; FK protects used
+    // categories even if another writer races the UI preflight check.
+    const emptyCategory = await as(jnnAdmin, async () => (await row("insert into public.categories(institution_id,name) values ($1,'Vacía de ensayo') returning id",[jnn])).id)
+    await as(otherAdmin, async () => assert.equal((await db.query('delete from public.categories where id=$1',[emptyCategory])).affectedRows,0))
+    await as(professor, async () => assert.equal((await db.query('delete from public.categories where id=$1',[emptyCategory])).affectedRows,0))
+    await as(jnnAdmin, async () => {
+      await denied(() => db.query('delete from public.categories where id=$1',[jnnCat]))
+      assert.equal((await db.query('delete from public.categories where id=$1',[emptyCategory])).affectedRows,1)
+    })
     await as(jnnAdmin,async () => denied(() => db.query('select * from public.pilot_owner_events($1)',[jnn])))
     await as(owner,async () => assert.ok(await count('select count(*) from public.pilot_owner_events($1)',[jnn]) >= 3))
     await as(otherAdmin,async () => denied(() => db.query('select * from public.pilot_list_professors($1)',[jnn])))

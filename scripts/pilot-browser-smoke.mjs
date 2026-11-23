@@ -35,7 +35,7 @@ const store = {
 const corsHeaders = {
   'access-control-allow-origin':'*',
   'access-control-allow-headers':'authorization,apikey,content-type,x-client-info,prefer,accept-profile,content-profile',
-  'access-control-allow-methods':'GET,POST,PATCH,DELETE,OPTIONS',
+  'access-control-allow-methods':'GET,HEAD,POST,PATCH,DELETE,OPTIONS',
 }
 const json = (body,status=200) => ({status,contentType:'application/json',headers:corsHeaders,body:JSON.stringify(body)})
 function filtered(table,url) {
@@ -45,6 +45,10 @@ function filtered(table,url) {
 function respondRest(method, table, url, request) {
   if (!Object.hasOwn(store,table)) return json({message:'Unknown table'},404)
   if (method === 'GET') return json(filtered(table,url))
+  if (method === 'HEAD') {
+    const count = filtered(table,url).length
+    return {status:200,headers:{...corsHeaders,'content-range':`*/${count}`,'access-control-expose-headers':'content-range'},body:''}
+  }
   const input = JSON.parse(request.postData() || '{}')
   const representation = (request.headers().prefer || '').includes('return=representation')
   if (method === 'POST') {
@@ -232,6 +236,13 @@ try {
     await page.getByLabel('Nombre',{exact:true}).last().fill(`Sub16 editada ${viewport.width}`)
     await page.getByRole('button',{name:'Guardar cambios'}).click()
     await page.getByText(`Sub16 editada ${viewport.width}`).waitFor()
+    await page.getByLabel('Nombre',{exact:true}).first().fill(`Vacía UI ${viewport.width}`)
+    await page.getByRole('button',{name:'Agregar categoría'}).click()
+    await page.getByText(`Vacía UI ${viewport.width}`).waitFor()
+    page.once('dialog',dialog => dialog.accept())
+    await page.getByRole('button',{name:'Eliminar'}).last().click()
+    await page.getByRole('status').getByText('Categoría vacía eliminada.').waitFor()
+    assert.equal(store.categories.length,1,'Only the empty own category is removed')
 
     await page.getByRole('button',{name:'Jugadores'}).click()
     await page.getByLabel('Nombre completo').first().fill(`Ángela Pérez ${viewport.width}`)
@@ -256,6 +267,10 @@ try {
     await page.getByLabel('Estado').selectOption('inactive')
     await page.getByText(new RegExp(`Ángela María Pérez ${viewport.width}`)).waitFor()
     await page.getByRole('button',{name:'Reactivar'}).click()
+    await page.getByRole('button',{name:'Categorías'}).click()
+    await page.getByRole('button',{name:'Eliminar'}).first().click()
+    await page.getByRole('status').getByText(/No se puede eliminar.*tiene 1 jugadores/).waitFor()
+    assert.equal(store.categories.length,1,'A category with players must be preserved')
 
     await page.getByRole('button',{name:'Asistencia'}).click()
     await page.getByLabel('Categoría').selectOption(store.categories.at(-1).id)
