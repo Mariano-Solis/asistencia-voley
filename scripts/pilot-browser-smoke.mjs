@@ -21,6 +21,7 @@ const club = '10000000-0000-4000-8000-000000000001'
 const userId = '20000000-0000-4000-8000-000000000002'
 const user = { id:userId, email:'admin@example.test', aud:'authenticated', role:'authenticated', app_metadata:{provider:'email',providers:['email']}, user_metadata:{}, created_at:new Date().toISOString() }
 const token = `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:userId,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.mock-signature`
+let role = 'super_admin'
 const store = {
   categories:[], players:[], training_sessions:[], attendance:[],
   institution_memberships:[{institution_id:club,role:'super_admin',status:'active'}],
@@ -87,7 +88,10 @@ try {
   const bundled = chromium.executablePath()
   const executablePath = process.env.PILOT_CHROMIUM_PATH || (existsSync(bundled) ? bundled : existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : bundled)
   browser = await chromium.launch({headless:true,executablePath,args:['--no-sandbox']})
-  for (const viewport of [{width:390,height:844},{width:1280,height:800}]) {
+  for (const viewport of [{width:390,height:844,role:'super_admin'},
+    {width:1280,height:800,role:'super_admin'}, {width:390,height:844,role:'professor'}]) {
+    role = viewport.role
+    store.institution_memberships[0].role = role
     for (const table of ['categories','players','training_sessions','attendance']) store[table] = []
     const context = await browser.newContext({viewport,acceptDownloads:true})
     const page = await context.newPage()
@@ -103,7 +107,7 @@ try {
       else if (path==='/auth/v1/user') response=json(user)
       else if (path==='/auth/v1/logout') response=json({})
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
-      else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role:'super_admin',membership_status:'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
+      else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:'active',institution_status:'active',license_status:'active',expires_at:'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
       else if (path.startsWith('/rest/v1/')) response=respondRest(method,path.split('/')[3],url,request)
       else { unexpected.push(`${method} ${path}`); response=json({message:'Unexpected mocked endpoint'},404) }
@@ -123,6 +127,21 @@ try {
       console.error('Mock journey stopped at:',(await page.locator('body').innerText()).slice(0,1500))
       console.error('Mock calls:',calls,'Unexpected mock endpoints:',unexpected,'Page errors:',errors)
       throw error
+    }
+
+    if (role === 'professor') {
+      assert.equal(await page.getByRole('button',{name:'Profesores'}).count(),0)
+      await page.getByRole('button',{name:'Categorías'}).click()
+      assert.equal(await page.getByRole('button',{name:'Agregar categoría'}).count(),0)
+      await page.getByRole('button',{name:'Identidad'}).click()
+      await page.getByText('La identidad de Junín Vóley JNN la configura el administrador del club.').waitFor()
+      assert.equal(await page.getByRole('button',{name:'6. Confirmar y guardar'}).count(),0)
+      await page.getByRole('button',{name:'Cerrar sesión'}).click()
+      await page.getByRole('heading',{name:'Ingresar'}).waitFor()
+      assert.deepEqual(errors,[])
+      await context.close()
+      console.log('PASS mocked professor navigation 390x844')
+      continue
     }
 
     await page.getByRole('button',{name:'Categorías'}).click()
