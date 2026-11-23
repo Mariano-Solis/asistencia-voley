@@ -134,7 +134,13 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       assert.equal((await row('select first_name from public.player_private_details where player_id=$1',[privatePlayer])).first_name,'Ana María')
       await denied(() => db.query("select public.pilot_save_player($1,$2,$3,'Ana','Ensayo','male',null,null,null,false)",[jnn,privatePlayer,jnnCat]))
       assert.equal((await row('select first_name from public.player_private_details where player_id=$1',[privatePlayer])).first_name,'Ana María')
+      const moveCategory = (await row("insert into public.categories(institution_id,name,gender) values ($1,'Sub 17 ensayo','male') returning id",[jnn])).id
+      await db.query("select public.pilot_save_player($1,$2,$3,'Ana','Ensayo','male','87654321','2010-11-22','B',true)",[jnn,privatePlayer,moveCategory])
+      assert.equal((await row('select sex from public.player_private_details where player_id=$1',[privatePlayer])).sex,'male')
+      await db.query("select public.pilot_save_player($1,$2,$3,'Ana María','Ensayo','female','87654321','2010-11-22','B',true)",[jnn,privatePlayer,jnnCat])
+      assert.equal((await row('select sex from public.player_private_details where player_id=$1',[privatePlayer])).sex,'female')
       await db.query('delete from public.players where id=$1',[privatePlayer])
+      await db.query('delete from public.categories where id=$1',[moveCategory])
     })
     await as(otherAdmin,async () => denied(() => db.query(
       "select public.pilot_save_player($1,null,$2,'Intruso','Ensayo',null,null,null,null,false)",[jnn,jnnCat])))

@@ -87,28 +87,21 @@ end $$;
 revoke all on function public.pilot_set_professor_category_permission(uuid,uuid,uuid,boolean,boolean,boolean) from public;
 grant execute on function public.pilot_set_professor_category_permission(uuid,uuid,uuid,boolean,boolean,boolean) to authenticated;
 
-drop policy categories_read on public.categories;
-create policy categories_read on public.categories for select to authenticated
+alter policy categories_read on public.categories
   using (public.pilot_category_access(institution_id,id,'view'));
-drop policy players_read on public.players;
-create policy players_read on public.players for select to authenticated
+alter policy players_read on public.players
   using (public.pilot_category_access(institution_id,category_id,'view'));
-drop policy players_write on public.players;
-create policy players_write on public.players for all to authenticated
+alter policy players_write on public.players
   using (public.pilot_category_access(institution_id,category_id,'edit'))
   with check (public.pilot_category_access(institution_id,category_id,'edit'));
-drop policy sessions_read on public.training_sessions;
-create policy sessions_read on public.training_sessions for select to authenticated
+alter policy sessions_read on public.training_sessions
   using (public.pilot_category_access(institution_id,category_id,'view'));
-drop policy sessions_write on public.training_sessions;
-create policy sessions_write on public.training_sessions for all to authenticated
+alter policy sessions_write on public.training_sessions
   using (public.pilot_category_access(institution_id,category_id,'attendance'))
   with check (public.pilot_category_access(institution_id,category_id,'attendance'));
-drop policy attendance_read on public.attendance;
-create policy attendance_read on public.attendance for select to authenticated
+alter policy attendance_read on public.attendance
   using (public.pilot_session_access(institution_id,session_id,'view'));
-drop policy attendance_write on public.attendance;
-create policy attendance_write on public.attendance for all to authenticated
+alter policy attendance_write on public.attendance
   using (public.pilot_session_access(institution_id,session_id,'attendance'))
   with check (public.pilot_session_access(institution_id,session_id,'attendance'));
 -- 010 restrictive admin-only DELETE policies continue to apply.

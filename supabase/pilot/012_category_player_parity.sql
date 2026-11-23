@@ -120,12 +120,21 @@ begin
     select id into v_player from public.players
       where institution_id=p_institution and id=p_player for update;
     if not found then raise exception 'Player not found in institution'; end if;
-    delete from public.player_private_details where institution_id=p_institution and player_id=v_player;
+    -- Clear the old branch only while moving category, so the category
+    -- trigger checks the new branch below. Keep the private row and update it
+    -- atomically; a later validation error rolls this temporary change back.
+    if exists (select 1 from public.players where institution_id=p_institution and id=v_player and category_id is distinct from p_category) then
+      update public.player_private_details set sex=null
+        where institution_id=p_institution and player_id=v_player;
+    end if;
     update public.players set category_id=p_category,full_name=v_name,category_override=coalesce(p_override,false)
       where institution_id=p_institution and id=v_player;
   end if;
   insert into public.player_private_details(institution_id,player_id,first_name,last_name,sex,dni,birth_date,team)
-    values(p_institution,v_player,btrim(p_first),btrim(p_last),p_sex,p_dni,p_birth,p_team);
+    values(p_institution,v_player,btrim(p_first),btrim(p_last),p_sex,p_dni,p_birth,p_team)
+    on conflict (institution_id,player_id) do update set
+      first_name=excluded.first_name,last_name=excluded.last_name,sex=excluded.sex,
+      dni=excluded.dni,birth_date=excluded.birth_date,team=excluded.team;
   return v_player;
 end $$;
 revoke all on function public.pilot_save_player(uuid,uuid,uuid,text,text,text,text,date,text,boolean) from public;
