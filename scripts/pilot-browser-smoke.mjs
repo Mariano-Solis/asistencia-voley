@@ -28,7 +28,7 @@ let playerReadOutage = false
 let accountSuspended = false
 let licenseExpired = false
 const store = {
-  categories:[], players:[], training_sessions:[], attendance:[],
+  categories:[], players:[], player_private_details:[], training_sessions:[], attendance:[],
   institution_memberships:[{institution_id:club,role:'super_admin',status:'active'}],
   institutions:[{id:club,slug:'jnn',name:'Junín Vóley JNN',status:'active',primary_color:'#194b77',logo_path:null}],
   institution_licenses:[{institution_id:club,status:'active',expires_at:'2099-12-31T23:59:59Z'}],
@@ -106,7 +106,7 @@ try {
     accountSuspended = false
     licenseExpired = false
     store.institution_memberships[0].role = role
-    for (const table of ['categories','players','training_sessions','attendance']) store[table] = []
+    for (const table of ['categories','players','player_private_details','training_sessions','attendance']) store[table] = []
     const context = await browser.newContext({viewport,acceptDownloads:true})
     const page = await context.newPage()
     const errors=[]
@@ -128,6 +128,18 @@ try {
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
       else if (path==='/rest/v1/rpc/pilot_account_status') response=json([{institution_id:club,institution_name:'Junín Vóley JNN',role,membership_status:accountSuspended?'suspended':'active',institution_status:'active',license_status:'active',expires_at:licenseExpired?'2020-01-01T00:00:00Z':'2099-12-31T23:59:59Z'}])
       else if (path==='/rest/v1/rpc/pilot_list_professors') response=json([])
+      else if (path==='/rest/v1/rpc/pilot_save_player') {
+        const input=JSON.parse(request.postData() || '{}')
+        const id=input.p_player || randomUUID()
+        const values={id,institution_id:input.p_institution,category_id:input.p_category,
+          full_name:`${input.p_last.toLocaleUpperCase('es-AR')} ${input.p_first}`,category_override:input.p_override,active:true}
+        const old=store.players.find(p=>p.id===id)
+        if (old) Object.assign(old,values); else store.players.push(values)
+        store.player_private_details=store.player_private_details.filter(row=>row.player_id!==id)
+        store.player_private_details.push({institution_id:input.p_institution,player_id:id,first_name:input.p_first,last_name:input.p_last,
+          sex:input.p_sex,dni:input.p_dni,birth_date:input.p_birth,team:input.p_team})
+        response=json(id)
+      }
       else if (path.startsWith('/storage/v1/object/pilot-player-photos/') && method==='POST') response=json({Key:path})
       else if (path.startsWith('/storage/v1/object/sign/pilot-player-photos/') && method==='POST') response=json({signedURL:'/object/sign/pilot-player-photos/mock.webp?token=mock'})
       else if (playerReadOutage && path==='/rest/v1/players' && method==='GET') {

@@ -121,10 +121,21 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(jnnAdmin,async () => db.query("update public.categories set gender='female' where id=$1",[jnnCat]))
     await as(otherAdmin,async () => db.query("update public.categories set gender='male' where id=$1",[otherCat]))
     await as(jnnAdmin,async () => {
-      await denied(() => db.query("insert into public.players(institution_id,category_id,full_name,sex) values ($1,$2,'Rama equivocada','male')",[jnn,jnnCat]))
+      await denied(() => db.query("insert into public.player_private_details(institution_id,player_id,first_name,last_name,sex) values ($1,$2,'Rama','Equivocada','male')",[jnn,'ffffffff-ffff-4fff-8fff-ffffffffffff']))
       await denied(() => db.query("insert into public.players(institution_id,category_id,full_name,sex) values ($1,$2,'Categoría ajena','male')",[jnn,otherCat]))
     })
     const jnnPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Jugador ficticio') returning id",[jnn,jnnCat])).id)
+    const privatePlayer = await as(jnnAdmin,async () => (await row(
+      "select public.pilot_save_player($1,null,$2,'Ana','Ensayo','female','87654321','2010-11-22','A',false) as id",[jnn,jnnCat])).id)
+    await as(jnnAdmin,async () => {
+      await db.query("select public.pilot_save_player($1,$2,$3,'Ana María','Ensayo','female','87654321','2010-11-22','B',true)",[jnn,privatePlayer,jnnCat])
+      assert.equal((await row('select first_name from public.player_private_details where player_id=$1',[privatePlayer])).first_name,'Ana María')
+      await denied(() => db.query("select public.pilot_save_player($1,$2,$3,'Ana','Ensayo','male',null,null,null,false)",[jnn,privatePlayer,jnnCat]))
+      assert.equal((await row('select first_name from public.player_private_details where player_id=$1',[privatePlayer])).first_name,'Ana María')
+      await db.query('delete from public.players where id=$1',[privatePlayer])
+    })
+    await as(otherAdmin,async () => denied(() => db.query(
+      "select public.pilot_save_player($1,null,$2,'Intruso','Ensayo',null,null,null,null,false)",[jnn,jnnCat])))
     const photoPath = `${jnn}/${jnnPlayer}/44444444-4444-4444-8444-444444444444.webp`
     await as(jnnAdmin,async () => {
       await denied(() => db.query('update public.players set photo_path=$1 where id=$2',[photoPath,jnnPlayer]))
@@ -140,11 +151,12 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       assert.equal((await db.query('update public.players set photo_path=null where id=$1 returning id',[jnnPlayer])).rows.length,0)
     })
     await as(jnnAdmin,async () => {
-      await db.query("update public.players set first_name='Ana María',last_name='Prueba',sex='female',dni='12345678',birth_date='2010-11-22',team='A' where id=$1",[jnnPlayer])
-      assert.equal((await row('select first_name from public.players where id=$1',[jnnPlayer])).first_name,'Ana María')
-      await denied(() => db.query("update public.players set sex='male' where id=$1",[jnnPlayer]))
+      await denied(() => db.query("insert into public.player_private_details(institution_id,player_id,first_name,last_name,sex) values ($1,$2,'Rama','Equivocada','male')",[jnn,jnnPlayer]))
+      await db.query("insert into public.player_private_details(institution_id,player_id,first_name,last_name,sex,dni,birth_date,team) values ($1,$2,'Ana María','Prueba','female','12345678','2010-11-22','A')",[jnn,jnnPlayer])
+      assert.equal((await row('select first_name from public.player_private_details where player_id=$1',[jnnPlayer])).first_name,'Ana María')
+      await denied(() => db.query("update public.player_private_details set sex='male' where player_id=$1",[jnnPlayer]))
       await denied(() => db.query("update public.categories set gender='male' where id=$1",[jnnCat]))
-      await denied(() => db.query("update public.players set birth_date=current_date+1 where id=$1",[jnnPlayer]))
+      await denied(() => db.query("update public.player_private_details set birth_date=current_date+1 where player_id=$1",[jnnPlayer]))
       await db.query('update public.categories set active=false where id=$1',[jnnCat])
       assert.equal((await row('select active from public.categories where id=$1',[jnnCat])).active,false)
       assert.equal(await count('select count(*) from public.players where category_id=$1',[jnnCat]),1)
@@ -152,8 +164,8 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       await db.query('update public.categories set active=true where id=$1',[jnnCat])
     })
     await as(otherAdmin,async () => {
-      assert.equal(await count('select count(*) from public.players where dni=$1',['12345678']),0)
-      assert.equal((await db.query("update public.players set first_name='Intruso' where id=$1 returning id",[jnnPlayer])).rows.length,0)
+      assert.equal(await count('select count(*) from public.player_private_details where dni=$1',['12345678']),0)
+      assert.equal((await db.query("update public.player_private_details set first_name='Intruso' where player_id=$1 returning player_id",[jnnPlayer])).rows.length,0)
     })
     const jnnSession = await as(jnnAdmin,async () => (await row('insert into public.training_sessions(institution_id,category_id,session_date) values ($1,$2,current_date) returning id',[jnn,jnnCat])).id)
     await as(jnnAdmin,async () => {
@@ -225,7 +237,9 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await as(professor,async () => {
       assert.equal((await db.query("update public.categories set active=false where id=$1 returning id",[jnnCat])).rows.length,0)
       assert.equal((await row('select active from public.categories where id=$1',[jnnCat])).active,true)
-      assert.equal(await count('select count(*) from storage.objects where name=$1',[photoPath]),1)
+      assert.equal(await count('select count(*) from public.player_private_details where player_id=$1',[jnnPlayer]),0)
+      assert.equal((await db.query("update public.player_private_details set dni='99999999' where player_id=$1 returning player_id",[jnnPlayer])).rows.length,0)
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[photoPath]),0)
       await denied(() => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-player-photos',`${jnn}/${jnnPlayer}/66666666-6666-4666-8666-666666666666.webp`]))
       await denied(() => db.query('update public.players set photo_path=null where id=$1',[jnnPlayer]))
     })

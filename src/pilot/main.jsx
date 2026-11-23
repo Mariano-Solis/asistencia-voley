@@ -136,13 +136,16 @@ function Pilot() {
   }
   async function refreshData() {
     const id = institution.id
-    const [cats, members, dates, marks] = await Promise.all([
+    const [cats, members, dates, marks, privateRows] = await Promise.all([
       query('categories', '*', [['institution_id', id]]),
       query('players', '*', [['institution_id', id]]),
       query('training_sessions', '*', [['institution_id', id]]),
-      query('attendance', '*', [['institution_id', id]])
+      query('attendance', '*', [['institution_id', id]]),
+      playerParityEnabled && membership?.role === 'super_admin'
+        ? query('player_private_details', '*', [['institution_id', id]]) : Promise.resolve([])
     ])
-    setCategories(cats); setPlayers(members); setSessions(dates); setAttendance(marks)
+    const details = new Map(privateRows.map(row => [row.player_id,row]))
+    setCategories(cats); setPlayers(members.map(player => ({...player,...(details.get(player.id) || {})}))); setSessions(dates); setAttendance(marks)
     if (membership?.role === 'super_admin') {
       const { data, error } = await client.rpc('pilot_list_professors',{ p_institution: id })
       if (error) throw error
@@ -207,7 +210,7 @@ function Pilot() {
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
   }
   function exportPlayers(shown) {
-    const blob = new Blob([playersCsv({ players: shown, categories, detailed: playerParityEnabled })], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob([playersCsv({ players: shown, categories, detailed: playerParityEnabled && membership?.role === 'super_admin' })], { type: 'text/csv;charset=utf-8' })
     const anchor = document.createElement('a')
     anchor.href = URL.createObjectURL(blob); anchor.download = playersFilename(institution.name); anchor.click()
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)

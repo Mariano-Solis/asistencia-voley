@@ -22,7 +22,8 @@ begin
   then return false; end if;
   v_institution := split_part(p_name,'/',1)::uuid;
   v_player := split_part(p_name,'/',2)::uuid;
-  return public.pilot_member(v_institution,p_write)
+  -- No professor photo access until per-category permissions are implemented.
+  return public.pilot_member(v_institution,true)
     and exists (select 1 from public.players p where p.institution_id=v_institution and p.id=v_player);
 end $$;
 revoke all on function public.pilot_photo_access(text,boolean) from public;
