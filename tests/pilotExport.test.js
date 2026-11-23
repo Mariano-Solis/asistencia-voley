@@ -13,15 +13,17 @@ test('attendance CSV preserves data and neutralizes spreadsheet formulas', () =>
   assert.equal(attendanceFilename('Junín Vóley / JNN','2026-11-21'),'asistencia-Junin-Voley-JNN-2026-11-21.csv')
 })
 
-test('attendance CSV exports the remaining statuses in Spanish', () => {
+test('attendance CSV exports all three real statuses in Spanish for distinct players', () => {
   const csv = attendanceCsv({
     sessions:[{ id:'day',session_date:'2026-11-22',category_id:'cat' }],
     categories:[{ id:'cat',name:'Sub16 Piloto' }],
-    players:[{ id:'p',full_name:'Jugador de Prueba JNN' }],
-    attendance:[{ session_id:'day',player_id:'p',status:'late' },{ session_id:'day',player_id:'p',status:'absent' }]
+    players:[{ id:'p1',full_name:'Juan Pérez' },{ id:'p2',full_name:'María José' },{ id:'p3',full_name:'Álvaro Díaz' }],
+    attendance:[{ session_id:'day',player_id:'p1',status:'present' },{ session_id:'day',player_id:'p2',status:'late' },{ session_id:'day',player_id:'p3',status:'absent' }]
   })
-  assert.match(csv, /"Tarde"\r\n/)
-  assert.match(csv, /"Ausente"$/)
+  assert.equal(csv.split('\r\n').length,4)
+  assert.match(csv, /"Juan Pérez";"Presente"\r\n/)
+  assert.match(csv, /"María José";"Tarde"\r\n/)
+  assert.match(csv, /"Álvaro Díaz";"Ausente"$/)
 })
 
 test('attendance CSV filters by club category and date before export', () => {

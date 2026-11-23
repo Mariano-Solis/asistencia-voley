@@ -10,6 +10,7 @@ import { CourtTrackFinder } from './CourtTrackFinder.jsx'
 import { IdentityEditor } from './IdentityEditor.jsx'
 import { IsolationProbe } from './IsolationProbe.jsx'
 import { authErrorMessage } from './authMessages.js'
+import { usableAccountStatus } from './accountAccess.js'
 import './pilot.css'
 
 // Deliberately independent of src/supabase.js (San Martín redirects and auth overrides).
@@ -97,13 +98,14 @@ function Pilot() {
     if (userError || !userData?.user) { await client.auth.signOut(); return }
     const { data: statuses, error: statusError } = await client.rpc('pilot_account_status')
     if (statusError) throw statusError
-    const status = statuses?.[0] || null
+    const usable = usableAccountStatus(statuses)
+    const status = usable || statuses?.[0] || null
     setAccountStatus(status)
-    if (status && (status.membership_status !== 'active' || status.institution_status !== 'active' || status.license_status !== 'active' || !status.expires_at || new Date(status.expires_at) <= new Date())) {
+    if (!usable) {
       setMembership(null); setInstitution(null); return
     }
     const memberships = await query('institution_memberships', 'institution_id,role,status')
-    const first = memberships.find(m => m.status === 'active')
+    const first = memberships.find(m => m.status === 'active' && m.institution_id === usable.institution_id)
     if (!first) return
     const institutions = await query('institutions', '*', [['id', first.institution_id]])
     if (!institutions[0]) return
