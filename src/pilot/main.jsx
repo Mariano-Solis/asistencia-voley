@@ -10,6 +10,7 @@ import { CourtTrackFinder } from './CourtTrackFinder.jsx'
 import { IdentityEditor } from './IdentityEditor.jsx'
 import { IsolationProbe } from './IsolationProbe.jsx'
 import { authErrorMessage } from './authMessages.js'
+import { pilotAuthRedirect } from './authRedirect.js'
 import { matchingActiveMembership, unavailableAccountMessage, usableAccountStatus } from './accountAccess.js'
 import { performClubAction } from './actionFlow.js'
 import './pilot.css'
@@ -173,7 +174,7 @@ function Pilot() {
       // Minimum length applies to new passwords; existing Auth accounts may
       // have been created under a different policy. Let Auth verify logins.
       if (mode === 'signup' && password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
-      const redirectTo = location.origin + (import.meta.env.VITE_PILOT_BUILD === '1' ? '/' : '/pilot.html')
+      const redirectTo = pilotAuthRedirect(location.origin, import.meta.env.VITE_PILOT_BUILD === '1')
       const result = mode === 'magic'
         ? await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo, shouldCreateUser: false } })
         : mode === 'recover'

@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { PILOT_AUTH_ORIGIN } from '../src/pilot/authRedirect.js'
 
 const require = createRequire(import.meta.url)
 let chromium
@@ -105,12 +106,17 @@ try {
     const errors=[]
     const unexpected=[]
     const calls=[]
+    const emailRedirects=[]
     page.on('pageerror',error => errors.push(error.message))
     await page.route(`${origin}/**`,async route => {
       const request=route.request(),url=new URL(request.url()),path=url.pathname,method=request.method()
       let response
       if (method==='OPTIONS') response={status:204,headers:corsHeaders,body:''}
       else if (path==='/auth/v1/token' && method==='POST') response=json({access_token:token,refresh_token:'mock-refresh',token_type:'bearer',expires_in:3600,user})
+      else if (['/auth/v1/otp','/auth/v1/recover'].includes(path) && method==='POST') {
+        emailRedirects.push(url.searchParams.get('redirect_to'))
+        response=json({})
+      }
       else if (path==='/auth/v1/user') response=json(user)
       else if (path==='/auth/v1/logout') response=json({})
       else if (path==='/rest/v1/rpc/pilot_is_owner') response=json(false)
@@ -126,6 +132,17 @@ try {
     })
     await page.goto(`http://127.0.0.1:${port}/`)
     await page.getByRole('heading',{name:'Ingresar'}).waitFor()
+    if (viewport.width === 390 && role === 'super_admin' && !viewport.scenario) {
+      const magic=page.locator('form').filter({has:page.getByRole('heading',{name:'Acceso por correo'})})
+      await magic.getByLabel('Correo').fill('admin@example.test')
+      await magic.getByRole('button',{name:'Enviar enlace de acceso'}).click()
+      await page.getByRole('status').getByText(/Revisá tu correo/).waitFor()
+      const recover=page.locator('form').filter({has:page.getByRole('heading',{name:'Recuperar acceso'})})
+      await recover.getByLabel('Correo').fill('admin@example.test')
+      await recover.getByRole('button',{name:'Enviar enlace'}).click()
+      await page.getByRole('status').getByText(/Si la cuenta existe/).waitFor()
+      assert.deepEqual(emailRedirects,[`${PILOT_AUTH_ORIGIN}/`,`${PILOT_AUTH_ORIGIN}/`], 'Auth emails must use the stable protected alias')
+    }
     const login=page.locator('form').filter({has:page.getByRole('heading',{name:'Ingresar'})})
     await login.getByLabel('Correo').fill('admin@example.test')
     await login.getByLabel('Contraseña').fill('clave-ficticia')
