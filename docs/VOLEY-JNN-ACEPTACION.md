@@ -55,6 +55,8 @@ La revisión posterior añadió la respuesta CORS al simulador de Supabase y exi
 
 El ensayo SQL transaccional C12 pasó localmente, pero su preflight comercial quedó bloqueado por permisos del conector; no se atribuye al backend real. El arreglo de mensajes ante cortes de red y las 21 pruebas locales tampoco satisfacen por sí solos ninguna de las filas que exige navegador, Android físico o dos sesiones Auth.
 
+La segunda tanda C12 pasó `test:pilot:http` sobre Vite local y amplió recorte y límite de tamaño de escudo en pruebas unitarias; `test:pilot` terminó **23/23**. La marca de asistencia actualiza solo las marcas de la institución en vez de repetir todas las lecturas del panel. No se midió una red móvil real. **Aceptación: 8/20 (40 %).**
+
 La siguiente revisión local amplió el profesor simulado, corrigió la selección de una membresía utilizable entre varias y reemplazó el caso irreal de CSV duplicado por tres jugadores distintos. `test:pilot`: **15/15**, `build:pilot`: 83 módulos, `build`: 183 módulos. No cambió la puntuación porque faltan sesiones reales y ensayo de interfaz.
 
 El panel de aislamiento y su limpieza fueron endurecidos para no marcar un error 500 o una eliminación vacía como éxito. `test:pilot`: **16/16**, `build:pilot`: 84 módulos, `build`: 184 módulos. Las filas 17 y 18 siguen pendientes hasta ejecutarlo con dos JWT reales y confirmar el borrado de los datos ficticios.

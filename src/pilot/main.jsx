@@ -146,10 +146,14 @@ function Pilot() {
       setProfessors(data)
     }
   }
+  async function refreshAttendance() {
+    setAttendance(await query('attendance','*',[['institution_id',institution.id]]))
+  }
   async function run(action, { refresh = true } = {}) {
     setBusy(true); setMessage('')
     try {
-      const result = await performClubAction(action, refresh && institution ? refreshData : null)
+      const followUp = refresh && institution ? (refresh === 'attendance' ? refreshAttendance : refreshData) : null
+      const result = await performClubAction(action, followUp)
       if (!result.refreshed) setMessage('La operación terminó, pero no se pudieron actualizar los datos. Tocá Actualizar antes de repetirla.')
     }
     catch (error) { showError(error) }
@@ -218,7 +222,7 @@ function Pilot() {
       {section === 'identidad' && <IdentityEditor institution={institution} client={client} logoUrl={logoSrc} onSaved={refreshMembership} /> }
       {section === 'seguridad' && membership?.role === 'super_admin' && import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && <IsolationProbe client={client} institution={institution} />}
       {section === 'historial' && <AttendanceHistory attendance={attendance} sessions={sessions} categories={categories} players={players} onExport={exportCsv} /> }
-      {section === 'asistencia' && <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !currentSession && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy} onClick={() => run(() => setMark(p,value))}>{label}</button>)}</div></li>)}</ul>}</section>}
+      {section === 'asistencia' && <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !currentSession && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy} onClick={() => run(() => setMark(p,value), { refresh:'attendance' })}>{label}</button>)}</div></li>)}</ul>}</section>}
     </>}
     <footer>Versión piloto independiente · Los datos de San Martín no se utilizan aquí.</footer>
   </main>
