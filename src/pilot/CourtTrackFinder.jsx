@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { logoPrimaryColor } from './colorFromLogo.js'
+import { performClubAction } from './actionFlow.js'
 
 export function CourtTrackFinder({ institution, client, onSaved }) {
   const [query, setQuery] = useState('')
@@ -32,12 +33,15 @@ export function CourtTrackFinder({ institution, client, onSaved }) {
     if (!candidate?.logo) return
     setBusy(true); setMessage('')
     try {
-      const { error } = await client.rpc('pilot_set_courtrack_identity', {
-        p_institution:institution.id,p_team_code:candidate.code,p_logo_url:candidate.logo,p_primary_color:color,
-      })
-      if (error) throw error
-      await onSaved()
-      setMessage('Escudo y color guardados. La asociación quedó registrada en el historial.')
+      const result = await performClubAction(async () => {
+        const { error } = await client.rpc('pilot_set_courtrack_identity', {
+          p_institution:institution.id,p_team_code:candidate.code,p_logo_url:candidate.logo,p_primary_color:color,
+        })
+        if (error) throw error
+      }, onSaved)
+      setMessage(result.refreshed
+        ? 'Escudo y color guardados. La asociación quedó registrada en el historial.'
+        : 'La asociación se guardó, pero no se pudo actualizar la pantalla. Tocá Actualizar antes de repetirla.')
     } catch (error) { setMessage(error.message) }
     finally { setBusy(false) }
   }
