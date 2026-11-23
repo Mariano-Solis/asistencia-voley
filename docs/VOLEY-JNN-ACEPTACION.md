@@ -67,6 +67,8 @@ La asociación manual confirmada de una coincidencia Court Track distingue tambi
 
 La suite preparada de dos JWT exige ahora que las ediciones propias devuelvan exactamente el nombre esperado y que el archivo propio descargado desde Storage coincida byte por byte con el PNG subido. `node --check` y las **23/23** pruebas locales pasaron. **No se ejecutó la suite con dos JWT reales**: Club Ficticio B sigue sin código canjeado y sin membresía; filas 17 y 18 pendientes.
 
+La integración local incorporó las políticas de la migración 008 sobre una tabla Storage ficticia y ejercitó rutas de escudos propias/ajenas y el RPC de identidad con dos identidades SQL simuladas. **23/23** tests locales pasaron. Esto detecta regresiones de política SQL, pero la fila 18 requiere aún Storage real y JWT Auth distintos; el 8/20 no cambia.
+
 La siguiente revisión local amplió el profesor simulado, corrigió la selección de una membresía utilizable entre varias y reemplazó el caso irreal de CSV duplicado por tres jugadores distintos. `test:pilot`: **15/15**, `build:pilot`: 83 módulos, `build`: 183 módulos. No cambió la puntuación porque faltan sesiones reales y ensayo de interfaz.
 
 El panel de aislamiento y su limpieza fueron endurecidos para no marcar un error 500 o una eliminación vacía como éxito. `test:pilot`: **16/16**, `build:pilot`: 84 módulos, `build`: 184 módulos. Las filas 17 y 18 siguen pendientes hasta ejecutarlo con dos JWT reales y confirmar el borrado de los datos ficticios.

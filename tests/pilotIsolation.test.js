@@ -26,6 +26,17 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       grant usage on schema auth, public to authenticated, anon;
       grant execute on function auth.uid() to authenticated, anon;
       create schema extensions;
+      create schema storage;
+      create table storage.buckets (
+        id text primary key, name text, public boolean,
+        file_size_limit bigint, allowed_mime_types text[]
+      );
+      create table storage.objects (
+        id uuid primary key default gen_random_uuid(), bucket_id text, name text unique
+      );
+      alter table storage.objects enable row level security;
+      grant usage on schema storage to authenticated;
+      grant select,insert,update,delete on storage.objects to authenticated;
       create function extensions.gen_random_bytes(n integer) returns bytea language sql as $$
         select decode(left(replace(gen_random_uuid()::text,'-','') || replace(gen_random_uuid()::text,'-',''), n*2),'hex')
       $$;
@@ -39,6 +50,7 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
     await db.exec(readFileSync(new URL('../supabase/pilot/003_account_status_and_audit.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/004_owner_institution_creation.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/005_owner_activation_hardening.sql',import.meta.url),'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/pilot/008_universal_identity.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/009_sports_tenant_and_history_guards.sql',import.meta.url),'utf8'))
     await db.exec(readFileSync(new URL('../supabase/pilot/010_sports_history_delete_guards.sql',import.meta.url),'utf8'))
     for (const [id,email] of [
@@ -81,6 +93,21 @@ test('isolated pilot: licensing, single-use activation, permissions, foreign key
       await denied(() => db.query('select public.pilot_redeem_code($1)',[jnnCode]))
     })
     await as(otherAdmin, async () => assert.equal((await row('select public.pilot_redeem_code($1) as id',[otherCode])).id,other))
+    const ownLogo = `${jnn}/11111111-1111-4111-8111-111111111111.webp`
+    const foreignLogo = `${other}/22222222-2222-4222-8222-222222222222.webp`
+    await as(jnnAdmin,async () => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-branding',ownLogo]))
+    await as(otherAdmin,async () => {
+      await db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-branding',foreignLogo])
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[ownLogo]),0)
+      await denied(() => db.query('insert into storage.objects(bucket_id,name) values ($1,$2)',['pilot-branding',`${jnn}/33333333-3333-4333-8333-333333333333.webp`]))
+      await denied(() => db.query("select public.pilot_update_identity($1,'Nombre ajeno','#194b77','#e7eef5','#0c765b','#f1f5fa','#ffffff',$2,'manual')",[jnn,ownLogo]))
+    })
+    await as(jnnAdmin,async () => {
+      assert.equal(await count('select count(*) from storage.objects where name=$1',[foreignLogo]),0)
+      await denied(() => db.query("select public.pilot_update_identity($1,'JNN','#194b77','#e7eef5','#0c765b','#f1f5fa','#ffffff',$2,'manual')",[jnn,foreignLogo]))
+      await db.query("select public.pilot_update_identity($1,'Junín Vóley JNN','#194b77','#e7eef5','#0c765b','#f1f5fa','#ffffff',$2,'manual')",[jnn,ownLogo])
+      assert.equal((await row('select logo_path from public.institutions where id=$1',[jnn])).logo_path,ownLogo)
+    })
     const jnnCat = await as(jnnAdmin,async () => (await row("insert into public.categories(institution_id,name) values ($1,'Sub 16') returning id",[jnn])).id)
     const otherCat = await as(otherAdmin,async () => (await row("insert into public.categories(institution_id,name) values ($1,'Sub 18') returning id",[other])).id)
     const jnnPlayer = await as(jnnAdmin,async () => (await row("insert into public.players(institution_id,category_id,full_name) values ($1,$2,'Jugador ficticio') returning id",[jnn,jnnCat])).id)
