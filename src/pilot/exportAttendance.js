@@ -1,19 +1,21 @@
-export function filteredAttendance({ attendance, sessions, categoryId = '', date = '', playerId = '' }) {
+export function filteredAttendance({ attendance, sessions, categoryId = '', date = '', playerId = '', activity = '' }) {
   const days = new Map(sessions.map(item => [item.id, item]))
   return attendance.filter(mark => {
     const day = days.get(mark.session_id)
-    return day && (!categoryId || day.category_id === categoryId) && (!date || day.session_date === date) && (!playerId || mark.player_id === playerId)
+    return day && (!categoryId || day.category_id === categoryId) && (!date || day.session_date === date)
+      && (!activity || (day.activity_type || 'training') === activity) && (!playerId || mark.player_id === playerId)
   })
 }
 
-export function attendanceCsv({ attendance, sessions, categories, players, categoryId = '', date = '', playerId = '' }) {
+export function attendanceCsv({ attendance, sessions, categories, players, categoryId = '', date = '', playerId = '', activity = '', includeActivity = false }) {
   const statusNames = { present: 'Presente', late: 'Tarde', absent: 'Ausente' }
+  const activityNames = {training:'Entrenamiento',match:'Partido',tournament:'Torneo'}
   const days = new Map(sessions.map(item => [item.id, item]))
   const categoryNames = new Map(categories.map(item => [item.id, item.name]))
   const playerNames = new Map(players.map(item => [item.id, item.full_name]))
-  const rows = [['Fecha','Categoría','Jugador','Estado'],...filteredAttendance({ attendance, sessions, categoryId, date, playerId }).map(mark => {
+  const rows = [[...['Fecha','Categoría'],...(includeActivity ? ['Actividad'] : []),'Jugador','Estado'],...filteredAttendance({ attendance, sessions, categoryId, date, playerId, activity }).map(mark => {
     const day = days.get(mark.session_id)
-    return [day?.session_date,categoryNames.get(day?.category_id),playerNames.get(mark.player_id),statusNames[mark.status] ?? mark.status]
+    return [day?.session_date,categoryNames.get(day?.category_id),...(includeActivity ? [activityNames[day?.activity_type || 'training'] || ''] : []),playerNames.get(mark.player_id),statusNames[mark.status] ?? mark.status]
   })]
   return csvRows(rows)
 }

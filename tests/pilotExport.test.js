@@ -61,3 +61,18 @@ test('history count and CSV contain the same player rows with accented names', (
   assert.match(csv,/"Tarde"/)
   assert.doesNotMatch(csv,/Otro Jugador|"Presente"/)
 })
+
+test('advanced history filters activity and exports its visible Spanish label', () => {
+  const data={
+    sessions:[{id:'a',session_date:'2026-11-23',category_id:'c',activity_type:'training'},
+      {id:'b',session_date:'2026-11-23',category_id:'c',activity_type:'match'}],
+    categories:[{id:'c',name:'Sub 16'}],players:[{id:'p',full_name:'María José'}],
+    attendance:[{session_id:'a',player_id:'p',status:'present'},{session_id:'b',player_id:'p',status:'late'}],
+    activity:'match',includeActivity:true,
+  }
+  assert.equal(filteredAttendance(data).length,1)
+  const csv=attendanceCsv(data)
+  assert.match(csv,/"Fecha";"Categoría";"Actividad";"Jugador";"Estado"/)
+  assert.match(csv,/"Partido";"María José";"Tarde"/)
+  assert.doesNotMatch(csv,/Entrenamiento|Presente/)
+})

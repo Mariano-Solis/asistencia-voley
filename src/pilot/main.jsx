@@ -215,8 +215,8 @@ function Pilot() {
     if (error) throw error
     setMessage(`Asistencia de ${player.full_name}: ${{present:'Presente',late:'Tarde',absent:'Ausente'}[status]}.`)
   }
-  function exportCsv({ categoryId = '', date: filterDate = '', playerId = '' } = {}) {
-    const blob = new Blob([attendanceCsv({ attendance,sessions,categories,players,categoryId,date:filterDate,playerId })],{ type:'text/csv;charset=utf-8' })
+  function exportCsv({ categoryId = '', date: filterDate = '', playerId = '', activity = '' } = {}) {
+    const blob = new Blob([attendanceCsv({ attendance,sessions,categories,players,categoryId,date:filterDate,playerId,activity,includeActivity:advancedAttendanceEnabled })],{ type:'text/csv;charset=utf-8' })
     const anchor = document.createElement('a')
     anchor.href = URL.createObjectURL(blob); anchor.download = attendanceFilename(institution.name,filterDate || 'todas-las-fechas'); anchor.click()
     setTimeout(() => URL.revokeObjectURL(anchor.href),60000)
@@ -255,7 +255,7 @@ function Pilot() {
         ? <IdentityEditor institution={institution} client={client} logoUrl={logoSrc} onSaved={refreshMembership} />
         : <section><h2>Identidad institucional</h2><p>La identidad de {institution.name} la configura el administrador del club.</p></section>) }
       {section === 'seguridad' && membership?.role === 'super_admin' && import.meta.env.VITE_PILOT_BUILD === '1' && location.search.includes('qa=1') && <IsolationProbe client={client} institution={institution} />}
-      {section === 'historial' && <AttendanceHistory attendance={attendance} sessions={sessions} categories={categories} players={players} onExport={exportCsv} /> }
+      {section === 'historial' && <AttendanceHistory attendance={attendance} sessions={sessions} categories={categories} players={players} onExport={exportCsv} advanced={advancedAttendanceEnabled} /> }
       {section === 'asistencia' && (advancedAttendanceEnabled
         ? <AdvancedAttendance client={client} institution={institution} categories={categories} players={players} sessions={sessions} attendance={attendance} onRefresh={refreshData} canAttend={categoryId => membership?.role === 'super_admin' || ownScopes.some(scope => scope.category_id === categoryId && scope.can_attendance)} />
         : <section><h2>Asistencia</h2><label>Categoría<select value={category} onChange={event => setCategory(event.target.value)}><option value="">Elegí una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} required /></label>{category && !canAttendSelected && <p>Podés consultar esta categoría, pero no registrar asistencia.</p>}{category && !currentSession && canAttendSelected && <button disabled={busy || !date} onClick={() => run(() => insert('training_sessions',{ institution_id: institution.id, category_id: category, session_date: date }))}>Crear jornada</button>}{currentSession && <ul>{listedPlayers.map(p => <li key={p.id}><strong>{p.full_name}</strong><div>{[['present','Presente'],['late','Tarde'],['absent','Ausente']].map(([value,label]) => <button key={value} aria-pressed={markFor(p) === value} disabled={busy || !canAttendSelected} onClick={() => run(() => setMark(p,value), { refresh:'attendance' })}>{label}</button>)}</div></li>)}</ul>}</section>)}

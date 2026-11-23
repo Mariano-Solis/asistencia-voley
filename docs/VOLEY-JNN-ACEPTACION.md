@@ -139,4 +139,4 @@ El proyecto Supabase comercial está accesible y ACTIVE_HEALTHY. Se respaldaron 
 
 # C17 · Corte de aceptación, 23/11/2026
 
-La preparación de asistencia avanzada no cambia los 20 criterios originales: **8/20 (40 %) aprobados**, sin incrementar ningún requisito. La migración 016 no se aplicó (confirmación caducada y ausencia verificada de columnas/copia). La bandera `VITE_PILOT_ADVANCED_ATTENDANCE` está apagada y se requieren JWT/PostgREST reales y navegación antes de habilitarla. Véase `VOLEY-COMERCIAL-PARIDAD-FUNCIONAL.md` para la evidencia PGlite simulada y diferencias restantes.
+La preparación de asistencia avanzada no cambia los 20 criterios originales: **8/20 (40 %) aprobados**, sin incrementar ningún requisito. La migración 016 no se aplicó (confirmación caducada y ausencia verificada de columnas/copia). La bandera `VITE_PILOT_ADVANCED_ATTENDANCE` está apagada y se requieren JWT/PostgREST reales y navegación auténtica antes de habilitarla. Chromium CI `45230732692` pasó con backend simulado; no sustituye esas pruebas. Véase `VOLEY-COMERCIAL-PARIDAD-FUNCIONAL.md` para la evidencia PGlite simulada y diferencias restantes.
